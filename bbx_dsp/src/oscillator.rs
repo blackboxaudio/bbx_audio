@@ -2,15 +2,20 @@ use std::time::Duration;
 
 use rodio::Source;
 
+use crate::block::Block;
+use crate::sample::{Sample};
+
+type Wavetable = Vec<Sample<f32>>;
+
 pub struct Oscillator {
     sample_rate: usize,
-    wave_table: Vec<f32>,
+    wave_table: Wavetable,
     index: f32,
     index_increment: f32,
 }
 
 impl Oscillator {
-    pub fn new(sample_rate: usize, wave_table: Vec<f32>) -> Oscillator {
+    pub fn new(sample_rate: usize, wave_table: Wavetable) -> Oscillator {
         return Oscillator {
             sample_rate,
             wave_table,
@@ -28,10 +33,7 @@ impl Oscillator {
 
 impl Oscillator {
     fn get_sample(&mut self) -> f32 {
-        let sample = self.lerp();
-        self.index += self.index_increment;
-        self.index %= self.wave_table.len() as f32;
-        sample
+        Self::process(self, None)
     }
 
     fn lerp(&self) -> f32 {
@@ -40,6 +42,15 @@ impl Oscillator {
         let next_index_weight = self.index - truncated_index as f32;
         let truncated_index_weight = 1.0 - next_index_weight;
         (self.wave_table[truncated_index] * truncated_index_weight) + (self.wave_table[next_index] * next_index_weight)
+    }
+}
+
+impl Block<f32> for Oscillator {
+    fn process(&mut self, _sample: Option<Sample<f32>>) -> Sample<f32> {
+        let sample = self.lerp();
+        self.index += self.index_increment;
+        self.index %= self.wave_table.len() as f32;
+        sample as Sample<f32>
     }
 }
 
