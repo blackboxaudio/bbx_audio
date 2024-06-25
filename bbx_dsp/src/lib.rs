@@ -1,3 +1,2 @@
-pub mod block;
-pub mod oscillator;
 pub mod sample;
+pub mod graph;
