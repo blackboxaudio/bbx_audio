@@ -1,4 +1,5 @@
 use std::time::Duration;
+
 use rodio::Source;
 
 pub struct Oscillator {
@@ -15,7 +16,7 @@ impl Oscillator {
             wave_table,
             index: 0.0,
             index_increment: 0.0,
-        }
+        };
     }
 }
 

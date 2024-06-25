@@ -1,6 +1,5 @@
+use bbx_dsp::oscillator::Oscillator;
 use rodio::{OutputStream, Source};
-
-use bbx_dsp::oscillator::{Oscillator};
 
 const SAMPLE_RATE: usize = 44100;
 const OSC_FREQUENCY: f32 = 110.0;
