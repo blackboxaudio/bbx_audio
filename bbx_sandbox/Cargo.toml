@@ -1,0 +1,10 @@
+[package]
+name = "bbx_sandbox"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.bbx_dsp]
+path = "../bbx_dsp"
+
+[dependencies]
+rodio = "0.18.1"

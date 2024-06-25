@@ -1,3 +1,3 @@
-# template
+# `bbx_audio`
 
-This is a generic template repository to be used for any future project.
+A collection of Rust-based DSP crates.
