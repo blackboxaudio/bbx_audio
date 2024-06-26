@@ -1,5 +1,6 @@
 use crate::{process::Process, sample::Sample};
 
+/// A type of DSP `Block` that produces an output signal by modifying an input signal.
 pub struct Effector;
 
 impl Effector {

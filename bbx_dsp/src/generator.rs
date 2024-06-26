@@ -3,6 +3,8 @@ use crate::{process::Process, sample::Sample};
 const WAVE_TABLE_SIZE: usize = 128;
 
 pub type Wavetable = Vec<Sample<f32>>;
+
+/// A type of DSP `Block` that internally produces its own output signal.
 pub struct Generator {
     sample_rate: usize,
     wave_table: Vec<Sample<f32>>,

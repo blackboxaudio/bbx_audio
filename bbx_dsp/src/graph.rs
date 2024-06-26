@@ -1,5 +1,6 @@
 use crate::{block::Block, process::Process, sample::Sample};
 
+/// A collection of interconnected `Block` objects.
 pub struct Graph {
     sample_rate: usize,
     blocks: Vec<Block>,
