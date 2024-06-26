@@ -1,26 +1,27 @@
 use std::time::Duration;
 
-use rand::Rng;
 use rodio::Source;
 
+use bbx_dsp::graph::Graph;
 use bbx_dsp::sample::Sample;
 
 pub struct Signal {
     sample_rate: usize,
+    graph: Graph,
 }
 
 impl Signal {
-    pub fn new (sample_rate: usize) -> Signal {
+    pub fn new (sample_rate: usize, graph: Graph) -> Signal {
         return Signal {
             sample_rate,
+            graph,
         }
     }
 }
 
 impl Signal {
     fn process(&self) -> Sample<f32> {
-        let mut rng = rand::thread_rng();
-        return rng.gen::<f32>();
+        return self.graph.evaluate();
     }
 }
 

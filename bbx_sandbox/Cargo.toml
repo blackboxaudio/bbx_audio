@@ -7,5 +7,4 @@ edition = "2021"
 path = "../bbx_dsp"
 
 [dependencies]
-rand = "0.8.5"
 rodio = "0.18.1"
