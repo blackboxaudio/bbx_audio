@@ -4,7 +4,7 @@ use bbx_sandbox::{constants::SAMPLE_RATE, player::Player, signal::Signal};
 pub fn create_graph() -> Graph {
     let mut graph = Graph::new(SAMPLE_RATE);
 
-    let oscillator = Block::new(Generator::new(SAMPLE_RATE, Some(110.0)));
+    let oscillator = Block::new(Generator::new(SAMPLE_RATE, Some(110.0)).to_operation());
     graph.add_block(oscillator);
 
     return graph;

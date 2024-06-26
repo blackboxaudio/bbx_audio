@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use crate::{process::Process, sample::Sample};
+use crate::block::Operation;
 
 /// A type of DSP `Block` that produces an output signal by modifying an input signal.
 pub struct Effector;
@@ -8,6 +9,10 @@ pub struct Effector;
 impl Effector {
     pub fn new() -> Effector {
         return Effector {};
+    }
+
+    pub fn to_operation(self) -> Operation {
+        return Box::new(self);
     }
 }
 

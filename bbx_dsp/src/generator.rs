@@ -16,7 +16,7 @@ pub struct Generator {
 }
 
 impl Generator {
-    pub fn new(sample_rate: usize, frequency: Option<f32>) -> Operation {
+    pub fn new(sample_rate: usize, frequency: Option<f32>) -> Generator {
         let wave_table = Self::create_wave_table(WAVE_TABLE_SIZE);
         let initial_frequency = if let Some(freq) = frequency {
             freq
@@ -24,12 +24,16 @@ impl Generator {
             DEFAULT_GENERATOR_FREQUENCY
         };
         let phase_increment = Self::calculate_phase_increment(sample_rate, initial_frequency, wave_table.len());
-        return Box::new(Generator {
+        return Generator {
             sample_rate,
             wave_table,
             phase: 0.0,
             phase_increment,
-        });
+        };
+    }
+
+    pub fn to_operation(self) -> Operation {
+        return Box::new(self);
     }
 
     fn create_wave_table(wave_table_size: usize) -> Wavetable {
