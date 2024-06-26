@@ -37,7 +37,7 @@ impl Graph {
             visited.push(block.id);
             for &block_id in &block.outputs {
                 if visited.contains(&block_id) {
-                    continue
+                    continue;
                 } else {
                     let block_option = blocks.iter().find(|&block| block.id == block_id);
                     if let Some(block) = block_option {
@@ -50,7 +50,7 @@ impl Graph {
 
         for block in &self.blocks {
             if visited.contains(&block.id) {
-                continue
+                continue;
             } else {
                 dfs(block, &mut stack, &mut visited, &self.blocks);
             }
