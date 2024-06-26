@@ -20,7 +20,7 @@ impl Signal {
 }
 
 impl Signal {
-    fn process(&self) -> Sample<f32> {
+    fn process(&mut self) -> Sample<f32> {
         return self.graph.evaluate();
     }
 }
