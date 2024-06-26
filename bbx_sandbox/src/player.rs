@@ -7,16 +7,16 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(signal: Signal,) -> Player {
-        return Player { signal, };
+    pub fn new(signal: Signal) -> Player {
+        return Player { signal };
     }
 }
 
 impl Player {
-    pub fn play(self,) {
-        let (_stream, stream_handle,) = OutputStream::try_default().unwrap();
-        let _result = stream_handle.play_raw(self.signal.convert_samples(),);
+    pub fn play(self) {
+        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let _result = stream_handle.play_raw(self.signal.convert_samples());
 
-        std::thread::sleep(std::time::Duration::from_secs(PLAYTIME_DURATION,),);
+        std::thread::sleep(std::time::Duration::from_secs(PLAYTIME_DURATION));
     }
 }

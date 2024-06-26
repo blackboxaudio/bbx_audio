@@ -10,14 +10,14 @@ impl Effector {
 }
 
 impl Process for Effector {
-    fn process(&mut self, sample: Option<Sample,>,) -> Sample {
-        return if let Some(sample_result,) = sample {
+    fn process(&mut self, sample: Option<Sample>) -> Sample {
+        return if let Some(sample_result) = sample {
             if sample_result > 1.0 {
                 1.0
             } else if sample_result < -1.0 {
                 -1.0
             } else {
-                sample_result - (sample_result.powi(3,) / 3.0)
+                sample_result - (sample_result.powi(3) / 3.0)
             }
         } else {
             0.0

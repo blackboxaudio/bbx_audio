@@ -8,6 +8,6 @@ max_width = 120
 normalize_comments = true
 normalize_doc_attributes = true
 reorder_imports = true
-trailing_comma = "Always"
+trailing_comma = "Vertical"
 trailing_semicolon = true
 wrap_comments = true
