@@ -2,12 +2,12 @@ use crate::{process::Process, sample::Sample};
 
 const WAVE_TABLE_SIZE: usize = 128;
 
-pub type Wavetable = Vec<Sample<f32>>;
+pub type Wavetable = Vec<Sample>;
 
 /// A type of DSP `Block` that internally produces its own output signal.
 pub struct Generator {
     sample_rate: usize,
-    wave_table: Vec<Sample<f32>>,
+    wave_table: Vec<Sample>,
     phase: f32,
     phase_increment: f32,
 }
@@ -39,7 +39,7 @@ impl Generator {
 }
 
 impl Generator {
-    fn lerp(&self) -> f32 {
+    fn lerp(&self) -> Sample {
         let truncated_index = self.phase as usize;
         let next_index = (truncated_index + 1) % self.wave_table.len();
         let next_index_weight = self.phase - truncated_index as f32;
@@ -49,11 +49,11 @@ impl Generator {
     }
 }
 
-impl Process<Sample<f32>> for Generator {
-    fn process(&mut self, _sample: Option<Sample<f32>>) -> Sample<f32> {
+impl Process for Generator {
+    fn process(&mut self, _sample: Option<Sample>) -> Sample {
         let sample = self.lerp();
         self.phase += self.phase_increment;
         self.phase %= self.wave_table.len() as f32;
-        sample as Sample<f32>
+        return sample
     }
 }

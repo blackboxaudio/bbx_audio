@@ -15,13 +15,13 @@ impl Signal {
 }
 
 impl Signal {
-    fn process(&mut self) -> Sample<f32> {
+    fn process(&mut self) -> Sample {
         return self.graph.evaluate();
     }
 }
 
 impl Iterator for Signal {
-    type Item = Sample<f32>;
+    type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
         return Some(self.process());

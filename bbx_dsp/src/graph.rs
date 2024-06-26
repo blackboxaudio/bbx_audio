@@ -24,7 +24,7 @@ impl Graph {
 }
 
 impl Graph {
-    pub fn evaluate(&mut self) -> Sample<f32> {
+    pub fn evaluate(&mut self) -> Sample {
         let mut sample = 0.0;
         for block in self.blocks.iter_mut() {
             match block {

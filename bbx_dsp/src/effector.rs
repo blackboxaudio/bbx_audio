@@ -9,8 +9,8 @@ impl Effector {
     }
 }
 
-impl Process<Sample<f32>> for Effector {
-    fn process(&mut self, sample: Option<Sample<f32>>) -> Sample<f32> {
+impl Process for Effector {
+    fn process(&mut self, sample: Option<Sample>) -> Sample {
         return if let Some(sample_result) = sample {
             if sample_result > 1.0 {
                 1.0
