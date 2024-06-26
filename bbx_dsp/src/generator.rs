@@ -1,6 +1,9 @@
-use crate::{process::Process, sample::Sample};
+use std::fmt::{Display, Formatter};
+
+use crate::{block::Operation, process::Process, sample::Sample};
 
 const WAVE_TABLE_SIZE: usize = 128;
+const DEFAULT_GENERATOR_FREQUENCY: f32 = 110.0;
 
 pub type Wavetable = Vec<Sample>;
 
@@ -13,13 +16,20 @@ pub struct Generator {
 }
 
 impl Generator {
-    pub fn new(sample_rate: usize) -> Generator {
-        return Generator {
-            sample_rate,
-            wave_table: Self::create_wave_table(WAVE_TABLE_SIZE),
-            phase: 0.0,
-            phase_increment: 0.0,
+    pub fn new(sample_rate: usize, frequency: Option<f32>) -> Operation {
+        let wave_table = Self::create_wave_table(WAVE_TABLE_SIZE);
+        let initial_frequency = if let Some(freq) = frequency {
+            freq
+        } else {
+            DEFAULT_GENERATOR_FREQUENCY
         };
+        let phase_increment = Self::calculate_phase_increment(sample_rate, initial_frequency, wave_table.len());
+        return Box::new(Generator {
+            sample_rate,
+            wave_table,
+            phase: 0.0,
+            phase_increment,
+        });
     }
 
     fn create_wave_table(wave_table_size: usize) -> Wavetable {
@@ -30,11 +40,15 @@ impl Generator {
         }
         return wave_table;
     }
+
+    fn calculate_phase_increment(sample_rate: usize, frequency: f32, wave_table_length: usize) -> f32 {
+        return frequency * wave_table_length as f32 / sample_rate as f32;
+    }
 }
 
 impl Generator {
     pub fn set_frequency(&mut self, frequency: f32) {
-        self.phase_increment = frequency * self.wave_table.len() as f32 / self.sample_rate as f32;
+        self.phase_increment = Self::calculate_phase_increment(self.sample_rate, frequency, self.wave_table.len());
     }
 }
 
@@ -46,6 +60,12 @@ impl Generator {
         let truncated_index_weight = 1.0 - next_index_weight;
         return (self.wave_table[truncated_index] * truncated_index_weight)
             + (self.wave_table[next_index] * next_index_weight);
+    }
+}
+
+impl Display for Generator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Generator")
     }
 }
 
