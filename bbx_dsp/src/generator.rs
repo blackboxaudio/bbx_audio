@@ -1,7 +1,6 @@
-use crate::process::Process;
-use crate::sample::Sample;
+use crate::{process::Process, sample::Sample};
 
-const WAVE_TABLE_SIZE: usize = 64;
+const WAVE_TABLE_SIZE: usize = 128;
 
 pub type Wavetable = Vec<Sample<f32>>;
 pub struct Generator {
@@ -43,12 +42,13 @@ impl Generator {
         let next_index = (truncated_index + 1) % self.wave_table.len();
         let next_index_weight = self.phase - truncated_index as f32;
         let truncated_index_weight = 1.0 - next_index_weight;
-        return (self.wave_table[truncated_index] * truncated_index_weight) + (self.wave_table[next_index] * next_index_weight);
+        return (self.wave_table[truncated_index] * truncated_index_weight)
+            + (self.wave_table[next_index] * next_index_weight);
     }
 }
 
 impl Process<Sample<f32>> for Generator {
-    fn process(&mut self) -> Sample<f32> {
+    fn process(&mut self, _sample: Option<Sample<f32>>) -> Sample<f32> {
         let sample = self.lerp();
         self.phase += self.phase_increment;
         self.phase %= self.wave_table.len() as f32;

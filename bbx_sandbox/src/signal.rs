@@ -1,9 +1,7 @@
 use std::time::Duration;
 
+use bbx_dsp::{graph::Graph, sample::Sample};
 use rodio::Source;
-
-use bbx_dsp::graph::Graph;
-use bbx_dsp::sample::Sample;
 
 pub struct Signal {
     sample_rate: usize,
@@ -11,11 +9,8 @@ pub struct Signal {
 }
 
 impl Signal {
-    pub fn new (sample_rate: usize, graph: Graph) -> Signal {
-        return Signal {
-            sample_rate,
-            graph,
-        }
+    pub fn new(sample_rate: usize, graph: Graph) -> Signal {
+        return Signal { sample_rate, graph };
     }
 }
 

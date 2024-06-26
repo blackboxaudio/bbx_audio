@@ -1,6 +1,4 @@
-use crate::block::Block;
-use crate::process::Process;
-use crate::sample::Sample;
+use crate::{block::Block, process::Process, sample::Sample};
 
 pub struct Graph {
     sample_rate: usize,
@@ -12,7 +10,7 @@ impl Graph {
         return Graph {
             sample_rate,
             blocks: vec![],
-        }
+        };
     }
 
     pub fn sample_rate(&self) -> usize {
@@ -29,9 +27,12 @@ impl Graph {
         let mut sample = 0.0;
         for block in self.blocks.iter_mut() {
             match block {
+                Block::Effector(effector) => {
+                    sample = effector.process(Some(sample));
+                }
                 Block::Generator(generator) => {
-                    sample = generator.process();
-                },
+                    sample = generator.process(None);
+                }
             }
         }
         return sample;

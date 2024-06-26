@@ -1,6 +1,6 @@
-use crate::generator::Generator;
+use crate::{effector::Effector, generator::Generator};
 
 pub enum Block {
-    // Effect,
+    Effector(Effector),
     Generator(Generator),
 }
