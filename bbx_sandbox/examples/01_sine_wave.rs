@@ -7,6 +7,8 @@ pub fn create_graph() -> Graph {
     let oscillator = Block::new(Generator::new(SAMPLE_RATE, Some(110.0)).to_operation());
     graph.add_block(oscillator);
 
+    graph.prepare_for_playback();
+
     return graph;
 }
 

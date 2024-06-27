@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
-use crate::{block::Block, sample::Sample};
+use crate::{block::{Block}, sample::Sample};
+use crate::error::{BbxAudioError};
 
 /// A collection of interconnected `Block` objects.
 pub struct Graph {
     sample_rate: usize,
     blocks: HashMap<usize, Block>,
+    connections: Vec<(usize, usize)>,
     processes: HashMap<usize, Sample>,
     processing_order: Vec<usize>,
 }
@@ -15,6 +17,7 @@ impl Graph {
         return Graph {
             sample_rate,
             blocks: HashMap::new(),
+            connections: Vec::new(),
             processes: HashMap::new(),
             processing_order: Vec::new(),
         };
@@ -30,12 +33,22 @@ impl Graph {
         let block_id = block.id;
         self.blocks.insert(block_id, block);
         self.processes.insert(block_id, 0.0);
-        self.update_processing_order();
     }
 
-    pub fn create_connection(&self, source: &mut Block, destination: &mut Block) {
-        source.add_output(destination.id);
-        destination.add_input(source.id);
+    pub fn create_connection(&mut self, source: &mut Block, destination: &mut Block) {
+        if source.outputs.contains(&destination.id) || destination.inputs.contains(&source.id) {
+            panic!("{:?}", BbxAudioError::ConnectionAlreadyCreated);
+        } else {
+            source.add_output(destination.id);
+            destination.add_input(source.id);
+            self.connections.push((source.id, destination.id));
+        }
+    }
+
+    pub fn prepare_for_playback(&mut self) {
+        self.update_processing_order();
+        self.validate_acyclicity();
+        self.validate_connections();
     }
 }
 
@@ -68,21 +81,56 @@ impl Graph {
         }
 
         if stack.len() == self.blocks.len() {
+            stack.reverse();
             self.processing_order = stack.clone();
-            self.processing_order.reverse();
         } else {
-            // TODO: Error
-            println!("BAD\n{:#?}", stack);
+            panic!("{:?}", BbxAudioError::CannotUpdateGraphProcessingOrder);
+        }
+    }
+
+    fn validate_acyclicity(&self) {
+        fn dfs(original_block_id: usize, block: &Block, visited: &mut Vec<usize>, blocks: &HashMap<usize, Block>) {
+            visited.push(block.id);
+            for &block_id in &block.outputs {
+                if visited.contains(&block_id) {
+                    if block_id == original_block_id {
+                        panic!("{:?}", BbxAudioError::GraphContainsCycle(format!("{}", block_id)))
+                    }
+                    continue;
+                } else {
+                    let block_option = blocks.get(&block_id);
+                    if let Some(block) = block_option {
+                        dfs(original_block_id, block, visited, blocks);
+                    }
+                }
+            }
+        }
+
+        for (_, block) in &self.blocks {
+            let mut visited: Vec<usize> = Vec::with_capacity(self.blocks.len());
+            dfs(block.id, block, &mut visited, &self.blocks);
+        }
+    }
+
+    fn validate_connections(&self) {
+        println!("{:?}", &self.processing_order);
+        for (source_id, destination_id) in &self.connections {
+            if self.blocks.contains_key(source_id) && self.blocks.contains_key(destination_id) {
+                continue;
+            } else {
+                panic!("{:?}", BbxAudioError::ConnectionHasNoBlock);
+            }
         }
     }
 }
 
 impl Graph {
+    #[allow(unused_assignments)]
     pub fn evaluate(&mut self) -> Sample {
         for &block_id in &self.processing_order {
-            let mut output_value: Sample = 0.0;
             let block_option = self.blocks.get_mut(&block_id);
             if let Some(block) = block_option {
+                let mut output_value: Sample = 0.0;
                 let num_inputs = block.inputs.len();
                 if num_inputs > 0 {
                     let mut input_value: Sample = 0.0;
@@ -96,13 +144,16 @@ impl Graph {
                     input_value /= num_inputs as f32;
                     output_value = block.operation.process(Some(input_value));
                 } else {
-                    // Error - if effector then it must have inputs
-                    output_value = block.operation.process(None);
+                    if false {
+                        panic!("{:?}", BbxAudioError::BlockHasNoInputs(format!("{}", block.id)));
+                    } else {
+                        output_value = block.operation.process(None);
+                    }
                 }
+                self.processes.insert(block_id, output_value);
             } else {
-                // Error - cannot retrieve current block
+                panic!("{:?}", BbxAudioError::CannotRetrieveCurrentBlock(format!("{}", block_id)));
             }
-            self.processes.insert(block_id, output_value);
         }
 
         let last_process_option = self.processes.get(self.processing_order.last().unwrap());
