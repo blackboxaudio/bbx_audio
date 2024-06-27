@@ -170,18 +170,15 @@ impl Graph {
                 let mut output_value: Sample = 0.0;
                 let num_inputs = block.inputs.len();
                 if num_inputs > 0 {
-                    let mut input_value: Sample = 0.0;
+                    let mut inputs: Vec<Sample> = Vec::new();
                     for input in &block.inputs {
                         if let Some(&single_input_value) = self.processes.get(input) {
-                            input_value += single_input_value;
-                        } else {
-                            input_value += 0.0;
+                            inputs.push(single_input_value);
                         }
                     }
-                    input_value /= num_inputs as f32;
-                    output_value = block.operation.process(Some(input_value));
+                    output_value = block.operation.process(&inputs);
                 } else {
-                    output_value = block.operation.process(None);
+                    output_value = block.operation.process(&Vec::new());
                 }
                 self.processes.insert(block_id, output_value);
             } else {

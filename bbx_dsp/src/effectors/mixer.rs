@@ -12,9 +12,9 @@ impl Display for MixerEffector {
 
 impl Process for MixerEffector {
     #[inline]
-    fn process(&mut self, sample: Option<Sample>) -> Sample {
-        return if let Some(sample_value) = sample {
-            sample_value
+    fn process(&mut self, inputs: &Vec<Sample>) -> Sample {
+        return if inputs.len() > 0 {
+            inputs.iter().sum::<Sample>() / inputs.len() as Sample
         } else {
             0.0
         };
