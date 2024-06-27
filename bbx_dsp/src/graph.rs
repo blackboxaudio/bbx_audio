@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use crate::{block::Block, error::BbxAudioError, sample::Sample};
+use crate::{
+    block::{Block, OperationType},
+    error::BbxAudioError,
+    sample::Sample,
+};
 
 /// A collection of interconnected `Block` objects.
 pub struct Graph {
@@ -29,9 +33,19 @@ impl Graph {
 
 impl Graph {
     pub fn add_block(&mut self, block: Block) {
+        self.validate_block(&block);
+
         let block_id = block.id;
         self.blocks.insert(block_id, block);
         self.processes.insert(block_id, 0.0);
+    }
+
+    fn validate_block(&self, block: &Block) {
+        if block.operation_type == OperationType::Effector && block.inputs.len() == 0 {
+            panic!("{:?}", BbxAudioError::BlockHasNoInputs(format!("{}", block.id)));
+        } else if block.operation_type == OperationType::Generator && block.outputs.len() == 0 {
+            panic!("{:?}", BbxAudioError::BlockHasNoOutputs(format!("{}", block.id)));
+        }
     }
 
     pub fn create_connection(&mut self, source: &mut Block, destination: &mut Block) {
@@ -112,7 +126,6 @@ impl Graph {
     }
 
     fn validate_connections(&self) {
-        println!("{:?}", &self.processing_order);
         for (source_id, destination_id) in &self.connections {
             if self.blocks.contains_key(source_id) && self.blocks.contains_key(destination_id) {
                 continue;
