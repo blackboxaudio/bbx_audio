@@ -39,9 +39,10 @@ impl Graph {
     fn validate_block(&self, block: &Block) {
         if block.operation_type == OperationType::Effector && block.inputs.len() == 0 {
             panic!("{:?}", BbxAudioError::BlockHasNoInputs(format!("{}", block.id)));
-        } else if block.operation_type == OperationType::Generator && block.outputs.len() == 0 {
-            panic!("{:?}", BbxAudioError::BlockHasNoOutputs(format!("{}", block.id)));
         }
+        // } else if block.operation_type == OperationType::Generator && block.outputs.len() == 0 {
+        //     panic!("{:?}", BbxAudioError::BlockHasNoOutputs(format!("{}", block.id)));
+        // }
     }
 
     pub fn create_connection(&mut self, source: &mut Block, destination: &mut Block) {
