@@ -30,15 +30,12 @@ impl Graph {
         let block_id = block.id;
         self.blocks.insert(block_id, block);
         self.processes.insert(block_id, 0.0);
+        self.update_processing_order();
     }
 
     pub fn create_connection(&self, source: &mut Block, destination: &mut Block) {
         source.add_output(destination.id);
         destination.add_input(source.id);
-    }
-
-    pub fn prepare_for_playback(&mut self) {
-        self.update_processing_order();
     }
 }
 
@@ -99,6 +96,7 @@ impl Graph {
                     input_value /= num_inputs as f32;
                     output_value = block.operation.process(Some(input_value));
                 } else {
+                    // Error - if effector then it must have inputs
                     output_value = block.operation.process(None);
                 }
             } else {
