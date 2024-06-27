@@ -22,6 +22,7 @@ impl Display for Effector {
 }
 
 impl Process for Effector {
+    #[inline]
     fn process(&mut self, sample: Option<Sample>) -> Sample {
         return if let Some(sample_result) = sample {
             if sample_result > 1.0 {

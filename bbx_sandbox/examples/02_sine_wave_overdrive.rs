@@ -1,16 +1,12 @@
-use bbx_dsp::{block::Block, effector::Effector, generator::Generator, graph::Graph};
+use bbx_dsp::{effector::Effector, generator::Generator, graph::Graph};
 use bbx_sandbox::{constants::SAMPLE_RATE, player::Player, signal::Signal};
 
 pub fn create_graph() -> Graph {
     let mut graph = Graph::new(SAMPLE_RATE);
 
-    let mut oscillator = Block::from_generator(Generator::new(SAMPLE_RATE, Some(110.0)));
-    let mut overdrive = Block::from_effector(Effector::new());
-
-    graph.create_connection(&mut oscillator, &mut overdrive);
-
-    graph.add_block(oscillator);
-    graph.add_block(overdrive);
+    let oscillator = graph.add_generator(Generator::new(SAMPLE_RATE, Some(110.0)));
+    let overdrive = graph.add_effector(Effector::new());
+    graph.create_connection(oscillator, overdrive);
 
     graph.prepare_for_playback();
 

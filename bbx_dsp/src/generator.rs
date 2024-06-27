@@ -74,6 +74,7 @@ impl Display for Generator {
 }
 
 impl Process for Generator {
+    #[inline]
     fn process(&mut self, _sample: Option<Sample>) -> Sample {
         let sample = self.lerp();
         self.phase += self.phase_increment;

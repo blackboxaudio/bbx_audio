@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{block::Block, error::BbxAudioError, operation::OperationType, sample::Sample};
+use crate::{
+    block::Block, effector::Effector, error::BbxAudioError, generator::Generator, operation::OperationType,
+    sample::Sample,
+};
 
 /// A collection of interconnected `Block` objects.
 pub struct Graph {
@@ -28,30 +31,49 @@ impl Graph {
 }
 
 impl Graph {
-    pub fn add_block(&mut self, block: Block) {
-        self.validate_block(&block);
+    pub fn add_effector(&mut self, effector: Effector) -> usize {
+        let effector_block = Block::from_effector(effector);
+        return self.add_block(effector_block, BbxAudioError::CannotAddEffectorBlock);
+    }
 
+    pub fn add_generator(&mut self, generator: Generator) -> usize {
+        let generator_block = Block::from_generator(generator);
+        return self.add_block(generator_block, BbxAudioError::CannotAddGeneratorBlock);
+    }
+
+    fn add_block(&mut self, block: Block, error: BbxAudioError) -> usize {
         let block_id = block.id;
         self.blocks.insert(block_id, block);
         self.processes.insert(block_id, 0.0);
+
+        return if let Some(block) = self.blocks.get(&block_id) {
+            block.id
+        } else {
+            panic!("{:?}", error);
+        };
     }
 
-    fn validate_block(&self, block: &Block) {
-        if block.operation_type == OperationType::Effector && block.inputs.len() == 0 {
-            panic!("{:?}", BbxAudioError::BlockHasNoInputs(format!("{}", block.id)));
-        }
-        // } else if block.operation_type == OperationType::Generator && block.outputs.len() == 0 {
-        //     panic!("{:?}", BbxAudioError::BlockHasNoOutputs(format!("{}", block.id)));
-        // }
-    }
-
-    pub fn create_connection(&mut self, source: &mut Block, destination: &mut Block) {
-        if source.outputs.contains(&destination.id) || destination.inputs.contains(&source.id) {
+    pub fn create_connection(&mut self, source_id: usize, destination_id: usize) {
+        if self.connections.contains(&(source_id, destination_id)) {
             panic!("{:?}", BbxAudioError::ConnectionAlreadyCreated);
         } else {
-            source.add_output(destination.id);
-            destination.add_input(source.id);
-            self.connections.push((source.id, destination.id));
+            if let Some(source) = self.blocks.get_mut(&source_id) {
+                source.add_output(destination_id);
+            } else {
+                panic!(
+                    "{:?}",
+                    BbxAudioError::CannotRetrieveSourceBlock(format!("{}", source_id))
+                );
+            }
+            if let Some(destination) = self.blocks.get_mut(&destination_id) {
+                destination.add_input(source_id);
+            } else {
+                panic!(
+                    "{:?}",
+                    BbxAudioError::CannotRetrieveDestinationBlock(format!("{}", destination_id))
+                );
+            }
+            self.connections.push((source_id, destination_id));
         }
     }
 
@@ -130,11 +152,17 @@ impl Graph {
                 panic!("{:?}", BbxAudioError::ConnectionHasNoBlock);
             }
         }
+        for (block_id, block) in self.blocks.iter() {
+            if block.operation_type == OperationType::Effector && block.inputs.len() == 0 {
+                panic!("{:?}", BbxAudioError::BlockHasNoInputs(format!("{}", block_id)));
+            }
+        }
     }
 }
 
 impl Graph {
     #[allow(unused_assignments)]
+    #[inline]
     pub fn evaluate(&mut self) -> Sample {
         for &block_id in &self.processing_order {
             let block_option = self.blocks.get_mut(&block_id);
@@ -153,11 +181,7 @@ impl Graph {
                     input_value /= num_inputs as f32;
                     output_value = block.operation.process(Some(input_value));
                 } else {
-                    if false {
-                        panic!("{:?}", BbxAudioError::BlockHasNoInputs(format!("{}", block.id)));
-                    } else {
-                        output_value = block.operation.process(None);
-                    }
+                    output_value = block.operation.process(None);
                 }
                 self.processes.insert(block_id, output_value);
             } else {

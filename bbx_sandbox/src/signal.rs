@@ -15,6 +15,7 @@ impl Signal {
 }
 
 impl Signal {
+    #[inline]
     fn process(&mut self) -> Sample {
         return self.graph.evaluate();
     }

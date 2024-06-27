@@ -8,8 +8,20 @@ pub enum BbxAudioError {
     #[error("block (`{0}`) has no outputs")]
     BlockHasNoOutputs(String),
 
+    #[error("cannot add effector block to graph")]
+    CannotAddEffectorBlock,
+
+    #[error("cannot add generator block to graph")]
+    CannotAddGeneratorBlock,
+
     #[error("cannot retrieve the current block (`{0}`)")]
     CannotRetrieveCurrentBlock(String),
+
+    #[error("cannot retrieve the destination block (`{0}`)")]
+    CannotRetrieveDestinationBlock(String),
+
+    #[error("cannot retrieve the source block (`{0}`)")]
+    CannotRetrieveSourceBlock(String),
 
     #[error("cannot update the graph's processing order")]
     CannotUpdateGraphProcessingOrder,
