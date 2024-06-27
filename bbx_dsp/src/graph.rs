@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
-    block::{Block, OperationType},
-    error::BbxAudioError,
-    sample::Sample,
-};
+use crate::{block::Block, error::BbxAudioError, operation::OperationType, sample::Sample};
 
 /// A collection of interconnected `Block` objects.
 pub struct Graph {

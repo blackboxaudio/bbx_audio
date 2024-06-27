@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use crate::{block::Operation, process::Process, sample::Sample};
+use crate::{operation::Operation, process::Process, sample::Sample};
 
 /// A type of DSP `Block` that produces an output signal by modifying an input signal.
 pub struct Effector;

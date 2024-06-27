@@ -2,15 +2,11 @@ use std::fmt::{Display, Formatter};
 
 use rand::Rng;
 
-use crate::{effector::Effector, generator::Generator, process::Process};
-
-pub type Operation = Box<dyn Process + Send>;
-
-#[derive(PartialEq)]
-pub enum OperationType {
-    Effector,
-    Generator,
-}
+use crate::{
+    effector::Effector,
+    generator::Generator,
+    operation::{Operation, OperationType},
+};
 
 /// The representation of a DSP operation within a `Graph`.
 pub struct Block {

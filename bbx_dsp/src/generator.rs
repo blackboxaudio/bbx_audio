@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use crate::{block::Operation, process::Process, sample::Sample};
+use crate::{operation::Operation, process::Process, sample::Sample};
 
 const WAVE_TABLE_SIZE: usize = 128;
 const DEFAULT_GENERATOR_FREQUENCY: f32 = 110.0;
