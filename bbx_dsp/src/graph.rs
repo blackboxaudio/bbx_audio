@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{block::{Block}, sample::Sample};
-use crate::error::{BbxAudioError};
+use crate::{block::Block, error::BbxAudioError, sample::Sample};
 
 /// A collection of interconnected `Block` objects.
 pub struct Graph {
@@ -152,7 +151,10 @@ impl Graph {
                 }
                 self.processes.insert(block_id, output_value);
             } else {
-                panic!("{:?}", BbxAudioError::CannotRetrieveCurrentBlock(format!("{}", block_id)));
+                panic!(
+                    "{:?}",
+                    BbxAudioError::CannotRetrieveCurrentBlock(format!("{}", block_id))
+                );
             }
         }
 
