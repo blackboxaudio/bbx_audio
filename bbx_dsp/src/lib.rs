@@ -1,5 +1,6 @@
 pub mod block;
 pub mod effector;
+pub mod effectors;
 pub mod error;
 pub mod generator;
 pub mod graph;

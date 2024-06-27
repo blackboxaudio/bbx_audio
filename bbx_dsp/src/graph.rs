@@ -32,7 +32,7 @@ impl Graph {
 
 impl Graph {
     pub fn add_effector(&mut self, effector: Effector) -> usize {
-        let effector_block = Block::from_effector(effector);
+        let effector_block = Block::from_effector_operation(effector.to_operation());
         return self.add_block(effector_block, BbxAudioError::CannotAddEffectorBlock);
     }
 

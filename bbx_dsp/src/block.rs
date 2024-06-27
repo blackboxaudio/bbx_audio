@@ -3,7 +3,6 @@ use std::fmt::{Display, Formatter};
 use rand::Rng;
 
 use crate::{
-    effector::Effector,
     generator::Generator,
     operation::{Operation, OperationType},
 };
@@ -32,8 +31,8 @@ impl Block {
         };
     }
 
-    pub fn from_effector(effector: Effector) -> Block {
-        return Self::new(effector.to_operation(), OperationType::Effector);
+    pub fn from_effector_operation(effector_operation: Operation) -> Block {
+        return Self::new(effector_operation, OperationType::Effector);
     }
 
     pub fn from_generator(generator: Generator) -> Block {
