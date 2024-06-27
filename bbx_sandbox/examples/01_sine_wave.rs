@@ -1,14 +1,10 @@
-use bbx_dsp::{block::Block, generator::Generator, graph::Graph};
+use bbx_dsp::{generator::Generator, graph::Graph};
 use bbx_sandbox::{constants::SAMPLE_RATE, player::Player, signal::Signal};
 
 pub fn create_graph() -> Graph {
     let mut graph = Graph::new(SAMPLE_RATE);
-
-    let oscillator = Block::from_generator(Generator::new(SAMPLE_RATE, Some(110.0)));
-    graph.add_block(oscillator);
-
+    graph.add_generator(Generator::new(SAMPLE_RATE, Some(110.0)));
     graph.prepare_for_playback();
-
     return graph;
 }
 
