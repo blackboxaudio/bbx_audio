@@ -3,7 +3,10 @@ use bbx_sandbox::{constants::SAMPLE_RATE, player::Player, signal::Signal};
 
 pub fn create_graph() -> Graph {
     let mut graph = Graph::new(SAMPLE_RATE);
-    graph.add_generator(Generator::new(SAMPLE_RATE, Some(110.0)));
+    graph.add_generator(Generator::Wavetable {
+        sample_rate: SAMPLE_RATE,
+        frequency: 110.0,
+    });
     graph.prepare_for_playback();
     return graph;
 }
