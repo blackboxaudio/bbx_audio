@@ -1,7 +1,7 @@
 use bbx_dsp::{effector::Effector, generator::Generator, graph::Graph};
 use bbx_sandbox::{constants::SAMPLE_RATE, player::Player, signal::Signal};
 
-const NUM_OSCILLATORS: usize = 8;
+const NUM_OSCILLATORS: usize = 24;
 
 const BASE_FREQUENCY: f32 = 49.0;
 
@@ -14,7 +14,7 @@ pub fn create_graph() -> Graph {
             sample_rate: SAMPLE_RATE,
             frequency: BASE_FREQUENCY * (n + 1) as f32,
         });
-        graph.create_connection(oscillator, mixer)
+        graph.create_connection(oscillator, mixer);
     }
 
     let overdrive = graph.add_effector(Effector::Overdrive());
