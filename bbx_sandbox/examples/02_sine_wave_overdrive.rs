@@ -5,7 +5,7 @@ pub fn create_graph() -> Graph {
     let mut graph = Graph::new(SAMPLE_RATE);
 
     let oscillator = graph.add_generator(Generator::new(SAMPLE_RATE, Some(110.0)));
-    let overdrive = graph.add_effector(Effector::new());
+    let overdrive = graph.add_effector(Effector::Overdrive());
     graph.create_connection(oscillator, overdrive);
 
     graph.prepare_for_playback();

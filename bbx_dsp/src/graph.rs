@@ -32,7 +32,7 @@ impl Graph {
 
 impl Graph {
     pub fn add_effector(&mut self, effector: Effector) -> usize {
-        let effector_block = Block::from_effector(effector);
+        let effector_block = Block::from_effector_operation(effector.to_operation());
         return self.add_block(effector_block, BbxAudioError::CannotAddEffectorBlock);
     }
 
@@ -155,6 +155,11 @@ impl Graph {
         for (block_id, block) in self.blocks.iter() {
             if block.operation_type == OperationType::Effector && block.inputs.len() == 0 {
                 panic!("{:?}", BbxAudioError::BlockHasNoInputs(format!("{}", block_id)));
+            } else if block.operation_type == OperationType::Generator
+                && block.outputs.len() == 0
+                && self.blocks.len() > 1
+            {
+                panic!("{:?}", BbxAudioError::BlockHasNoOutputs(format!("{}", block_id)));
             }
         }
     }
@@ -162,41 +167,19 @@ impl Graph {
 
 impl Graph {
     #[allow(unused_assignments)]
-    #[inline]
     pub fn evaluate(&mut self) -> Sample {
         for &block_id in &self.processing_order {
-            let block_option = self.blocks.get_mut(&block_id);
-            if let Some(block) = block_option {
-                let mut output_value: Sample = 0.0;
-                let num_inputs = block.inputs.len();
-                if num_inputs > 0 {
-                    let mut input_value: Sample = 0.0;
-                    for input in &block.inputs {
-                        if let Some(&single_input_value) = self.processes.get(input) {
-                            input_value += single_input_value;
-                        } else {
-                            input_value += 0.0;
-                        }
-                    }
-                    input_value /= num_inputs as f32;
-                    output_value = block.operation.process(Some(input_value));
-                } else {
-                    output_value = block.operation.process(None);
-                }
-                self.processes.insert(block_id, output_value);
-            } else {
-                panic!(
-                    "{:?}",
-                    BbxAudioError::CannotRetrieveCurrentBlock(format!("{}", block_id))
-                );
+            let block = self.blocks.get_mut(&block_id).unwrap();
+            let mut inputs: Vec<Sample> = Vec::with_capacity(block.inputs.len());
+            for input in &block.inputs {
+                inputs.push(*self.processes.get(input).unwrap());
             }
+            self.processes.insert(block_id, block.operation.process(&inputs));
         }
 
-        let last_process_option = self.processes.get(self.processing_order.last().unwrap());
-        return if let Some(&last_process_value) = last_process_option {
-            last_process_value
-        } else {
-            0.0
-        };
+        return *self
+            .processes
+            .get(self.processing_order.last().unwrap())
+            .unwrap_or_else(|| &0.0);
     }
 }
