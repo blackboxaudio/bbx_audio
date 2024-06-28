@@ -3,6 +3,7 @@ pub mod effector;
 pub mod effectors;
 pub mod error;
 pub mod generator;
+pub mod generators;
 pub mod graph;
 pub mod operation;
 pub mod process;
