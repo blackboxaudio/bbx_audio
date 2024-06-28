@@ -1,1 +1,1 @@
-pub mod wavetable;
+pub mod wave_table;

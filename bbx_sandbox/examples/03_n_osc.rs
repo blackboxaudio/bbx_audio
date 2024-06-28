@@ -10,7 +10,7 @@ pub fn create_graph() -> Graph {
 
     let mixer = graph.add_effector(Effector::Mixer());
     for n in 0..NUM_OSCILLATORS {
-        let oscillator = graph.add_generator(Generator::Wavetable {
+        let oscillator = graph.add_generator(Generator::WaveTable {
             sample_rate: SAMPLE_RATE,
             frequency: BASE_FREQUENCY * (n + 1) as f32,
         });

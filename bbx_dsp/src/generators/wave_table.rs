@@ -4,18 +4,18 @@ use crate::{process::Process, sample::Sample};
 
 const WAVE_TABLE_SIZE: usize = 128;
 
-pub struct WavetableGenerator {
+pub struct WaveTableGenerator {
     sample_rate: usize,
     wave_table: Vec<Sample>,
     phase: f32,
     phase_increment: f32,
 }
 
-impl WavetableGenerator {
-    pub fn new(sample_rate: usize, frequency: f32) -> WavetableGenerator {
+impl WaveTableGenerator {
+    pub fn new(sample_rate: usize, frequency: f32) -> WaveTableGenerator {
         let wave_table = Self::create_wave_table(WAVE_TABLE_SIZE);
         let phase_increment = Self::calculate_phase_increment(sample_rate, frequency, wave_table.len());
-        return WavetableGenerator {
+        return WaveTableGenerator {
             sample_rate,
             wave_table,
             phase: 0.0,
@@ -37,13 +37,13 @@ impl WavetableGenerator {
     }
 }
 
-impl WavetableGenerator {
+impl WaveTableGenerator {
     pub fn set_frequency(&mut self, frequency: f32) {
         self.phase_increment = Self::calculate_phase_increment(self.sample_rate, frequency, self.wave_table.len());
     }
 }
 
-impl WavetableGenerator {
+impl WaveTableGenerator {
     fn lerp(&self) -> Sample {
         let truncated_index = self.phase as usize;
         let next_index = (truncated_index + 1) % self.wave_table.len();
@@ -54,13 +54,13 @@ impl WavetableGenerator {
     }
 }
 
-impl Display for WavetableGenerator {
+impl Display for WaveTableGenerator {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "g_Wavetable")
     }
 }
 
-impl Process for WavetableGenerator {
+impl Process for WaveTableGenerator {
     fn process(&mut self, _inputs: &Vec<Sample>) -> Sample {
         let sample = self.lerp();
         self.phase += self.phase_increment;
