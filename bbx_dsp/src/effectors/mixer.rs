@@ -11,7 +11,6 @@ impl Display for MixerEffector {
 }
 
 impl Process for MixerEffector {
-    #[inline]
     fn process(&mut self, inputs: &Vec<Sample>) -> Sample {
         return if inputs.len() > 0 {
             inputs.iter().sum::<Sample>() / inputs.len() as Sample

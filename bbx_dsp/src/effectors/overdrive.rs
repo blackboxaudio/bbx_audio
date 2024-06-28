@@ -11,7 +11,6 @@ impl Display for OverdriveEffector {
 }
 
 impl Process for OverdriveEffector {
-    #[inline]
     fn process(&mut self, inputs: &Vec<Sample>) -> Sample {
         let input_sum: Sample = inputs.iter().sum::<Sample>() / inputs.len() as Sample;
         return if input_sum > 1.0 {
