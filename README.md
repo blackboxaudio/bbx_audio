@@ -6,12 +6,20 @@
 
 If you would like to "play in the sandbox", you will need to install some additional dependencies.
 
-## Linux
+### Linux
 
 Install the following packages:
 ```bash
 sudo apt install alsa libasound2-dev libssl-dev pkg-config
 ```
+
+### MacOS
+
+...
+
+### Windows
+
+...
 
 ## Running
 
