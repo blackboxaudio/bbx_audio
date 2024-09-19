@@ -13,10 +13,10 @@ impl Player {
 }
 
 impl Player {
-    pub fn play(self) {
+    pub fn play(self, duration: Option<usize>) {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let _result = stream_handle.play_raw(self.signal.convert_samples());
 
-        std::thread::sleep(std::time::Duration::from_secs(PLAYTIME_DURATION));
+        std::thread::sleep(std::time::Duration::from_secs(duration.unwrap_or(PLAYTIME_DURATION) as u64));
     }
 }

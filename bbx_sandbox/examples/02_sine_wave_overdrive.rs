@@ -10,13 +10,12 @@ pub fn create_graph() -> Graph {
     });
     let overdrive = graph.add_effector(Effector::Overdrive());
     graph.create_connection(oscillator, overdrive);
-
     graph.prepare_for_playback();
 
-    return graph;
+    graph
 }
 
 fn main() {
     let signal = Signal::new(SAMPLE_RATE, create_graph());
-    Player::new(signal).play();
+    Player::new(signal).play(None);
 }

@@ -1,5 +1,8 @@
-use bbx_dsp::{generator::Generator, graph::Graph};
-use bbx_sandbox::{constants::SAMPLE_RATE, player::Player, signal::Signal};
+use bbx_dsp::generator::Generator;
+use bbx_dsp::graph::Graph;
+use bbx_sandbox::constants::SAMPLE_RATE;
+use bbx_sandbox::player::Player;
+use bbx_sandbox::signal::Signal;
 
 pub fn create_graph() -> Graph {
     let mut graph = Graph::new(SAMPLE_RATE);
