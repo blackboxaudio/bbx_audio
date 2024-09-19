@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::io::{stdin, stdout, Write};
 use midir::{Ignore, MidiInput};
+use crate::message::MidiMessage;
 
 pub fn create_midi_input_stream() -> Result<(), Box<dyn Error>> {
     println!("Creating new MIDI input stream");
@@ -35,8 +36,9 @@ pub fn create_midi_input_stream() -> Result<(), Box<dyn Error>> {
     let _connection = midi_in.connect(
         in_port,
         "midir-read-input",
-        move |stamp, message, _| {
-            println!("{}: {:?} (len = {})", stamp, message, message.len());
+        move |_stamp, message, _| {
+            let message = MidiMessage::from(message);
+            println!("{}", message);
         },
         (),
     )?;
