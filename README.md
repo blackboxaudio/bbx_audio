@@ -13,14 +13,6 @@ Install the following packages:
 sudo apt install alsa libasound2-dev libssl-dev pkg-config
 ```
 
-### MacOS
-
-...
-
-### Windows
-
-...
-
 ## Running
 
 To run an example in the sandbox, use the following command:
