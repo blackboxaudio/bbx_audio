@@ -8,7 +8,7 @@ pub struct Player {
 
 impl Player {
     pub fn new(signal: Signal) -> Player {
-        return Player { signal };
+        Player { signal }
     }
 }
 
