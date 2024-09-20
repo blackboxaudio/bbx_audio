@@ -1,5 +1,7 @@
 use std::fmt::{Display, Formatter};
 
+const NOTES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+
 pub struct MidiMessage {
     channel: u8,
     status: MidiMessageStatus,
@@ -73,7 +75,25 @@ impl MidiMessage {
         }
     }
 
-    pub fn get_note(&self) -> Option<u8> {
+    pub fn get_note(&self) -> Option<String> {
+        let note_number = self.get_note_number()?;
+        // Determine the note name (C, C#, D, etc.)
+        let note_index = (note_number % 12) as usize;
+        let note_name = NOTES[note_index];
+
+        // Determine the octave (MIDI note 60 is C4, middle C)
+        let octave = (note_number / 12) as i8 - 1;
+
+        // Return the formatted string (e.g., "C4", "D#3")
+        Some(format!("{}{}", note_name, octave))
+    }
+
+    pub fn get_note_frequency(&self) -> Option<f32> {
+        let note_number = self.get_note_number()?;
+        Some(440.0 * 2.0f32.powf((note_number as f32 - 69.0) / 12.0))
+    }
+
+    pub fn get_note_number(&self) -> Option<u8> {
         self.get_data(1, &[MidiMessageStatus::NoteOn, MidiMessageStatus::NoteOff])
     }
 
@@ -98,7 +118,14 @@ impl MidiMessage {
 
 impl Display for MidiMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Ch {}, {:?}, Data 1 = {}, Data 2 = {}", self.channel, self.status, self.data_1, self.data_2)
+        match self.status {
+            MidiMessageStatus::NoteOff | MidiMessageStatus::NoteOn => {
+                write!(f, "Ch {}, {:?}, Note = {} ({}Hz), Velocity = {}", self.channel, self.status, self.get_note().unwrap(), self.get_note_frequency().unwrap(), self.get_velocity().unwrap())
+            },
+            _ => {
+                write!(f, "Ch {}, {:?}, Data 1 = {}, Data 2 = {}", self.channel, self.status, self.data_1, self.data_2)
+            },
+        }
     }
 }
 
