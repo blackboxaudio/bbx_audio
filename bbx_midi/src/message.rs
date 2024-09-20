@@ -1,5 +1,7 @@
-use std::fmt::{Display, Formatter};
-use std::time::SystemTime;
+use std::{
+    fmt::{Display, Formatter},
+    time::SystemTime,
+};
 
 const NOTES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
@@ -19,7 +21,7 @@ pub enum MidiMessageStatus {
     ControlChange,
     ProgramChange,
     ChannelAftertouch,
-    PitchWheel
+    PitchWheel,
 }
 
 impl From<u8> for MidiMessageStatus {
@@ -119,14 +121,30 @@ impl MidiMessage {
 
 impl Display for MidiMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         match self.status {
             MidiMessageStatus::NoteOff | MidiMessageStatus::NoteOn => {
-                write!(f, "[{}] Ch {} {:?}\t Note = {} ({}Hz)\t Velocity = {}", now, self.channel, self.status, self.get_note().unwrap(), self.get_note_frequency().unwrap(), self.get_velocity().unwrap())
-            },
+                write!(
+                    f,
+                    "[{}] Ch {} {:?}\t Note = {} ({}Hz)\t Velocity = {}",
+                    now,
+                    self.channel,
+                    self.status,
+                    self.get_note().unwrap(),
+                    self.get_note_frequency().unwrap(),
+                    self.get_velocity().unwrap()
+                )
+            }
             _ => {
-                write!(f, "[{}] Ch {} {:?}\t Data 1 = {}\t Data 2 = {}", now, self.channel, self.status, self.data_1, self.data_2)
-            },
+                write!(
+                    f,
+                    "[{}] Ch {} {:?}\t Data 1 = {}\t Data 2 = {}",
+                    now, self.channel, self.status, self.data_1, self.data_2
+                )
+            }
         }
     }
 }
@@ -134,38 +152,30 @@ impl Display for MidiMessage {
 impl From<&[u8]> for MidiMessage {
     fn from(bytes: &[u8]) -> Self {
         match bytes.len() {
-            1 => {
-                MidiMessage {
-                    channel: (bytes[0] & 0x0F) + 1,
-                    status: MidiMessageStatus::from(bytes[0]),
-                    data_1: 0,
-                    data_2: 0,
-                }
+            1 => MidiMessage {
+                channel: (bytes[0] & 0x0F) + 1,
+                status: MidiMessageStatus::from(bytes[0]),
+                data_1: 0,
+                data_2: 0,
             },
-            2 => {
-                MidiMessage {
-                    channel: (bytes[0] & 0x0F) + 1,
-                    status: MidiMessageStatus::from(bytes[0]),
-                    data_1: bytes[1],
-                    data_2: 0,
-                }
+            2 => MidiMessage {
+                channel: (bytes[0] & 0x0F) + 1,
+                status: MidiMessageStatus::from(bytes[0]),
+                data_1: bytes[1],
+                data_2: 0,
             },
-            3 => {
-                MidiMessage {
-                    channel: (bytes[0] & 0x0F) + 1,
-                    status: MidiMessageStatus::from(bytes[0]),
-                    data_1: bytes[1],
-                    data_2: bytes[2],
-                }
+            3 => MidiMessage {
+                channel: (bytes[0] & 0x0F) + 1,
+                status: MidiMessageStatus::from(bytes[0]),
+                data_1: bytes[1],
+                data_2: bytes[2],
             },
-            _ => {
-                MidiMessage {
-                    channel: (bytes[0] & 0x0F) + 1,
-                    status: MidiMessageStatus::Unknown,
-                    data_1: 0,
-                    data_2: 0,
-                }
-            }
+            _ => MidiMessage {
+                channel: (bytes[0] & 0x0F) + 1,
+                status: MidiMessageStatus::Unknown,
+                data_1: 0,
+                data_2: 0,
+            },
         }
     }
 }

@@ -1,10 +1,13 @@
-use std::error::Error;
-use std::io::{stdin, stdout, Write};
-use std::sync::mpsc;
-use std::sync::mpsc::{Sender};
-use std::thread;
-use std::thread::JoinHandle;
+use std::{
+    error::Error,
+    io::{stdin, stdout, Write},
+    sync::{mpsc, mpsc::Sender},
+    thread,
+    thread::JoinHandle,
+};
+
 use midir::{Ignore, MidiInput, MidiInputPort};
+
 use crate::message::{MidiMessage, MidiMessageStatus};
 
 pub struct MidiInputStream {
@@ -15,11 +18,12 @@ pub struct MidiInputStream {
 impl MidiInputStream {
     pub fn new(filters: Vec<MidiMessageStatus>, message_handler: fn(MidiMessage) -> ()) -> Self {
         let (tx, rx) = mpsc::channel::<MidiMessage>();
-        thread::spawn(move || { loop { message_handler(rx.recv().unwrap()); } });
-        MidiInputStream {
-            tx,
-            filters,
-        }
+        thread::spawn(move || {
+            loop {
+                message_handler(rx.recv().unwrap());
+            }
+        });
+        MidiInputStream { tx, filters }
     }
 }
 
@@ -33,9 +37,12 @@ impl MidiInputStream {
         let in_port: Option<MidiInputPort> = match in_ports.len() {
             0 => None,
             1 => {
-                println!("Choosing the only available MIDI input port:\n{}", midi_in.port_name(&in_ports[0]).unwrap());
+                println!(
+                    "Choosing the only available MIDI input port:\n{}",
+                    midi_in.port_name(&in_ports[0]).unwrap()
+                );
                 Some(in_ports[0].clone())
-            },
+            }
             _ => {
                 println!("\nAvailable MIDI input ports:");
                 for (idx, port) in in_ports.iter().enumerate() {
@@ -46,18 +53,26 @@ impl MidiInputStream {
 
                 let mut input = String::new();
                 stdin().read_line(&mut input).unwrap();
-                Some(in_ports.get(input.trim().parse::<usize>().unwrap()).ok_or("Invalid input port selected").unwrap().clone())
+                Some(
+                    in_ports
+                        .get(input.trim().parse::<usize>().unwrap())
+                        .ok_or("Invalid input port selected")
+                        .unwrap()
+                        .clone(),
+                )
             }
         };
-        thread::spawn(move || {
-            match self.create_midi_input_stream(midi_in, in_port.unwrap()) {
-                Ok(_) => (),
-                Err(err) => println!("Error : {}", err),
-            }
+        thread::spawn(move || match self.create_midi_input_stream(midi_in, in_port.unwrap()) {
+            Ok(_) => (),
+            Err(err) => println!("Error : {}", err),
         })
     }
 
-    fn create_midi_input_stream(self, midi_in: MidiInput, in_port: MidiInputPort) -> std::result::Result<(), Box<dyn Error>> {
+    fn create_midi_input_stream(
+        self,
+        midi_in: MidiInput,
+        in_port: MidiInputPort,
+    ) -> std::result::Result<(), Box<dyn Error>> {
         println!("\nOpening MIDI input stream for port");
         let in_port_name = midi_in.port_name(&in_port)?;
         let _connection = midi_in.connect(
@@ -74,7 +89,10 @@ impl MidiInputStream {
             (),
         )?;
 
-        println!("Connection open, reading MIDI input from '{}' (press enter to exit) ...", in_port_name);
+        println!(
+            "Connection open, reading MIDI input from '{}' (press enter to exit) ...",
+            in_port_name
+        );
 
         let mut input = String::new();
         input.clear();
@@ -87,6 +105,8 @@ impl MidiInputStream {
     fn is_passed_through_filters(&self, message: &MidiMessage) -> bool {
         if self.filters.len() > 0 {
             self.filters.contains(&message.get_status())
-        } else { true }
+        } else {
+            true
+        }
     }
 }

@@ -1,9 +1,6 @@
-use bbx_dsp::generator::Generator;
-use bbx_dsp::graph::Graph;
-use bbx_midi::stream::{MidiInputStream};
-use bbx_sandbox::constants::SAMPLE_RATE;
-use bbx_sandbox::player::Player;
-use bbx_sandbox::signal::Signal;
+use bbx_dsp::{generator::Generator, graph::Graph};
+use bbx_midi::stream::MidiInputStream;
+use bbx_sandbox::{constants::SAMPLE_RATE, player::Player, signal::Signal};
 
 pub fn create_graph() -> Graph {
     let mut graph = Graph::new(SAMPLE_RATE);
@@ -22,7 +19,7 @@ fn main() {
     let handle = stream.init();
 
     let signal = Signal::new(SAMPLE_RATE, create_graph());
-    Player::new(signal).play(None);
+    Player::new(signal).play(Some(10));
 
     handle.join().unwrap();
 }
