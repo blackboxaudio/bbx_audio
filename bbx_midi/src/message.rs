@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use std::time::SystemTime;
 
 const NOTES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
@@ -118,12 +119,13 @@ impl MidiMessage {
 
 impl Display for MidiMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
         match self.status {
             MidiMessageStatus::NoteOff | MidiMessageStatus::NoteOn => {
-                write!(f, "Ch {}, {:?}, Note = {} ({}Hz), Velocity = {}", self.channel, self.status, self.get_note().unwrap(), self.get_note_frequency().unwrap(), self.get_velocity().unwrap())
+                write!(f, "[{}] Ch {} {:?}\t Note = {} ({}Hz)\t Velocity = {}", now, self.channel, self.status, self.get_note().unwrap(), self.get_note_frequency().unwrap(), self.get_velocity().unwrap())
             },
             _ => {
-                write!(f, "Ch {}, {:?}, Data 1 = {}, Data 2 = {}", self.channel, self.status, self.data_1, self.data_2)
+                write!(f, "[{}] Ch {} {:?}\t Data 1 = {}\t Data 2 = {}", now, self.channel, self.status, self.data_1, self.data_2)
             },
         }
     }
