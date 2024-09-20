@@ -111,13 +111,20 @@ impl From<&[u8]> for MidiMessage {
 
 fn get_midi_message_status(byte: u8) -> MidiMessageStatus {
     match byte {
-        128..144 => MidiMessageStatus::NoteOff,
-        144..160 => MidiMessageStatus::NoteOn,
-        160..176 => MidiMessageStatus::PolyphonicAftertouch,
-        176..192 => MidiMessageStatus::ControlChange,
-        192..208 => MidiMessageStatus::ProgramChange,
-        208..224 => MidiMessageStatus::ChannelAftertouch,
-        240..=255 => MidiMessageStatus::PitchWheel,
+        // 128 - 144
+        0x80..0x90 => MidiMessageStatus::NoteOff,
+        // 144 - 160
+        0x90..0xA0 => MidiMessageStatus::NoteOn,
+        // 160 - 176
+        0xA0..0xB0 => MidiMessageStatus::PolyphonicAftertouch,
+        // 176 - 192
+        0xB0..0xC0 => MidiMessageStatus::ControlChange,
+        // 192 - 208
+        0xC0..0xD0 => MidiMessageStatus::ProgramChange,
+        // 208 - 224
+        0xD0..0xE0 => MidiMessageStatus::ChannelAftertouch,
+        // 224 - 255
+        0xE0..=0xFF => MidiMessageStatus::PitchWheel,
         _ => MidiMessageStatus::Unknown,
     }
 }
