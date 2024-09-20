@@ -1,12 +1,13 @@
 use std::fmt::{Display, Formatter};
 
 pub struct MidiMessage {
+    channel: u8,
     status: MidiMessageStatus,
     data_1: u8,
     data_2: u8,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MidiMessageStatus {
     Unknown,
     NoteOff,
@@ -18,10 +19,33 @@ pub enum MidiMessageStatus {
     PitchWheel
 }
 
+impl From<u8> for MidiMessageStatus {
+    fn from(byte: u8) -> Self {
+        match byte {
+            // 128 - 144
+            0x80..0x90 => MidiMessageStatus::NoteOff,
+            // 144 - 160
+            0x90..0xA0 => MidiMessageStatus::NoteOn,
+            // 160 - 176
+            0xA0..0xB0 => MidiMessageStatus::PolyphonicAftertouch,
+            // 176 - 192
+            0xB0..0xC0 => MidiMessageStatus::ControlChange,
+            // 192 - 208
+            0xC0..0xD0 => MidiMessageStatus::ProgramChange,
+            // 208 - 224
+            0xD0..0xE0 => MidiMessageStatus::ChannelAftertouch,
+            // 224 - 255
+            0xE0..=0xFF => MidiMessageStatus::PitchWheel,
+            _ => MidiMessageStatus::Unknown,
+        }
+    }
+}
+
 impl MidiMessage {
     pub fn new(bytes: [u8; 3]) -> Self {
         MidiMessage {
-            status: get_midi_message_status(bytes[0]),
+            channel: (bytes[0] & 0x0F) + 1,
+            status: MidiMessageStatus::from(bytes[0]),
             data_1: bytes[1],
             data_2: bytes[2],
         }
@@ -29,8 +53,12 @@ impl MidiMessage {
 }
 
 impl MidiMessage {
-    pub fn get_status(self) -> MidiMessageStatus {
+    pub fn get_status(&self) -> MidiMessageStatus {
         self.status
+    }
+
+    pub fn get_channel(&self) -> u8 {
+        self.channel
     }
 
     fn get_data(&self, data_field: usize, statuses: &[MidiMessageStatus]) -> Option<u8> {
@@ -70,61 +98,45 @@ impl MidiMessage {
 
 impl Display for MidiMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}, Note = {}, Velocity = {}", self.status, self.get_note().unwrap(), self.get_velocity().unwrap())
+        write!(f, "Ch {}, {:?}, Data 1 = {}, Data 2 = {}", self.channel, self.status, self.data_1, self.data_2)
     }
 }
 
 impl From<&[u8]> for MidiMessage {
-    fn from(value: &[u8]) -> Self {
-        match value.len() {
+    fn from(bytes: &[u8]) -> Self {
+        match bytes.len() {
             1 => {
                 MidiMessage {
-                    status: get_midi_message_status(value[0]),
+                    channel: (bytes[0] & 0x0F) + 1,
+                    status: MidiMessageStatus::from(bytes[0]),
                     data_1: 0,
                     data_2: 0,
                 }
             },
             2 => {
                 MidiMessage {
-                    status: get_midi_message_status(value[0]),
-                    data_1: value[1],
+                    channel: (bytes[0] & 0x0F) + 1,
+                    status: MidiMessageStatus::from(bytes[0]),
+                    data_1: bytes[1],
                     data_2: 0,
                 }
             },
             3 => {
                 MidiMessage {
-                    status: get_midi_message_status(value[0]),
-                    data_1: value[1],
-                    data_2: value[2],
+                    channel: (bytes[0] & 0x0F) + 1,
+                    status: MidiMessageStatus::from(bytes[0]),
+                    data_1: bytes[1],
+                    data_2: bytes[2],
                 }
             },
             _ => {
                 MidiMessage {
+                    channel: (bytes[0] & 0x0F) + 1,
                     status: MidiMessageStatus::Unknown,
                     data_1: 0,
                     data_2: 0,
                 }
             }
         }
-    }
-}
-
-fn get_midi_message_status(byte: u8) -> MidiMessageStatus {
-    match byte {
-        // 128 - 144
-        0x80..0x90 => MidiMessageStatus::NoteOff,
-        // 144 - 160
-        0x90..0xA0 => MidiMessageStatus::NoteOn,
-        // 160 - 176
-        0xA0..0xB0 => MidiMessageStatus::PolyphonicAftertouch,
-        // 176 - 192
-        0xB0..0xC0 => MidiMessageStatus::ControlChange,
-        // 192 - 208
-        0xC0..0xD0 => MidiMessageStatus::ProgramChange,
-        // 208 - 224
-        0xD0..0xE0 => MidiMessageStatus::ChannelAftertouch,
-        // 224 - 255
-        0xE0..=0xFF => MidiMessageStatus::PitchWheel,
-        _ => MidiMessageStatus::Unknown,
     }
 }
