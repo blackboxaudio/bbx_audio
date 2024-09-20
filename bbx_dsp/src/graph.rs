@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    block::Block, effector::Effector, error::BbxAudioError, generator::Generator, operation::OperationType,
+    block::Block, effector::Effector, error::BbxAudioDspError, generator::Generator, operation::OperationType,
     sample::Sample,
 };
 
@@ -33,15 +33,15 @@ impl Graph {
 impl Graph {
     pub fn add_effector(&mut self, effector: Effector) -> usize {
         let effector_block = Block::from_effector_operation(effector.to_operation());
-        return self.add_block(effector_block, BbxAudioError::CannotAddEffectorBlock);
+        return self.add_block(effector_block, BbxAudioDspError::CannotAddEffectorBlock);
     }
 
     pub fn add_generator(&mut self, generator: Generator) -> usize {
         let generator_block = Block::from_generator(generator);
-        return self.add_block(generator_block, BbxAudioError::CannotAddGeneratorBlock);
+        return self.add_block(generator_block, BbxAudioDspError::CannotAddGeneratorBlock);
     }
 
-    fn add_block(&mut self, block: Block, error: BbxAudioError) -> usize {
+    fn add_block(&mut self, block: Block, error: BbxAudioDspError) -> usize {
         let block_id = block.id;
         self.blocks.insert(block_id, block);
         self.processes.insert(block_id, 0.0);
@@ -55,14 +55,14 @@ impl Graph {
 
     pub fn create_connection(&mut self, source_id: usize, destination_id: usize) {
         if self.connections.contains(&(source_id, destination_id)) {
-            panic!("{:?}", BbxAudioError::ConnectionAlreadyCreated);
+            panic!("{:?}", BbxAudioDspError::ConnectionAlreadyCreated);
         } else {
             if let Some(source) = self.blocks.get_mut(&source_id) {
                 source.add_output(destination_id);
             } else {
                 panic!(
                     "{:?}",
-                    BbxAudioError::CannotRetrieveSourceBlock(format!("{}", source_id))
+                    BbxAudioDspError::CannotRetrieveSourceBlock(format!("{}", source_id))
                 );
             }
             if let Some(destination) = self.blocks.get_mut(&destination_id) {
@@ -70,7 +70,7 @@ impl Graph {
             } else {
                 panic!(
                     "{:?}",
-                    BbxAudioError::CannotRetrieveDestinationBlock(format!("{}", destination_id))
+                    BbxAudioDspError::CannotRetrieveDestinationBlock(format!("{}", destination_id))
                 );
             }
             self.connections.push((source_id, destination_id));
@@ -116,7 +116,7 @@ impl Graph {
             stack.reverse();
             self.processing_order = stack.clone();
         } else {
-            panic!("{:?}", BbxAudioError::CannotUpdateGraphProcessingOrder);
+            panic!("{:?}", BbxAudioDspError::CannotUpdateGraphProcessingOrder);
         }
     }
 
@@ -126,7 +126,7 @@ impl Graph {
             for &block_id in &block.outputs {
                 if visited.contains(&block_id) {
                     if block_id == original_block_id {
-                        panic!("{:?}", BbxAudioError::GraphContainsCycle(format!("{}", block_id)))
+                        panic!("{:?}", BbxAudioDspError::GraphContainsCycle(format!("{}", block_id)))
                     }
                     continue;
                 } else {
@@ -149,17 +149,17 @@ impl Graph {
             if self.blocks.contains_key(source_id) && self.blocks.contains_key(destination_id) {
                 continue;
             } else {
-                panic!("{:?}", BbxAudioError::ConnectionHasNoBlock);
+                panic!("{:?}", BbxAudioDspError::ConnectionHasNoBlock);
             }
         }
         for (block_id, block) in self.blocks.iter() {
             if block.operation_type == OperationType::Effector && block.inputs.len() == 0 {
-                panic!("{:?}", BbxAudioError::BlockHasNoInputs(format!("{}", block_id)));
+                panic!("{:?}", BbxAudioDspError::BlockHasNoInputs(format!("{}", block_id)));
             } else if block.operation_type == OperationType::Generator
                 && block.outputs.len() == 0
                 && self.blocks.len() > 1
             {
-                panic!("{:?}", BbxAudioError::BlockHasNoOutputs(format!("{}", block_id)));
+                panic!("{:?}", BbxAudioDspError::BlockHasNoOutputs(format!("{}", block_id)));
             }
         }
     }

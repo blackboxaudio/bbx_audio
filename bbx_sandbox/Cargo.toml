@@ -6,5 +6,8 @@ edition = "2021"
 [dependencies.bbx_dsp]
 path = "../bbx_dsp"
 
+[dependencies.bbx_midi]
+path = "../bbx_midi"
+
 [dependencies]
 rodio = "0.18.1"

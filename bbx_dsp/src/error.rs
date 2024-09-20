@@ -1,7 +1,7 @@
-pub type Result<T> = std::result::Result<T, BbxAudioError>;
+pub type Result<T> = std::result::Result<T, BbxAudioDspError>;
 
 #[derive(Debug, PartialEq, thiserror::Error)]
-pub enum BbxAudioError {
+pub enum BbxAudioDspError {
     #[error("block (`{0}`) has no inputs")]
     BlockHasNoInputs(String),
 
