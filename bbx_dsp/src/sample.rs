@@ -1,20 +1,34 @@
-use std::ops::{Add, Sub, Mul, Div, AddAssign, DivAssign, MulAssign, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+
 use crate::float::Float;
 
-pub trait Sample: Copy + Clone + From<Self::Float> + PartialEq + Add<Self, Output = Self> + Sub<Self, Output = Self> + Mul<Self, Output = Self> + Div<Self, Output = Self> + AddAssign + SubAssign + MulAssign + DivAssign {
+pub trait Sample:
+    Copy
+    + Clone
+    + From<Self::Float>
+    + PartialEq
+    + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + AddAssign
+    + SubAssign
+    + MulAssign
+    + DivAssign
+{
     type Float: Float;
 
     const EQUILIBRIUM: Self;
 
     fn from_f32(f: f32) -> Self;
 
-    fn apply<F: Fn(Self::Float) -> Self::Float>(self, f: F) -> Self where Self: Sized;
+    fn apply<F: Fn(Self::Float) -> Self::Float>(self, f: F) -> Self
+    where
+        Self: Sized;
 
     #[inline]
     fn gain(&self, factor: Self::Float) -> Self {
-        let linear = Self::Float::powf(
-            Self::Float::from(10.0),
-            factor / Self::Float::from(10.0));
+        let linear = Self::Float::powf(Self::Float::from(10.0), factor / Self::Float::from(10.0));
 
         self.apply(|f| f * linear)
     }
@@ -62,7 +76,7 @@ impl Sample for f32 {
 
     fn apply<F: Fn(Self::Float) -> Self::Float>(self, f: F) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
         f(self)
     }

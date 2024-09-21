@@ -1,5 +1,4 @@
-use crate::buffer::Buffer;
-use crate::sample::Sample;
+use crate::{buffer::Buffer, sample::Sample};
 
 pub trait Frame {
     type Sample: Sample;
