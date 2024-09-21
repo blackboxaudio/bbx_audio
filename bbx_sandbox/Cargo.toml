@@ -3,11 +3,9 @@ name = "bbx_sandbox"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies.bbx_dsp]
-path = "../bbx_dsp"
-
-[dependencies.bbx_midi]
-path = "../bbx_midi"
-
 [dependencies]
 rodio = "0.18.1"
+
+bbx_dsp = { path = "../bbx_dsp" }
+bbx_file = { path = "../bbx_file" }
+bbx_midi = { path = "../bbx_midi" }
