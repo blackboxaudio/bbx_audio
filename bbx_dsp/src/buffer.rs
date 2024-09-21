@@ -24,8 +24,8 @@ impl<S: Sample> Buffer<S> {
         self.data.len()
     }
 
-    pub fn map<F: Fn(S) -> S>(&mut self, f: F) {
-        self.data = self.data.iter().map(|s| f(s)).collect();
+    pub fn apply<F: Fn(S) -> S>(&mut self, f: F) {
+        self.data = self.data.iter().map(|&s| f(s)).collect();
     }
 
     pub fn equilibrium(&mut self) {
