@@ -20,6 +20,7 @@ pub trait Float:
     const MIN: Self;
     const MAX: Self;
     const PI: Self;
+    const EULER: Self;
 
     fn sin(self) -> Self;
     fn cos(self) -> Self;
@@ -45,6 +46,7 @@ impl Float for f32 {
     const MIN: Self = -1.0;
     const MAX: Self = 1.0;
     const PI: Self = std::f32::consts::PI;
+    const EULER: Self = std::f32::consts::E;
 
     #[inline]
     fn sin(self) -> Self {

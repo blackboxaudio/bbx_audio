@@ -1,44 +1,61 @@
 use crate::sample::Sample;
 
-pub struct Buffer<S: Sample> {
+pub trait Buffer<T> {
+    fn new(capacity: usize) -> Self;
+    fn from_slice(slice: &[T]) -> Self;
+
+    fn len(&self) -> usize;
+
+    fn apply<F: Fn(T) -> T>(&mut self, f: F);
+
+    fn clear(&mut self);
+}
+
+pub struct AudioBuffer<S: Sample> {
     capacity: usize,
+    next_idx: usize,
     data: Vec<S>,
 }
 
-impl<S: Sample> Buffer<S> {
-    pub fn new(capacity: usize) -> Self {
-        Buffer {
+impl<S: Sample> Buffer<S> for AudioBuffer<S> {
+    fn new(capacity: usize) -> Self {
+        AudioBuffer {
             capacity,
+            next_idx: 0,
             data: vec![S::EQUILIBRIUM; capacity],
         }
     }
 
-    pub fn from_slice(slice: &[S]) -> Self {
-        Buffer {
+    fn from_slice(slice: &[S]) -> Self {
+        AudioBuffer {
             capacity: slice.len(),
+            next_idx: 0,
             data: slice.to_vec(),
         }
     }
 
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.data.len()
     }
 
-    pub fn apply<F: Fn(S) -> S>(&mut self, f: F) {
-        self.data = self.data.iter().map(|&s| f(s)).collect();
+    fn apply<F: Fn(S) -> S>(&mut self, f: F) {
+        self.data = self.data.iter().map(|&s| f(s)).collect()
     }
 
-    pub fn equilibrium(&mut self) {
+    fn clear(&mut self) {
         self.data = vec![S::EQUILIBRIUM; self.capacity];
     }
+}
 
-    pub fn get_sample(&self, idx: usize) -> Option<&S> {
-        self.data.get(idx)
-    }
+impl<S: Sample> Iterator for AudioBuffer<S> {
+    type Item = S;
 
-    pub fn set_sample(&mut self, idx: usize, value: S) {
-        if idx < self.data.len() {
-            self.data[idx] = value;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.next_idx < self.capacity {
+            self.next_idx += 1;
+            Some(self.data[self.next_idx - 1])
+        } else {
+            None
         }
     }
 }

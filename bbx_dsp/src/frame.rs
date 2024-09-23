@@ -1,13 +1,13 @@
-use crate::{buffer::Buffer, sample::Sample};
+use crate::{buffer::AudioBuffer, sample::Sample};
 
 pub trait Frame {
     type Sample: Sample;
     type NumChannels: NumChannels;
-    type Channels: Iterator<Item = Buffer<Self::Sample>>;
+    type Channels: Iterator<Item = AudioBuffer<Self::Sample>>;
 
     const NUM_CHANNELS: usize;
 
-    fn channel(&self, idx: usize) -> Option<&Buffer<Self::Sample>>;
+    fn channel(&self, idx: usize) -> Option<&AudioBuffer<Self::Sample>>;
     fn channels(self) -> Self::Channels;
 }
 
