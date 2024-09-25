@@ -1,16 +1,27 @@
 use crate::sample::Sample;
 
+/// An iterable container for data, usually audio samples or
+/// modulation data.
 pub trait Buffer<T> {
+    /// Creates a new `Buffer` with some capacity.
     fn new(capacity: usize) -> Self;
+
+    /// Creates a new `Buffer` from a referenced slice of data.
     fn from_slice(slice: &[T]) -> Self;
 
+    /// Returns the length of the `Buffer`.
     fn len(&self) -> usize;
 
+    /// Applies a function to the data inside the `Buffer`.
     fn apply<F: Fn(T) -> T>(&mut self, f: F);
 
+    /// Zeroes the data within the `Buffer`, retaining its original size
+    /// to avoid dynamic allocation.
     fn clear(&mut self);
 }
 
+/// A `Buffer` specifically for data that is trait-bound to
+/// a `Sample`.
 pub struct AudioBuffer<S: Sample> {
     capacity: usize,
     next_idx: usize,

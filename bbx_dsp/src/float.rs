@@ -1,5 +1,6 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
+/// The basic unit of data most commonly used in DSP operations.
 pub trait Float:
     Copy
     + Clone

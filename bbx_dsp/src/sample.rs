@@ -2,11 +2,14 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 use crate::float::Float;
 
+/// The unit of data within an audio DSP system. In this case it wraps
+/// any data type that is trait-bound to `Float`.
 pub trait Sample:
     Copy
     + Clone
     + From<Self::Float>
     + PartialEq
+    + PartialOrd
     + Add<Self, Output = Self>
     + Sub<Self, Output = Self>
     + Mul<Self, Output = Self>
@@ -60,8 +63,23 @@ pub trait Sample:
 
     fn powf(self, exp: Self) -> Self;
 
-    fn min(self, rhs: Self) -> Self;
-    fn max(self, rhs: Self) -> Self;
+    #[inline]
+    fn min(self, rhs: Self) -> Self {
+        if self < rhs {
+            self
+        } else {
+            rhs
+        }
+    }
+
+    #[inline]
+    fn max(self, rhs: Self) -> Self {
+        if self < rhs {
+            rhs
+        } else {
+            self
+        }
+    }
 }
 
 impl Sample for f32 {
@@ -84,15 +102,5 @@ impl Sample for f32 {
     #[inline]
     fn powf(self, exp: Self) -> Self {
         Float::powf(self, exp)
-    }
-
-    #[inline]
-    fn min(self, other: Self) -> Self {
-        Float::min(self, other)
-    }
-
-    #[inline]
-    fn max(self, other: Self) -> Self {
-        Float::max(self, other)
     }
 }
