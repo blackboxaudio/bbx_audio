@@ -13,12 +13,12 @@ impl Display for OverdriveEffector {
 impl Process for OverdriveEffector {
     fn process(&mut self, inputs: &Vec<Sample>) -> Sample {
         let input_sum: Sample = inputs.iter().sum::<Sample>() / inputs.len() as Sample;
-        return if input_sum > 1.0 {
+        if input_sum > 1.0 {
             1.0
         } else if input_sum < -1.0 {
             -1.0
         } else {
             input_sum - (input_sum.powi(3) / 3.0)
-        };
+        }
     }
 }

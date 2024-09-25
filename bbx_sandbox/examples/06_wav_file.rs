@@ -1,4 +1,5 @@
 use std::env;
+
 use bbx_file::readers::wav::WavFileReader;
 
 fn main() {

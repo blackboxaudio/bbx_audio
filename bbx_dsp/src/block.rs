@@ -22,21 +22,21 @@ impl Block {
     fn new(operation: Operation, operation_type: OperationType) -> Block {
         let mut rng = rand::thread_rng();
         let id = rng.gen::<usize>();
-        return Block {
+        Block {
             id,
             inputs: Vec::new(),
             outputs: Vec::new(),
             operation,
             operation_type,
-        };
+        }
     }
 
     pub fn from_effector_operation(effector_operation: Operation) -> Block {
-        return Self::new(effector_operation, OperationType::Effector);
+        Self::new(effector_operation, OperationType::Effector)
     }
 
     pub fn from_generator(generator: Generator) -> Block {
-        return Self::new(generator.to_operation(), OperationType::Generator);
+        Self::new(generator.to_operation(), OperationType::Generator)
     }
 }
 

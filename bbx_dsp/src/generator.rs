@@ -7,10 +7,10 @@ pub enum Generator {
 
 impl Generator {
     pub fn to_operation(self) -> Operation {
-        return match self {
+        match self {
             Generator::WaveTable { sample_rate, frequency } => {
                 Box::new(WaveTableGenerator::new(sample_rate, frequency))
             }
-        };
+        }
     }
 }

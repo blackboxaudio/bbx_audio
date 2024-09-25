@@ -1,6 +1,8 @@
-use std::fs::File;
-use std::io::{self, Read, Seek, SeekFrom};
-use std::convert::TryInto;
+use std::{
+    convert::TryInto,
+    fs::File,
+    io::{self, Read, Seek, SeekFrom},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum WavFormat {
@@ -49,8 +51,8 @@ impl WavFileReader {
         let bits_per_sample = u16::from_le_bytes(header[34..36].try_into().unwrap());
 
         let format = match audio_format {
-            1 => WavFormat::PCM,       // PCM (uncompressed)
-            3 => WavFormat::Float,     // IEEE float
+            1 => WavFormat::PCM,   // PCM (uncompressed)
+            3 => WavFormat::Float, // IEEE float
             _ => WavFormat::Unsupported,
         };
 
@@ -115,9 +117,7 @@ impl WavFileReader {
                     self.file.read_exact(&mut buffer)?;
                     for chunk in buffer.chunks_exact(3) {
                         // Manually convert 24-bit PCM to 32-bit signed integer
-                        let sample = ((chunk[2] as i32) << 16)
-                            | ((chunk[1] as i32) << 8)
-                            | (chunk[0] as i32);
+                        let sample = ((chunk[2] as i32) << 16) | ((chunk[1] as i32) << 8) | (chunk[0] as i32);
                         // Convert to [-1.0, 1.0]
                         audio_data.push(sample as f32 / 8_388_608.0); // 2^23
                     }
@@ -150,11 +150,14 @@ impl WavFileReader {
                         audio_data.push(sample as f32); // Convert to f32
                     }
                 }
-                _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported bit depth for float")),
+                _ => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Unsupported bit depth for float",
+                    ));
+                }
             },
-            WavFormat::Unsupported => {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported WAV format"))
-            }
+            WavFormat::Unsupported => return Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported WAV format")),
         }
 
         Ok(audio_data)

@@ -16,29 +16,29 @@ pub struct Graph {
 
 impl Graph {
     pub fn new(sample_rate: usize) -> Graph {
-        return Graph {
+        Graph {
             sample_rate,
             blocks: HashMap::new(),
             connections: Vec::new(),
             processes: HashMap::new(),
             processing_order: Vec::new(),
-        };
+        }
     }
 
     pub fn sample_rate(&self) -> usize {
-        return self.sample_rate;
+        self.sample_rate
     }
 }
 
 impl Graph {
     pub fn add_effector(&mut self, effector: Effector) -> usize {
         let effector_block = Block::from_effector_operation(effector.to_operation());
-        return self.add_block(effector_block, BbxAudioDspError::CannotAddEffectorBlock);
+        self.add_block(effector_block, BbxAudioDspError::CannotAddEffectorBlock)
     }
 
     pub fn add_generator(&mut self, generator: Generator) -> usize {
         let generator_block = Block::from_generator(generator);
-        return self.add_block(generator_block, BbxAudioDspError::CannotAddGeneratorBlock);
+        self.add_block(generator_block, BbxAudioDspError::CannotAddGeneratorBlock)
     }
 
     fn add_block(&mut self, block: Block, error: BbxAudioDspError) -> usize {
@@ -46,11 +46,11 @@ impl Graph {
         self.blocks.insert(block_id, block);
         self.processes.insert(block_id, 0.0);
 
-        return if let Some(block) = self.blocks.get(&block_id) {
+        if let Some(block) = self.blocks.get(&block_id) {
             block.id
         } else {
             panic!("{:?}", error);
-        };
+        }
     }
 
     pub fn create_connection(&mut self, source_id: usize, destination_id: usize) {
@@ -177,9 +177,9 @@ impl Graph {
             self.processes.insert(block_id, block.operation.process(&inputs));
         }
 
-        return *self
+        *self
             .processes
             .get(self.processing_order.last().unwrap())
-            .unwrap_or_else(|| &0.0);
+            .unwrap_or_else(|| &0.0)
     }
 }

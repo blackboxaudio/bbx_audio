@@ -11,9 +11,9 @@ pub enum Effector {
 
 impl Effector {
     pub fn to_operation(self) -> Operation {
-        return match self {
+        match self {
             Effector::Mixer() => Box::new(MixerEffector),
             Effector::Overdrive() => Box::new(OverdriveEffector),
-        };
+        }
     }
 }
