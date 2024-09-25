@@ -1,14 +1,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    block::Block, effector::Effector, error::BbxAudioDspError, generator::Generator, operation::OperationType,
-    sample::Sample,
-};
-use crate::context::Context;
-
-pub const DEFAULT_CONTEXT: Context = Context {
-    sample_rate: 44100,
-    buffer_size: 256,
+    block::Block, context::Context, effector::Effector, error::BbxAudioDspError, generator::Generator,
+    operation::OperationType, sample::Sample,
 };
 
 /// A collection of interconnected `Block` objects.
@@ -22,12 +16,13 @@ pub struct Graph {
 
 impl Graph {
     pub fn new(context: Context) -> Graph {
+        let max_num_graph_nodes = context.max_num_graph_nodes;
         Graph {
             context,
-            blocks: HashMap::new(),
-            connections: Vec::new(),
-            processes: HashMap::new(),
-            processing_order: Vec::new(),
+            blocks: HashMap::with_capacity(max_num_graph_nodes),
+            connections: Vec::with_capacity(max_num_graph_nodes),
+            processes: HashMap::with_capacity(max_num_graph_nodes),
+            processing_order: Vec::with_capacity(max_num_graph_nodes),
         }
     }
 
