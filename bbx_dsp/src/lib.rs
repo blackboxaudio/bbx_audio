@@ -1,9 +1,11 @@
-pub mod block;
-pub mod effector;
 pub mod effectors;
+pub mod generators;
+
+pub mod block;
+pub mod context;
+pub mod effector;
 pub mod error;
 pub mod generator;
-pub mod generators;
 pub mod graph;
 pub mod operation;
 pub mod process;

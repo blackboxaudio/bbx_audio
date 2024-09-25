@@ -1,8 +1,9 @@
 use bbx_dsp::{generator::Generator, graph::Graph};
+use bbx_dsp::graph::DEFAULT_CONTEXT;
 use bbx_sandbox::{constants::SAMPLE_RATE, player::Player, signal::Signal};
 
 pub fn create_graph() -> Graph {
-    let mut graph = Graph::new(SAMPLE_RATE);
+    let mut graph = Graph::new(DEFAULT_CONTEXT);
     graph.add_generator(Generator::WaveTable {
         sample_rate: SAMPLE_RATE,
         frequency: 110.0,

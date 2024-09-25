@@ -1,12 +1,13 @@
 use bbx_dsp::{effector::Effector, generator::Generator, graph::Graph};
+use bbx_dsp::graph::DEFAULT_CONTEXT;
 use bbx_sandbox::{constants::SAMPLE_RATE, player::Player, signal::Signal};
 
-const NUM_OSCILLATORS: usize = 24;
+const NUM_OSCILLATORS: usize = 12;
 
-const BASE_FREQUENCY: f32 = 49.0;
+const BASE_FREQUENCY: f32 = 55.0;
 
 pub fn create_graph() -> Graph {
-    let mut graph = Graph::new(SAMPLE_RATE);
+    let mut graph = Graph::new(DEFAULT_CONTEXT);
 
     let mixer = graph.add_effector(Effector::Mixer());
     for n in 0..NUM_OSCILLATORS {

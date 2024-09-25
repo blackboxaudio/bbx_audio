@@ -4,10 +4,16 @@ use crate::{
     block::Block, effector::Effector, error::BbxAudioDspError, generator::Generator, operation::OperationType,
     sample::Sample,
 };
+use crate::context::Context;
+
+pub const DEFAULT_CONTEXT: Context = Context {
+    sample_rate: 44100,
+    buffer_size: 256,
+};
 
 /// A collection of interconnected `Block` objects.
 pub struct Graph {
-    sample_rate: usize,
+    context: Context,
     blocks: HashMap<usize, Block>,
     connections: Vec<(usize, usize)>,
     processes: HashMap<usize, Sample>,
@@ -15,9 +21,9 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn new(sample_rate: usize) -> Graph {
+    pub fn new(context: Context) -> Graph {
         Graph {
-            sample_rate,
+            context,
             blocks: HashMap::new(),
             connections: Vec::new(),
             processes: HashMap::new(),
@@ -26,7 +32,7 @@ impl Graph {
     }
 
     pub fn sample_rate(&self) -> usize {
-        self.sample_rate
+        self.context.sample_rate
     }
 }
 
