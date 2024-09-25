@@ -1,6 +1,9 @@
 use bbx_dsp::{effector::Effector, generator::Generator, graph::Graph};
-use bbx_dsp::graph::DEFAULT_CONTEXT;
-use bbx_sandbox::{constants::SAMPLE_RATE, player::Player, signal::Signal};
+use bbx_sandbox::{
+    constants::{DEFAULT_CONTEXT, SAMPLE_RATE},
+    player::Player,
+    signal::Signal,
+};
 
 const NUM_OSCILLATORS: usize = 12;
 
