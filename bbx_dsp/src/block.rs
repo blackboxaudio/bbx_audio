@@ -6,10 +6,11 @@ use crate::{
     generator::Generator,
     operation::{Operation, OperationType},
 };
+use crate::node::NodeId;
 
-/// The representation of a DSP operation within a `Graph`.
+/// Represents an implementation that generates audio output buffers from a number of audio inputs.
 pub struct Block {
-    pub id: usize,
+    pub id: NodeId,
 
     pub inputs: Vec<usize>,
     pub outputs: Vec<usize>,

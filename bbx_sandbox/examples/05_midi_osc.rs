@@ -22,7 +22,7 @@ fn main() {
     });
     let handle = stream.init();
 
-    let signal = Signal::new(SAMPLE_RATE, create_graph());
+    let signal = Signal::new(create_graph());
     Player::new(signal).play(Some(10));
 
     handle.join().unwrap();

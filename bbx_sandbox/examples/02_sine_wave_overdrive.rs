@@ -20,6 +20,6 @@ pub fn create_graph() -> Graph {
 }
 
 fn main() {
-    let signal = Signal::new(SAMPLE_RATE, create_graph());
+    let signal = Signal::new(create_graph());
     Player::new(signal).play(None);
 }

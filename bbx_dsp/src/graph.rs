@@ -4,14 +4,15 @@ use crate::{
     block::Block, context::Context, effector::Effector, error::BbxAudioDspError, generator::Generator,
     operation::OperationType, sample::Sample,
 };
+use crate::node::NodeId;
 
 /// A collection of interconnected `Block` objects.
 pub struct Graph {
     context: Context,
-    blocks: HashMap<usize, Block>,
-    connections: Vec<(usize, usize)>,
-    processes: HashMap<usize, Sample>,
-    processing_order: Vec<usize>,
+    blocks: HashMap<NodeId, Block>,
+    connections: Vec<(NodeId, NodeId)>,
+    processes: HashMap<NodeId, Sample>,
+    processing_order: Vec<NodeId>,
 }
 
 impl Graph {
@@ -54,7 +55,7 @@ impl Graph {
         }
     }
 
-    pub fn create_connection(&mut self, source_id: usize, destination_id: usize) {
+    pub fn create_connection(&mut self, source_id: NodeId, destination_id: NodeId) {
         if self.connections.contains(&(source_id, destination_id)) {
             panic!("{:?}", BbxAudioDspError::ConnectionAlreadyCreated);
         } else {
@@ -87,10 +88,10 @@ impl Graph {
 
 impl Graph {
     fn update_processing_order(&mut self) {
-        let mut stack: Vec<usize> = Vec::with_capacity(self.blocks.len());
-        let mut visited: Vec<usize> = Vec::with_capacity(self.blocks.len());
+        let mut stack: Vec<NodeId> = Vec::with_capacity(self.blocks.len());
+        let mut visited: Vec<NodeId> = Vec::with_capacity(self.blocks.len());
 
-        fn dfs(block: &Block, order: &mut Vec<usize>, visited: &mut Vec<usize>, blocks: &HashMap<usize, Block>) {
+        fn dfs(block: &Block, order: &mut Vec<NodeId>, visited: &mut Vec<NodeId>, blocks: &HashMap<NodeId, Block>) {
             visited.push(block.id);
             for &block_id in &block.outputs {
                 if visited.contains(&block_id) {
@@ -122,7 +123,7 @@ impl Graph {
     }
 
     fn validate_acyclicity(&self) {
-        fn dfs(original_block_id: usize, block: &Block, visited: &mut Vec<usize>, blocks: &HashMap<usize, Block>) {
+        fn dfs(original_block_id: NodeId, block: &Block, visited: &mut Vec<NodeId>, blocks: &HashMap<NodeId, Block>) {
             visited.push(block.id);
             for &block_id in &block.outputs {
                 if visited.contains(&block_id) {
@@ -140,7 +141,7 @@ impl Graph {
         }
 
         for (_, block) in &self.blocks {
-            let mut visited: Vec<usize> = Vec::with_capacity(self.blocks.len());
+            let mut visited: Vec<NodeId> = Vec::with_capacity(self.blocks.len());
             dfs(block.id, block, &mut visited, &self.blocks);
         }
     }

@@ -3,13 +3,12 @@ use rodio::Source;
 use bbx_dsp::{graph::Graph, sample::Sample};
 
 pub struct Signal {
-    sample_rate: usize,
     graph: Graph,
 }
 
 impl Signal {
-    pub fn new(sample_rate: usize, graph: Graph) -> Signal {
-        Signal { sample_rate, graph }
+    pub fn new(graph: Graph) -> Signal {
+        Signal { graph }
     }
 }
 
@@ -37,7 +36,7 @@ impl Source for Signal {
     }
 
     fn sample_rate(&self) -> u32 {
-        self.sample_rate as u32
+        self.graph.sample_rate() as u32
     }
 
     fn total_duration(&self) -> Option<Duration> {
