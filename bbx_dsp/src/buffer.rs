@@ -9,6 +9,12 @@ pub trait Buffer<T> {
     /// Creates a new `Buffer` from a referenced slice of data.
     fn from_slice(slice: &[T]) -> Self;
 
+    /// Returns a `Buffer` represented as a slice.
+    fn as_slice(&self) -> &[T];
+
+    /// Copies data from an existing `Buffer` into this one.
+    fn copy_from_slice(&mut self, slice: &[T]);
+
     /// Returns the length of the `Buffer`.
     fn len(&self) -> usize;
 
@@ -43,6 +49,14 @@ impl<S: Sample> Buffer<S> for AudioBuffer<S> {
             next_idx: 0,
             data: slice.to_vec(),
         }
+    }
+
+    fn as_slice(&self) -> &[S] {
+        self.data.as_slice()
+    }
+
+    fn copy_from_slice(&mut self, slice: &[S]) {
+        self.data.copy_from_slice(slice);
     }
 
     fn len(&self) -> usize {

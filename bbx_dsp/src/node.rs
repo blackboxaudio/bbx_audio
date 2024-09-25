@@ -9,6 +9,13 @@ pub trait Node {
     fn process(&mut self, audio_inputs: &[AudioInput], output: &mut [AudioBuffer<f32>]);
 }
 
+/// Represents the node weight within a graph, containing
+/// a node and its corresponding buffers.
+pub struct NodeData<N: ?Sized> {
+    pub buffers: Vec<AudioBuffer<f32>>,
+    pub node: N,
+}
+
 /// A pointer to the output buffers of another node that is an input
 /// to the current node.
 pub struct AudioInput {
