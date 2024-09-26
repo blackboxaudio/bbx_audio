@@ -1,1 +1,1 @@
-pub const PLAYTIME_DURATION: usize = 3;
+pub const PLAYTIME_DURATION_SECONDS: usize = 3;

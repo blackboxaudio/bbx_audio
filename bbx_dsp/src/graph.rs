@@ -39,7 +39,7 @@ impl Graph {
 impl Graph {
     /// Adds an `Effector` to the graph
     pub fn add_effector(&mut self, effector: Effector) -> usize {
-        let effector_block = Block::from_effector_operation(self.context, effector.to_operation());
+        let effector_block = Block::from_effector(self.context, effector);
         self.add_block(effector_block, BbxAudioDspError::CannotAddEffectorBlock)
     }
 

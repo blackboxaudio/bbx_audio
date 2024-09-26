@@ -6,11 +6,15 @@ use crate::{
     node::NodeId,
     operation::{Operation, OperationType},
 };
+use crate::effector::Effector;
 
 /// Represents an implementation that generates audio output buffers from a number of audio inputs.
 pub struct Block {
     /// The identifier of a `Block`.
     pub id: NodeId,
+
+    /// The context in which the graph is being evaluated.
+    pub context: Context,
 
     /// The `NodeId`s of the incoming nodes.
     pub inputs: Vec<NodeId>,
@@ -31,6 +35,7 @@ impl Block {
         let id = rng.gen::<NodeId>();
         Block {
             id,
+            context,
             inputs: Vec::with_capacity(context.max_num_graph_nodes),
             outputs: Vec::with_capacity(context.max_num_graph_nodes),
             operation,
@@ -38,8 +43,8 @@ impl Block {
         }
     }
 
-    pub fn from_effector_operation(context: Context, effector_operation: Operation) -> Block {
-        Self::new(context, effector_operation, OperationType::Effector)
+    pub fn from_effector(context: Context, effector: Effector) -> Block {
+        Self::new(context, effector.to_operation(context), OperationType::Effector)
     }
 
     pub fn from_generator(context: Context, generator: Generator) -> Block {

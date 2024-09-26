@@ -1,6 +1,6 @@
 use rodio::{OutputStream, Source};
 
-use crate::{constants::PLAYTIME_DURATION, signal::Signal};
+use crate::{constants::PLAYTIME_DURATION_SECONDS, signal::Signal};
 
 pub struct Player {
     signal: Signal,
@@ -18,7 +18,7 @@ impl Player {
         let _result = stream_handle.play_raw(self.signal.convert_samples());
 
         std::thread::sleep(std::time::Duration::from_secs(
-            duration.unwrap_or(PLAYTIME_DURATION) as u64
+            duration.unwrap_or(PLAYTIME_DURATION_SECONDS) as u64
         ));
     }
 }
