@@ -1,15 +1,11 @@
-use bbx_dsp::{effector::Effector, generator::Generator, graph::Graph};
-use bbx_sandbox::{
-    constants::{DEFAULT_CONTEXT, SAMPLE_RATE},
-    player::Player,
-    signal::Signal,
-};
+use bbx_dsp::{constants::DEFAULT_CONTEXT, effector::Effector, generator::Generator, graph::Graph};
+use bbx_sandbox::{player::Player, signal::Signal};
 
 pub fn create_graph() -> Graph {
     let mut graph = Graph::new(DEFAULT_CONTEXT);
 
     let oscillator = graph.add_generator(Generator::WaveTable {
-        sample_rate: SAMPLE_RATE,
+        sample_rate: DEFAULT_CONTEXT.sample_rate,
         frequency: 110.0,
     });
     let overdrive = graph.add_effector(Effector::Overdrive());

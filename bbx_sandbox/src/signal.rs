@@ -1,6 +1,7 @@
 use std::time::Duration;
+
+use bbx_dsp::graph::Graph;
 use rodio::Source;
-use bbx_dsp::{graph::Graph};
 
 pub struct Signal {
     graph: Graph,

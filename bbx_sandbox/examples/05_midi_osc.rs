@@ -1,15 +1,11 @@
-use bbx_dsp::{generator::Generator, graph::Graph};
+use bbx_dsp::{constants::DEFAULT_CONTEXT, generator::Generator, graph::Graph};
 use bbx_midi::stream::MidiInputStream;
-use bbx_sandbox::{
-    constants::{DEFAULT_CONTEXT, SAMPLE_RATE},
-    player::Player,
-    signal::Signal,
-};
+use bbx_sandbox::{player::Player, signal::Signal};
 
 pub fn create_graph() -> Graph {
     let mut graph = Graph::new(DEFAULT_CONTEXT);
     graph.add_generator(Generator::WaveTable {
-        sample_rate: SAMPLE_RATE,
+        sample_rate: DEFAULT_CONTEXT.sample_rate,
         frequency: 110.0,
     });
     graph.prepare_for_playback();

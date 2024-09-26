@@ -1,3 +1,5 @@
+use crate::constants::DEFAULT_CONTEXT;
+
 /// The context in which a DSP graph should be evaluated, containing
 /// information such as how many channels should be generated or processed or what
 /// size should the buffers be.
@@ -15,5 +17,11 @@ impl Context {
             buffer_size,
             max_num_graph_nodes,
         }
+    }
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        DEFAULT_CONTEXT
     }
 }

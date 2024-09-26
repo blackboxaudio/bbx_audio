@@ -1,6 +1,4 @@
-use std::fmt::{Display, Formatter};
-
-use crate::{process::Process, sample::Sample};
+use crate::process::Process;
 
 const WAVE_TABLE_SIZE: usize = 128;
 
@@ -50,12 +48,6 @@ impl WaveTableGenerator {
         let next_index_weight = self.phase - truncated_index as f32;
         let truncated_index_weight = 1.0 - next_index_weight;
         (self.wave_table[truncated_index] * truncated_index_weight) + (self.wave_table[next_index] * next_index_weight)
-    }
-}
-
-impl Display for WaveTableGenerator {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "g_Wavetable")
     }
 }
 

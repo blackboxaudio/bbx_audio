@@ -2,19 +2,19 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 /// The basic unit of data most commonly used in DSP operations.
 pub trait Float:
-Copy
-+ Clone
-+ From<f32>
-+ PartialEq
-+ PartialOrd
-+ Add<Output = Self>
-+ Sub<Output = Self>
-+ Mul<Output = Self>
-+ Div<Output = Self>
-+ AddAssign
-+ SubAssign
-+ MulAssign
-+ DivAssign
+    Copy
+    + Clone
+    + From<f32>
+    + PartialEq
+    + PartialOrd
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + AddAssign
+    + SubAssign
+    + MulAssign
+    + DivAssign
 {
     const ZERO: Self;
     const IDENTITY: Self;

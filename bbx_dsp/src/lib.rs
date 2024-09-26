@@ -2,6 +2,7 @@ pub mod effectors;
 pub mod generators;
 
 pub mod block;
+pub mod constants;
 pub mod context;
 pub mod effector;
 pub mod error;

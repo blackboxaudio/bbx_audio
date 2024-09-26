@@ -1,14 +1,6 @@
-use std::fmt::{Display, Formatter};
-
-use crate::{process::Process, sample::Sample};
+use crate::process::Process;
 
 pub struct MixerEffector;
-
-impl Display for MixerEffector {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "e_Mixer")
-    }
-}
 
 impl Process for MixerEffector {
     type Sample = f32;

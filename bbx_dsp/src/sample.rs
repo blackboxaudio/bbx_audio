@@ -5,19 +5,19 @@ use crate::float::Float;
 /// The unit of data within an audio DSP system. In this case it wraps
 /// any data type that is trait-bound to `Float`.
 pub trait Sample:
-Copy
-+ Clone
-+ From<Self::Float>
-+ PartialEq
-+ PartialOrd
-+ Add<Self, Output = Self>
-+ Sub<Self, Output = Self>
-+ Mul<Self, Output = Self>
-+ Div<Self, Output = Self>
-+ AddAssign
-+ SubAssign
-+ MulAssign
-+ DivAssign
+    Copy
+    + Clone
+    + From<Self::Float>
+    + PartialEq
+    + PartialOrd
+    + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + AddAssign
+    + SubAssign
+    + MulAssign
+    + DivAssign
 {
     type Float: Float;
 
@@ -65,20 +65,12 @@ Copy
 
     #[inline]
     fn min(self, rhs: Self) -> Self {
-        if self < rhs {
-            self
-        } else {
-            rhs
-        }
+        if self < rhs { self } else { rhs }
     }
 
     #[inline]
     fn max(self, rhs: Self) -> Self {
-        if self < rhs {
-            rhs
-        } else {
-            self
-        }
+        if self < rhs { rhs } else { self }
     }
 }
 

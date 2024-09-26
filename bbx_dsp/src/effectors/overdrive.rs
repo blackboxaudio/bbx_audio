@@ -1,14 +1,6 @@
-use std::fmt::{Display, Formatter};
-
-use crate::{process::Process, sample::Sample};
+use crate::process::Process;
 
 pub struct OverdriveEffector;
-
-impl Display for OverdriveEffector {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "e_Overdrive")
-    }
-}
 
 impl Process for OverdriveEffector {
     type Sample = f32;

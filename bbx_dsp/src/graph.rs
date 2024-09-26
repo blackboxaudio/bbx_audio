@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
 use crate::{
-    block::Block, context::Context, effector::Effector, error::BbxAudioDspError, generator::Generator,
-    operation::OperationType, sample::Sample,
+    block::Block, context::Context, effector::Effector, error::BbxAudioDspError, generator::Generator, node::NodeId,
+    operation::OperationType,
 };
-use crate::node::NodeId;
 
 /// A collection of interconnected `Block` objects.
 pub struct Graph {
@@ -33,11 +32,13 @@ impl Graph {
 }
 
 impl Graph {
+    /// Adds an `Effector` to the graph
     pub fn add_effector(&mut self, effector: Effector) -> usize {
         let effector_block = Block::from_effector_operation(effector.to_operation());
         self.add_block(effector_block, BbxAudioDspError::CannotAddEffectorBlock)
     }
 
+    /// Adds a `Generator` to the graph
     pub fn add_generator(&mut self, generator: Generator) -> usize {
         let generator_block = Block::from_generator(generator);
         self.add_block(generator_block, BbxAudioDspError::CannotAddGeneratorBlock)
@@ -55,6 +56,7 @@ impl Graph {
         }
     }
 
+    /// Creates a connection between a source node and destination node.
     pub fn create_connection(&mut self, source_id: NodeId, destination_id: NodeId) {
         if self.connections.contains(&(source_id, destination_id)) {
             panic!("{:?}", BbxAudioDspError::ConnectionAlreadyCreated);
@@ -79,6 +81,8 @@ impl Graph {
         }
     }
 
+    /// Prepares a `Graph` to be processed, i.e. ensures optimal node evaluation order,
+    /// validates acyclicity, and checks that all connections are valid.
     pub fn prepare_for_playback(&mut self) {
         self.update_processing_order();
         self.validate_acyclicity();
@@ -168,6 +172,7 @@ impl Graph {
 }
 
 impl Graph {
+    /// Iterates through the nodes of a graph and processes each of them.
     #[allow(unused_assignments)]
     pub fn evaluate(&mut self) -> f32 {
         for &block_id in &self.processing_order {
