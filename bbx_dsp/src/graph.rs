@@ -1,22 +1,21 @@
 use std::collections::HashMap;
 use crate::{
-    block::Block,
     buffer::{AudioBuffer, Buffer},
     context::Context,
     effector::Effector,
     error::BbxAudioDspError,
     generator::Generator,
-    node::NodeId,
+    node::{Node, NodeId},
     operation::OperationType,
     process::AudioInput,
 };
 
-/// Contains a number of `Block`s connected in a certain way.
+/// Contains a number of `Node`s connected in a certain way.
 pub struct Graph {
     /// The associated `Context` for this `Graph`.
     pub context: Context,
 
-    blocks: HashMap<NodeId, Block>,
+    nodes: HashMap<NodeId, Node>,
     connections: Vec<(NodeId, NodeId)>,
 
     processes: HashMap<NodeId, Vec<AudioBuffer<f32>>>,
@@ -28,7 +27,7 @@ impl Graph {
         let max_num_graph_nodes = context.max_num_graph_nodes;
         Graph {
             context,
-            blocks: HashMap::with_capacity(max_num_graph_nodes),
+            nodes: HashMap::with_capacity(max_num_graph_nodes),
             connections: Vec::with_capacity(max_num_graph_nodes),
             processes: HashMap::with_capacity(max_num_graph_nodes),
             processing_order: Vec::with_capacity(max_num_graph_nodes),
@@ -39,26 +38,26 @@ impl Graph {
 impl Graph {
     /// Adds an `Effector` to the graph
     pub fn add_effector(&mut self, effector: Effector) -> usize {
-        let effector_block = Block::from_effector(self.context, effector);
-        self.add_block(effector_block, BbxAudioDspError::CannotAddEffectorBlock)
+        let effector_node = Node::from_effector(self.context, effector);
+        self.add_node(effector_node, BbxAudioDspError::CannotAddEffectorNode)
     }
 
     /// Adds a `Generator` to the graph
     pub fn add_generator(&mut self, generator: Generator) -> usize {
-        let generator_block = Block::from_generator(self.context, generator);
-        self.add_block(generator_block, BbxAudioDspError::CannotAddGeneratorBlock)
+        let generator_node = Node::from_generator(self.context, generator);
+        self.add_node(generator_node, BbxAudioDspError::CannotAddGeneratorNode)
     }
 
-    fn add_block(&mut self, block: Block, error: BbxAudioDspError) -> usize {
-        let block_id = block.id;
-        self.blocks.insert(block_id, block);
+    fn add_node(&mut self, node: Node, error: BbxAudioDspError) -> usize {
+        let node_id = node.id;
+        self.nodes.insert(node_id, node);
         self.processes.insert(
-            block_id,
+            node_id,
             vec![AudioBuffer::new(self.context.buffer_size); self.context.num_channels],
         );
 
-        if let Some(block) = self.blocks.get(&block_id) {
-            block.id
+        if let Some(node) = self.nodes.get(&node_id) {
+            node.id
         } else {
             panic!("{:?}", error);
         }
@@ -69,20 +68,20 @@ impl Graph {
         if self.connections.contains(&(source_id, destination_id)) {
             panic!("{:?}", BbxAudioDspError::ConnectionAlreadyCreated);
         } else {
-            if let Some(source) = self.blocks.get_mut(&source_id) {
+            if let Some(source) = self.nodes.get_mut(&source_id) {
                 source.add_output(destination_id);
             } else {
                 panic!(
                     "{:?}",
-                    BbxAudioDspError::CannotRetrieveSourceBlock(format!("{}", source_id))
+                    BbxAudioDspError::CannotRetrieveSourceNode(format!("{}", source_id))
                 );
             }
-            if let Some(destination) = self.blocks.get_mut(&destination_id) {
+            if let Some(destination) = self.nodes.get_mut(&destination_id) {
                 destination.add_input(source_id);
             } else {
                 panic!(
                     "{:?}",
-                    BbxAudioDspError::CannotRetrieveDestinationBlock(format!("{}", destination_id))
+                    BbxAudioDspError::CannotRetrieveDestinationNode(format!("{}", destination_id))
                 );
             }
             self.connections.push((source_id, destination_id));
@@ -101,33 +100,33 @@ impl Graph {
 
 impl Graph {
     fn update_processing_order(&mut self) {
-        let mut stack: Vec<NodeId> = Vec::with_capacity(self.blocks.len());
-        let mut visited: Vec<NodeId> = Vec::with_capacity(self.blocks.len());
+        let mut stack: Vec<NodeId> = Vec::with_capacity(self.nodes.len());
+        let mut visited: Vec<NodeId> = Vec::with_capacity(self.nodes.len());
 
-        fn dfs(block: &Block, order: &mut Vec<NodeId>, visited: &mut Vec<NodeId>, blocks: &HashMap<NodeId, Block>) {
-            visited.push(block.id);
-            for &block_id in &block.outputs {
-                if visited.contains(&block_id) {
+        fn dfs(node: &Node, order: &mut Vec<NodeId>, visited: &mut Vec<NodeId>, nodes: &HashMap<NodeId, Node>) {
+            visited.push(node.id);
+            for &node_id in &node.outputs {
+                if visited.contains(&node_id) {
                     continue;
                 } else {
-                    let block_option = blocks.get(&block_id);
-                    if let Some(block) = block_option {
-                        dfs(block, order, visited, blocks);
+                    let node_option = nodes.get(&node_id);
+                    if let Some(node) = node_option {
+                        dfs(node, order, visited, nodes);
                     }
                 }
             }
-            order.push(block.id);
+            order.push(node.id);
         }
 
-        for block in self.blocks.values() {
-            if visited.contains(&block.id) {
+        for node in self.nodes.values() {
+            if visited.contains(&node.id) {
                 continue;
             } else {
-                dfs(block, &mut stack, &mut visited, &self.blocks);
+                dfs(node, &mut stack, &mut visited, &self.nodes);
             }
         }
 
-        if stack.len() == self.blocks.len() {
+        if stack.len() == self.nodes.len() {
             stack.reverse();
             self.processing_order = stack.clone();
         } else {
@@ -136,70 +135,70 @@ impl Graph {
     }
 
     fn validate_acyclicity(&self) {
-        fn dfs(original_block_id: NodeId, block: &Block, visited: &mut Vec<NodeId>, blocks: &HashMap<NodeId, Block>) {
-            visited.push(block.id);
-            for &block_id in &block.outputs {
-                if visited.contains(&block_id) {
-                    if block_id == original_block_id {
-                        panic!("{:?}", BbxAudioDspError::GraphContainsCycle(format!("{}", block_id)))
+        fn dfs(original_node_id: NodeId, node: &Node, visited: &mut Vec<NodeId>, nodes: &HashMap<NodeId, Node>) {
+            visited.push(node.id);
+            for &node_id in &node.outputs {
+                if visited.contains(&node_id) {
+                    if node_id == original_node_id {
+                        panic!("{:?}", BbxAudioDspError::GraphContainsCycle(format!("{}", node_id)))
                     }
                     continue;
                 } else {
-                    let block_option = blocks.get(&block_id);
-                    if let Some(block) = block_option {
-                        dfs(original_block_id, block, visited, blocks);
+                    let node_option = nodes.get(&node_id);
+                    if let Some(node) = node_option {
+                        dfs(original_node_id, node, visited, nodes);
                     }
                 }
             }
         }
 
-        for block in self.blocks.values() {
-            let mut visited: Vec<NodeId> = Vec::with_capacity(self.blocks.len());
-            dfs(block.id, block, &mut visited, &self.blocks);
+        for node in self.nodes.values() {
+            let mut visited: Vec<NodeId> = Vec::with_capacity(self.nodes.len());
+            dfs(node.id, node, &mut visited, &self.nodes);
         }
     }
 
     fn validate_connections(&self) {
         for (source_id, destination_id) in &self.connections {
-            if self.blocks.contains_key(source_id) && self.blocks.contains_key(destination_id) {
+            if self.nodes.contains_key(source_id) && self.nodes.contains_key(destination_id) {
                 continue;
             } else {
-                panic!("{:?}", BbxAudioDspError::ConnectionHasNoBlock);
+                panic!("{:?}", BbxAudioDspError::ConnectionHasNoNode);
             }
         }
-        for (block_id, block) in self.blocks.iter() {
-            if block.operation_type == OperationType::Effector && block.inputs.is_empty() {
-                panic!("{:?}", BbxAudioDspError::BlockHasNoInputs(format!("{}", block_id)));
-            } else if block.operation_type == OperationType::Generator
-                && block.outputs.is_empty()
-                && self.blocks.len() > 1
+        for (node_id, node) in self.nodes.iter() {
+            if node.operation_type == OperationType::Effector && node.inputs.is_empty() {
+                panic!("{:?}", BbxAudioDspError::NodeHasNoInputs(format!("{}", node_id)));
+            } else if node.operation_type == OperationType::Generator
+                && node.outputs.is_empty()
+                && self.nodes.len() > 1
             {
-                panic!("{:?}", BbxAudioDspError::BlockHasNoOutputs(format!("{}", block_id)));
+                panic!("{:?}", BbxAudioDspError::NodeHasNoOutputs(format!("{}", node_id)));
             }
         }
     }
 
     fn validate_convergence(&self) {
-        fn dfs(original_block_id: NodeId, block: &Block, visited: &mut Vec<NodeId>, blocks: &HashMap<NodeId, Block>) {
-            visited.push(block.id);
-            for &block_id in &block.inputs {
-                if visited.contains(&block_id) {
+        fn dfs(original_node_id: NodeId, node: &Node, visited: &mut Vec<NodeId>, nodes: &HashMap<NodeId, Node>) {
+            visited.push(node.id);
+            for &node_id in &node.inputs {
+                if visited.contains(&node_id) {
                     continue;
                 } else {
-                    let block_option = blocks.get(&block_id);
-                    if let Some(block) = block_option {
-                        dfs(original_block_id, block, visited, blocks);
+                    let node_option = nodes.get(&node_id);
+                    if let Some(node) = node_option {
+                        dfs(original_node_id, node, visited, nodes);
                     }
                 }
             }
         }
 
-        let block_id = self.processing_order.last().unwrap();
-        let block = self.blocks.get(block_id).unwrap();
-        let mut visited: Vec<NodeId> = Vec::with_capacity(self.blocks.len());
-        dfs(*block_id, block, &mut visited, &self.blocks);
+        let node_id = self.processing_order.last().unwrap();
+        let node = self.nodes.get(node_id).unwrap();
+        let mut visited: Vec<NodeId> = Vec::with_capacity(self.nodes.len());
+        dfs(*node_id, node, &mut visited, &self.nodes);
 
-        if self.blocks.len() != visited.len() {
+        if self.nodes.len() != visited.len() {
             panic!("{:?}", BbxAudioDspError::GraphContainsNonConvergingPaths);
         }
     }
@@ -209,19 +208,16 @@ impl Graph {
     /// Iterates through the nodes of a graph and processes each of them.
     #[allow(unused_assignments)]
     pub fn evaluate(&mut self) -> &Vec<AudioBuffer<f32>> {
-        for &block_id in &self.processing_order {
-            let block = self.blocks.get_mut(&block_id).unwrap();
-            let inputs = &block
+        for &node_id in &self.processing_order {
+            let node = self.nodes.get_mut(&node_id).unwrap();
+            let inputs = &node
                 .inputs
                 .iter()
-                .map(|i| AudioInput::new(self.processes.get(i).unwrap()))
+                .map(|i| AudioInput::new(self.processes.get(i).unwrap().as_slice()))
                 .collect::<Vec<AudioInput>>()[..];
-            block
+            node
                 .operation
-                .process(inputs, self.processes.get_mut(&block_id).unwrap());
-
-            let output = self.processes.get(&block_id).unwrap();
-            self.processes.insert(block_id, output.to_vec());
+                .process(inputs, self.processes.get_mut(&node_id).unwrap());
         }
 
         self.processes.get(self.processing_order.last().unwrap()).unwrap()

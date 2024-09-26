@@ -1,6 +1,6 @@
 use crate::buffer::AudioBuffer;
 
-/// Implemented by `Block` objects used in a DSP `Graph` to process or generate signals.
+/// Implemented by `Node` objects used in a DSP `Graph` to process or generate signals.
 pub trait Process {
     fn process(&mut self, inputs: &[AudioInput], output: &mut [AudioBuffer<f32>]);
 }

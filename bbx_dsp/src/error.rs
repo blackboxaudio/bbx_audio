@@ -3,26 +3,20 @@ pub type Result<T> = std::result::Result<T, BbxAudioDspError>;
 /// The error type for the `bbx_dsp` crate.
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum BbxAudioDspError {
-    #[error("block (`{0}`) has no inputs")]
-    BlockHasNoInputs(String),
+    #[error("cannot add effector node to graph")]
+    CannotAddEffectorNode,
 
-    #[error("block (`{0}`) has no outputs")]
-    BlockHasNoOutputs(String),
+    #[error("cannot add generator node to graph")]
+    CannotAddGeneratorNode,
 
-    #[error("cannot add effector block to graph")]
-    CannotAddEffectorBlock,
+    #[error("cannot retrieve the current node (`{0}`)")]
+    CannotRetrieveCurrentNode(String),
 
-    #[error("cannot add generator block to graph")]
-    CannotAddGeneratorBlock,
+    #[error("cannot retrieve the destination node (`{0}`)")]
+    CannotRetrieveDestinationNode(String),
 
-    #[error("cannot retrieve the current block (`{0}`)")]
-    CannotRetrieveCurrentBlock(String),
-
-    #[error("cannot retrieve the destination block (`{0}`)")]
-    CannotRetrieveDestinationBlock(String),
-
-    #[error("cannot retrieve the source block (`{0}`)")]
-    CannotRetrieveSourceBlock(String),
+    #[error("cannot retrieve the source node (`{0}`)")]
+    CannotRetrieveSourceNode(String),
 
     #[error("cannot update the graph's processing order")]
     CannotUpdateGraphProcessingOrder,
@@ -30,14 +24,20 @@ pub enum BbxAudioDspError {
     #[error("connection has already been created")]
     ConnectionAlreadyCreated,
 
-    #[error("connection has no corresponding block")]
-    ConnectionHasNoBlock,
+    #[error("connection has no corresponding node")]
+    ConnectionHasNoNode,
 
-    #[error("graph contains a cycle (detected on block `{0}`)")]
+    #[error("graph contains a cycle (detected on node `{0}`)")]
     GraphContainsCycle(String),
 
     #[error("graph has non-converging paths")]
     GraphContainsNonConvergingPaths,
+
+    #[error("node (`{0}`) has no inputs")]
+    NodeHasNoInputs(String),
+
+    #[error("node (`{0}`) has no outputs")]
+    NodeHasNoOutputs(String),
 
     #[error("unknown error")]
     Unknown,

@@ -3,15 +3,13 @@ use crate::{
     process::{AudioInput, Process},
     utils::sum_audio_inputs,
 };
+use crate::utils::clear_output;
 
 pub struct OverdriveEffector;
 
 impl Process for OverdriveEffector {
     fn process(&mut self, inputs: &[AudioInput], output: &mut [AudioBuffer<f32>]) {
-        for output_buffer in output.iter_mut() {
-            output_buffer.clear();
-        }
-
+        clear_output(output);
         sum_audio_inputs(inputs, output);
 
         for channel_buffer in output.iter_mut() {

@@ -5,7 +5,7 @@ fn main() {
     // Create a `Graph` with the default context
     let mut graph = Graph::new(DEFAULT_CONTEXT);
 
-    // Add blocks for an oscillator and overdrive
+    // Add nodes for an oscillator and overdrive
     let oscillator = graph.add_generator(Generator::WaveTable { frequency: 110.0 });
     let overdrive = graph.add_effector(Effector::Overdrive());
 

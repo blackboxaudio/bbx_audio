@@ -9,10 +9,10 @@ fn main() {
     // Create a `Graph` with the default context
     let mut graph = Graph::new(DEFAULT_CONTEXT);
 
-    // Add a mixer block to sum the oscillators
+    // Add a mixer node to sum the oscillators
     let mixer = graph.add_effector(Effector::Mixer());
 
-    // Create a number of oscilaltor blocks and connect to the mixer
+    // Create a number of oscillator nodes and connect to the mixer
     for n in 0..NUM_OSCILLATORS {
         let oscillator = graph.add_generator(Generator::WaveTable {
             frequency: BASE_FREQUENCY * (n + 1) as f32,

@@ -3,6 +3,7 @@ use crate::{
     context::Context,
     process::{AudioInput, Process},
 };
+use crate::utils::clear_output;
 
 const WAVE_TABLE_SIZE: usize = 128;
 
@@ -58,9 +59,7 @@ impl WaveTableGenerator {
 
 impl Process for WaveTableGenerator {
     fn process(&mut self, _inputs: &[AudioInput], output: &mut [AudioBuffer<f32>]) {
-        for output_buffer in output.iter_mut() {
-            output_buffer.clear();
-        }
+        clear_output(output);
 
         let mut output_iter = output.iter_mut();
         let model_buffer = output_iter.next().unwrap();

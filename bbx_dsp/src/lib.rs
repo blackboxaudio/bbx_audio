@@ -1,7 +1,6 @@
 pub mod effectors;
 pub mod generators;
 
-pub mod block;
 pub mod buffer;
 pub mod constants;
 pub mod context;
