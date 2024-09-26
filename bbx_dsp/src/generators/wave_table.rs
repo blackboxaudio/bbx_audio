@@ -1,20 +1,24 @@
-use crate::process::Process;
+use crate::{
+    buffer::{AudioBuffer, Buffer},
+    context::Context,
+    process::{AudioInput, Process},
+};
 
 const WAVE_TABLE_SIZE: usize = 128;
 
 pub struct WaveTableGenerator {
-    sample_rate: usize,
+    context: Context,
     wave_table: Vec<f32>,
     phase: f32,
     phase_increment: f32,
 }
 
 impl WaveTableGenerator {
-    pub fn new(sample_rate: usize, frequency: f32) -> WaveTableGenerator {
+    pub fn new(context: Context, frequency: f32) -> WaveTableGenerator {
         let wave_table = Self::create_wave_table(WAVE_TABLE_SIZE);
-        let phase_increment = Self::calculate_phase_increment(sample_rate, frequency, wave_table.len());
+        let phase_increment = Self::calculate_phase_increment(context.sample_rate, frequency, wave_table.len());
         WaveTableGenerator {
-            sample_rate,
+            context,
             wave_table,
             phase: 0.0,
             phase_increment,
@@ -37,7 +41,8 @@ impl WaveTableGenerator {
 
 impl WaveTableGenerator {
     pub fn set_frequency(&mut self, frequency: f32) {
-        self.phase_increment = Self::calculate_phase_increment(self.sample_rate, frequency, self.wave_table.len());
+        self.phase_increment =
+            Self::calculate_phase_increment(self.context.sample_rate, frequency, self.wave_table.len());
     }
 }
 
@@ -52,12 +57,22 @@ impl WaveTableGenerator {
 }
 
 impl Process for WaveTableGenerator {
-    type Sample = f32;
+    fn process(&mut self, _inputs: &[AudioInput], output: &mut [AudioBuffer<f32>]) {
+        for (_, output_buffer) in output.iter_mut().enumerate() {
+            output_buffer.clear();
+        }
 
-    fn process(&mut self, _inputs: &Vec<Self::Sample>) -> Self::Sample {
-        let sample = self.lerp();
-        self.phase += self.phase_increment;
-        self.phase %= self.wave_table.len() as f32;
-        sample
+        let mut output_iter = output.iter_mut();
+        let model_buffer = output_iter.next().unwrap();
+        model_buffer.apply_mut(|_| {
+            let sample = self.lerp();
+            self.phase += self.phase_increment;
+            self.phase %= self.wave_table.len() as f32;
+            sample
+        });
+
+        for (_, channel_buffer) in output_iter.enumerate() {
+            channel_buffer.copy_from_slice(model_buffer.as_slice());
+        }
     }
 }

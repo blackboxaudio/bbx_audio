@@ -1,0 +1,29 @@
+use crate::{
+    buffer::{AudioBuffer, Buffer},
+    process::AudioInput,
+};
+
+/// Sums a slice of audio inputs, each containing a number of audio buffers,
+/// to a single output slice of output buffers.
+pub fn sum_audio_inputs(inputs: &[AudioInput], output: &mut [AudioBuffer<f32>]) {
+    for (channel_idx, channel_buffer) in output.iter_mut().enumerate() {
+        for sample_idx in 0..channel_buffer.len() {
+            let input_sum: f32 = inputs
+                .iter()
+                .map(|i| {
+                    let input_buffers = i.as_slice();
+                    &input_buffers[channel_idx][sample_idx]
+                })
+                .sum();
+            let input_val = input_sum / inputs.len() as f32;
+            let output_val = if input_val > 1.0 {
+                1.0
+            } else if input_val < -1.0 {
+                -1.0
+            } else {
+                input_val
+            };
+            channel_buffer[sample_idx] = output_val;
+        }
+    }
+}

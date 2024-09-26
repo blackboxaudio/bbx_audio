@@ -1,16 +1,25 @@
 use std::collections::HashMap;
 
 use crate::{
-    block::Block, context::Context, effector::Effector, error::BbxAudioDspError, generator::Generator, node::NodeId,
+    block::Block,
+    buffer::{AudioBuffer, Buffer},
+    context::Context,
+    effector::Effector,
+    error::BbxAudioDspError,
+    generator::Generator,
+    node::NodeId,
     operation::OperationType,
+    process::AudioInput,
 };
 
 /// A collection of interconnected `Block` objects.
 pub struct Graph {
-    context: Context,
+    pub context: Context,
+
     blocks: HashMap<NodeId, Block>,
     connections: Vec<(NodeId, NodeId)>,
-    processes: HashMap<NodeId, f32>,
+
+    processes: HashMap<NodeId, Vec<AudioBuffer<f32>>>,
     processing_order: Vec<NodeId>,
 }
 
@@ -40,14 +49,17 @@ impl Graph {
 
     /// Adds a `Generator` to the graph
     pub fn add_generator(&mut self, generator: Generator) -> usize {
-        let generator_block = Block::from_generator(generator);
+        let generator_block = Block::from_generator(self.context, generator);
         self.add_block(generator_block, BbxAudioDspError::CannotAddGeneratorBlock)
     }
 
     fn add_block(&mut self, block: Block, error: BbxAudioDspError) -> usize {
         let block_id = block.id;
         self.blocks.insert(block_id, block);
-        self.processes.insert(block_id, 0.0);
+        self.processes.insert(
+            block_id,
+            vec![AudioBuffer::new(self.context.buffer_size); self.context.num_channels],
+        );
 
         if let Some(block) = self.blocks.get(&block_id) {
             block.id
@@ -174,19 +186,22 @@ impl Graph {
 impl Graph {
     /// Iterates through the nodes of a graph and processes each of them.
     #[allow(unused_assignments)]
-    pub fn evaluate(&mut self) -> f32 {
+    pub fn evaluate(&mut self) -> &Vec<AudioBuffer<f32>> {
         for &block_id in &self.processing_order {
             let block = self.blocks.get_mut(&block_id).unwrap();
-            let mut inputs: Vec<f32> = Vec::with_capacity(block.inputs.len());
-            for input in &block.inputs {
-                inputs.push(*self.processes.get(input).unwrap());
-            }
-            self.processes.insert(block_id, block.operation.process(&inputs));
+            let inputs = &block
+                .inputs
+                .iter()
+                .map(|i| AudioInput::new(self.processes.get(i).unwrap()))
+                .collect::<Vec<AudioInput>>()[..];
+            block
+                .operation
+                .process(inputs, self.processes.get_mut(&block_id).unwrap());
+
+            let output = self.processes.get(&block_id).unwrap();
+            self.processes.insert(block_id, output.to_vec());
         }
 
-        *self
-            .processes
-            .get(self.processing_order.last().unwrap())
-            .unwrap_or_else(|| &0.0)
+        self.processes.get(self.processing_order.last().unwrap()).unwrap()
     }
 }

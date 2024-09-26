@@ -6,14 +6,16 @@ use crate::constants::DEFAULT_CONTEXT;
 #[derive(Clone, Copy)]
 pub struct Context {
     pub sample_rate: usize,
+    pub num_channels: usize,
     pub buffer_size: usize,
     pub max_num_graph_nodes: usize,
 }
 
 impl Context {
-    pub fn new(sample_rate: usize, buffer_size: usize, max_num_graph_nodes: usize) -> Self {
+    pub fn new(sample_rate: usize, num_channels: usize, buffer_size: usize, max_num_graph_nodes: usize) -> Self {
         Context {
             sample_rate,
+            num_channels,
             buffer_size,
             max_num_graph_nodes,
         }

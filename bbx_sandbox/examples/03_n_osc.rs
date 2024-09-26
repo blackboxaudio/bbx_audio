@@ -11,7 +11,6 @@ pub fn create_graph() -> Graph {
     let mixer = graph.add_effector(Effector::Mixer());
     for n in 0..NUM_OSCILLATORS {
         let oscillator = graph.add_generator(Generator::WaveTable {
-            sample_rate: DEFAULT_CONTEXT.sample_rate,
             frequency: BASE_FREQUENCY * (n + 1) as f32,
         });
         graph.create_connection(oscillator, mixer);

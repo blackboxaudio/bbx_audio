@@ -4,10 +4,7 @@ use bbx_sandbox::{player::Player, signal::Signal};
 pub fn create_graph() -> Graph {
     let mut graph = Graph::new(DEFAULT_CONTEXT);
 
-    let oscillator = graph.add_generator(Generator::WaveTable {
-        sample_rate: DEFAULT_CONTEXT.sample_rate,
-        frequency: 110.0,
-    });
+    let oscillator = graph.add_generator(Generator::WaveTable { frequency: 110.0 });
     let overdrive = graph.add_effector(Effector::Overdrive());
     graph.create_connection(oscillator, overdrive);
     graph.prepare_for_playback();

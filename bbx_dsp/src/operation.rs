@@ -1,7 +1,7 @@
 use crate::process::Process;
 
 /// Represents a heap-allocated container for a node and its DSP process.
-pub type Operation = Box<dyn Process<Sample = f32> + Send>;
+pub type Operation = Box<dyn Process + Send>;
 
 /// Type of DSP operation.
 #[derive(PartialEq)]

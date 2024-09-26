@@ -1,6 +1,7 @@
 use rand::Rng;
 
 use crate::{
+    context::Context,
     generator::Generator,
     node::NodeId,
     operation::{Operation, OperationType},
@@ -34,8 +35,8 @@ impl Block {
         Self::new(effector_operation, OperationType::Effector)
     }
 
-    pub fn from_generator(generator: Generator) -> Block {
-        Self::new(generator.to_operation(), OperationType::Generator)
+    pub fn from_generator(context: Context, generator: Generator) -> Block {
+        Self::new(generator.to_operation(context), OperationType::Generator)
     }
 }
 

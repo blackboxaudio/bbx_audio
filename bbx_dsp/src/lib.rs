@@ -2,6 +2,7 @@ pub mod effectors;
 pub mod generators;
 
 pub mod block;
+pub mod buffer;
 pub mod constants;
 pub mod context;
 pub mod effector;
@@ -13,3 +14,4 @@ pub mod node;
 pub mod operation;
 pub mod process;
 pub mod sample;
+pub mod utils;

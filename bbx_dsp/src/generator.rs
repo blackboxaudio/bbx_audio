@@ -1,16 +1,14 @@
-use crate::{generators::wave_table::WaveTableGenerator, operation::Operation};
+use crate::{context::Context, generators::wave_table::WaveTableGenerator, operation::Operation};
 
 /// A type of DSP `Block` that internally produces its own output signal.
 pub enum Generator {
-    WaveTable { sample_rate: usize, frequency: f32 },
+    WaveTable { frequency: f32 },
 }
 
 impl Generator {
-    pub fn to_operation(self) -> Operation {
+    pub fn to_operation(self, context: Context) -> Operation {
         match self {
-            Generator::WaveTable { sample_rate, frequency } => {
-                Box::new(WaveTableGenerator::new(sample_rate, frequency))
-            }
+            Generator::WaveTable { frequency } => Box::new(WaveTableGenerator::new(context, frequency)),
         }
     }
 }
