@@ -5,6 +5,7 @@ pub mod block;
 pub mod context;
 pub mod effector;
 pub mod error;
+pub mod float;
 pub mod generator;
 pub mod graph;
 pub mod node;

@@ -6,7 +6,7 @@ const WAVE_TABLE_SIZE: usize = 128;
 
 pub struct WaveTableGenerator {
     sample_rate: usize,
-    wave_table: Vec<Sample>,
+    wave_table: Vec<f32>,
     phase: f32,
     phase_increment: f32,
 }
@@ -23,7 +23,7 @@ impl WaveTableGenerator {
         }
     }
 
-    fn create_wave_table(wave_table_size: usize) -> Vec<Sample> {
+    fn create_wave_table(wave_table_size: usize) -> Vec<f32> {
         let mut wave_table: Vec<f32> = Vec::with_capacity(wave_table_size);
         for n in 0..wave_table_size {
             let value = (n as f32 * std::f32::consts::PI * 2.0 / wave_table_size as f32).sin();
@@ -44,7 +44,7 @@ impl WaveTableGenerator {
 }
 
 impl WaveTableGenerator {
-    fn lerp(&self) -> Sample {
+    fn lerp(&self) -> f32 {
         let truncated_index = self.phase as usize;
         let next_index = (truncated_index + 1) % self.wave_table.len();
         let next_index_weight = self.phase - truncated_index as f32;
@@ -60,7 +60,9 @@ impl Display for WaveTableGenerator {
 }
 
 impl Process for WaveTableGenerator {
-    fn process(&mut self, _inputs: &Vec<Sample>) -> Sample {
+    type Sample = f32;
+
+    fn process(&mut self, _inputs: &Vec<Self::Sample>) -> Self::Sample {
         let sample = self.lerp();
         self.phase += self.phase_increment;
         self.phase %= self.wave_table.len() as f32;

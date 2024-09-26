@@ -11,7 +11,7 @@ pub struct Graph {
     context: Context,
     blocks: HashMap<NodeId, Block>,
     connections: Vec<(NodeId, NodeId)>,
-    processes: HashMap<NodeId, Sample>,
+    processes: HashMap<NodeId, f32>,
     processing_order: Vec<NodeId>,
 }
 
@@ -169,10 +169,10 @@ impl Graph {
 
 impl Graph {
     #[allow(unused_assignments)]
-    pub fn evaluate(&mut self) -> Sample {
+    pub fn evaluate(&mut self) -> f32 {
         for &block_id in &self.processing_order {
             let block = self.blocks.get_mut(&block_id).unwrap();
-            let mut inputs: Vec<Sample> = Vec::with_capacity(block.inputs.len());
+            let mut inputs: Vec<f32> = Vec::with_capacity(block.inputs.len());
             for input in &block.inputs {
                 inputs.push(*self.processes.get(input).unwrap());
             }
