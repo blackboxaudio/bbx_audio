@@ -6,6 +6,7 @@ pub enum Generator {
 }
 
 impl Generator {
+    /// Convert this `Effector` to an `Operation`, to store within a `Block` in a `Graph`.
     pub fn to_operation(self, context: Context) -> Operation {
         match self {
             Generator::WaveTable { frequency } => Box::new(WaveTableGenerator::new(context, frequency)),

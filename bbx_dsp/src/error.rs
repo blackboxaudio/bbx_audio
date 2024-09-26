@@ -1,5 +1,6 @@
 pub type Result<T> = std::result::Result<T, BbxAudioDspError>;
 
+/// The error type for the `bbx_dsp` crate.
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum BbxAudioDspError {
     #[error("block (`{0}`) has no inputs")]

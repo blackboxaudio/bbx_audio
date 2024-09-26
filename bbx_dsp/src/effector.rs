@@ -10,6 +10,7 @@ pub enum Effector {
 }
 
 impl Effector {
+    /// Convert this `Effector` to an `Operation`, to store within a `Block` in a `Graph`.
     pub fn to_operation(self) -> Operation {
         match self {
             Effector::Mixer() => Box::new(MixerEffector),

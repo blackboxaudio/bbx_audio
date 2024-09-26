@@ -12,7 +12,7 @@ use crate::{
     process::AudioInput,
 };
 
-/// A collection of interconnected `Block` objects.
+/// Contains a number of `Block`s connected in a certain way.
 pub struct Graph {
     pub context: Context,
 
