@@ -30,9 +30,12 @@ impl Signal {
         // If both indices have wrapped around back to the beginning,
         // then the graph needs to be processed again.
         if self.channel_idx == 0 && self.sample_idx == 0 {
-            // TODO: Remove this clone statement, and read value from graph
-            // so the buffer can stay there.
-            self.output = self.graph.evaluate().clone();
+            let result_output = self.graph.evaluate();
+            for (channel_idx, channel_buffer) in self.output.iter_mut().enumerate() {
+                for sample_idx in 0..channel_buffer.len() {
+                    channel_buffer[sample_idx] = result_output[channel_idx][sample_idx];
+                }
+            }
         }
 
         let sample = self.output[self.channel_idx][self.sample_idx];
