@@ -25,6 +25,28 @@ pub fn create_graph() -> Graph {
 }
 
 fn main() {
-    let signal = Signal::new(create_graph());
+    // Create a `Graph` with the default context
+    let mut graph = Graph::new(DEFAULT_CONTEXT);
+
+    // Add a mixer block to sum the oscillators
+    let mixer = graph.add_effector(Effector::Mixer());
+
+    // Create a number of oscilaltor blocks and connect to the mixer
+    for n in 0..NUM_OSCILLATORS {
+        let oscillator = graph.add_generator(Generator::WaveTable {
+            frequency: BASE_FREQUENCY * (n + 1) as f32,
+        });
+        graph.create_connection(oscillator, mixer);
+    }
+
+    // Add an overdrive just because
+    let overdrive = graph.add_effector(Effector::Overdrive());
+    graph.create_connection(mixer, overdrive);
+
+    // Prepare the graph for playback
+    graph.prepare_for_playback();
+
+    // Play a `Signal` created from the graph
+    let signal = Signal::new(graph);
     Player::new(signal).play(None);
 }

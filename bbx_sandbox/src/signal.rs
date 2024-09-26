@@ -36,7 +36,7 @@ impl Signal {
         let prev_idx = self.next_idx;
         self.next_idx += 1;
         self.next_idx %= self.graph.context.buffer_size;
-        self.output.get(0).unwrap()[prev_idx]
+        self.output.first().unwrap()[prev_idx]
     }
 }
 

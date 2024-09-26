@@ -1,14 +1,14 @@
 use bbx_dsp::{constants::DEFAULT_CONTEXT, generator::Generator, graph::Graph};
 use bbx_sandbox::{player::Player, signal::Signal};
 
-pub fn create_graph() -> Graph {
+fn main() {
+    // Create a `Graph` with the default context, add a wave table generator,
+    // and prepare it for black
     let mut graph = Graph::new(DEFAULT_CONTEXT);
     graph.add_generator(Generator::WaveTable { frequency: 110.0 });
     graph.prepare_for_playback();
-    graph
-}
 
-fn main() {
-    let signal = Signal::new(create_graph());
+    // Play a `Signal` created from the graph
+    let signal = Signal::new(graph);
     Player::new(signal).play(None);
 }

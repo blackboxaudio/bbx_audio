@@ -122,7 +122,7 @@ impl Graph {
             order.push(block.id);
         }
 
-        for (_, block) in &self.blocks {
+        for block in self.blocks.values() {
             if visited.contains(&block.id) {
                 continue;
             } else {
@@ -156,7 +156,7 @@ impl Graph {
             }
         }
 
-        for (_, block) in &self.blocks {
+        for block in self.blocks.values() {
             let mut visited: Vec<NodeId> = Vec::with_capacity(self.blocks.len());
             dfs(block.id, block, &mut visited, &self.blocks);
         }
@@ -171,10 +171,10 @@ impl Graph {
             }
         }
         for (block_id, block) in self.blocks.iter() {
-            if block.operation_type == OperationType::Effector && block.inputs.len() == 0 {
+            if block.operation_type == OperationType::Effector && block.inputs.is_empty() {
                 panic!("{:?}", BbxAudioDspError::BlockHasNoInputs(format!("{}", block_id)));
             } else if block.operation_type == OperationType::Generator
-                && block.outputs.len() == 0
+                && block.outputs.is_empty()
                 && self.blocks.len() > 1
             {
                 panic!("{:?}", BbxAudioDspError::BlockHasNoOutputs(format!("{}", block_id)));

@@ -58,7 +58,7 @@ impl WaveTableGenerator {
 
 impl Process for WaveTableGenerator {
     fn process(&mut self, _inputs: &[AudioInput], output: &mut [AudioBuffer<f32>]) {
-        for (_, output_buffer) in output.iter_mut().enumerate() {
+        for output_buffer in output.iter_mut() {
             output_buffer.clear();
         }
 
@@ -71,7 +71,7 @@ impl Process for WaveTableGenerator {
             sample
         });
 
-        for (_, channel_buffer) in output_iter.enumerate() {
+        for channel_buffer in output_iter {
             channel_buffer.copy_from_slice(model_buffer.as_slice());
         }
     }

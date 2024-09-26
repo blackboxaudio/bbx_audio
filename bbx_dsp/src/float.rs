@@ -35,12 +35,20 @@ pub trait Float:
 
     #[inline]
     fn min(self, other: Self) -> Self {
-        if self < other { self } else { other }
+        if self < other {
+            self
+        } else {
+            other
+        }
     }
 
     #[inline]
     fn max(self, other: Self) -> Self {
-        if self > other { self } else { other }
+        if self > other {
+            self
+        } else {
+            other
+        }
     }
 }
 

@@ -18,10 +18,8 @@ pub struct MidiInputStream {
 impl MidiInputStream {
     pub fn new(filters: Vec<MidiMessageStatus>, message_handler: fn(MidiMessage) -> ()) -> Self {
         let (tx, rx) = mpsc::channel::<MidiMessage>();
-        thread::spawn(move || {
-            loop {
-                message_handler(rx.recv().unwrap());
-            }
+        thread::spawn(move || loop {
+            message_handler(rx.recv().unwrap());
         });
         MidiInputStream { tx, filters }
     }
@@ -103,10 +101,10 @@ impl MidiInputStream {
     }
 
     fn is_passed_through_filters(&self, message: &MidiMessage) -> bool {
-        if self.filters.len() > 0 {
-            self.filters.contains(&message.get_status())
-        } else {
+        if self.filters.is_empty() {
             true
+        } else {
+            self.filters.contains(&message.get_status())
         }
     }
 }

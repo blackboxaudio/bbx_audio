@@ -4,6 +4,7 @@ use crate::sample::Sample;
 
 /// An iterable container for data, usually audio samples or
 /// modulation data.
+#[allow(clippy::len_without_is_empty)]
 pub trait Buffer<T> {
     /// Creates a new `Buffer` with some capacity.
     fn new(capacity: usize) -> Self;

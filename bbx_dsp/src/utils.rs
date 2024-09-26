@@ -16,13 +16,7 @@ pub fn sum_audio_inputs(inputs: &[AudioInput], output: &mut [AudioBuffer<f32>]) 
                 })
                 .sum();
             let input_val = input_sum / inputs.len() as f32;
-            let output_val = if input_val > 1.0 {
-                1.0
-            } else if input_val < -1.0 {
-                -1.0
-            } else {
-                input_val
-            };
+            let output_val = input_val.clamp(-1.0, 1.0);
             channel_buffer[sample_idx] = output_val;
         }
     }

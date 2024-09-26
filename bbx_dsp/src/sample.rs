@@ -65,12 +65,20 @@ pub trait Sample:
 
     #[inline]
     fn min(self, rhs: Self) -> Self {
-        if self < rhs { self } else { rhs }
+        if self < rhs {
+            self
+        } else {
+            rhs
+        }
     }
 
     #[inline]
     fn max(self, rhs: Self) -> Self {
-        if self < rhs { rhs } else { self }
+        if self < rhs {
+            rhs
+        } else {
+            self
+        }
     }
 }
 
