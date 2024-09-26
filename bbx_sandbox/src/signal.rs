@@ -1,6 +1,6 @@
 use std::time::Duration;
 use rodio::Source;
-use bbx_dsp::{graph::Graph, sample::Sample};
+use bbx_dsp::{graph::Graph};
 
 pub struct Signal {
     graph: Graph,
@@ -13,13 +13,13 @@ impl Signal {
 }
 
 impl Signal {
-    fn process(&mut self) -> Sample {
+    fn process(&mut self) -> f32 {
         self.graph.evaluate()
     }
 }
 
 impl Iterator for Signal {
-    type Item = Sample;
+    type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.process())
