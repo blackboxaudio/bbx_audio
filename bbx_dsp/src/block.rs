@@ -9,34 +9,41 @@ use crate::{
 
 /// Represents an implementation that generates audio output buffers from a number of audio inputs.
 pub struct Block {
+    /// The identifier of a `Block`.
     pub id: NodeId,
 
+    /// The `NodeId`s of the incoming nodes.
     pub inputs: Vec<NodeId>,
+
+    /// The `NodeId`s of the output nodes.
     pub outputs: Vec<NodeId>,
 
+    /// The associated `Operation` for this `Block`.
     pub operation: Operation,
+
+    /// The associated `OperationType` for this `Block`.
     pub operation_type: OperationType,
 }
 
 impl Block {
-    fn new(operation: Operation, operation_type: OperationType) -> Block {
+    fn new(context: Context, operation: Operation, operation_type: OperationType) -> Block {
         let mut rng = rand::thread_rng();
         let id = rng.gen::<NodeId>();
         Block {
             id,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
+            inputs: Vec::with_capacity(context.max_num_graph_nodes),
+            outputs: Vec::with_capacity(context.max_num_graph_nodes),
             operation,
             operation_type,
         }
     }
 
-    pub fn from_effector_operation(effector_operation: Operation) -> Block {
-        Self::new(effector_operation, OperationType::Effector)
+    pub fn from_effector_operation(context: Context, effector_operation: Operation) -> Block {
+        Self::new(context, effector_operation, OperationType::Effector)
     }
 
     pub fn from_generator(context: Context, generator: Generator) -> Block {
-        Self::new(generator.to_operation(context), OperationType::Generator)
+        Self::new(context, generator.to_operation(context), OperationType::Generator)
     }
 }
 

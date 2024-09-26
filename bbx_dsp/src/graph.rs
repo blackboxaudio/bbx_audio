@@ -14,6 +14,7 @@ use crate::{
 
 /// Contains a number of `Block`s connected in a certain way.
 pub struct Graph {
+    /// The associated `Context` for this `Graph`.
     pub context: Context,
 
     blocks: HashMap<NodeId, Block>,
@@ -34,16 +35,12 @@ impl Graph {
             processing_order: Vec::with_capacity(max_num_graph_nodes),
         }
     }
-
-    pub fn sample_rate(&self) -> usize {
-        self.context.sample_rate
-    }
 }
 
 impl Graph {
     /// Adds an `Effector` to the graph
     pub fn add_effector(&mut self, effector: Effector) -> usize {
-        let effector_block = Block::from_effector_operation(effector.to_operation());
+        let effector_block = Block::from_effector_operation(self.context, effector.to_operation());
         self.add_block(effector_block, BbxAudioDspError::CannotAddEffectorBlock)
     }
 
