@@ -36,6 +36,9 @@ pub enum BbxAudioDspError {
     #[error("graph contains a cycle (detected on block `{0}`)")]
     GraphContainsCycle(String),
 
+    #[error("graph has non-converging paths")]
+    GraphContainsNonConvergingPaths,
+
     #[error("unknown error")]
     Unknown,
 }

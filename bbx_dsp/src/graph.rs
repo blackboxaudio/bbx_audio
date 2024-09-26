@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use crate::{
     block::Block,
     buffer::{AudioBuffer, Buffer},
@@ -96,6 +95,7 @@ impl Graph {
         self.update_processing_order();
         self.validate_acyclicity();
         self.validate_connections();
+        self.validate_convergence();
     }
 }
 
@@ -176,6 +176,31 @@ impl Graph {
             {
                 panic!("{:?}", BbxAudioDspError::BlockHasNoOutputs(format!("{}", block_id)));
             }
+        }
+    }
+
+    fn validate_convergence(&self) {
+        fn dfs(original_block_id: NodeId, block: &Block, visited: &mut Vec<NodeId>, blocks: &HashMap<NodeId, Block>) {
+            visited.push(block.id);
+            for &block_id in &block.inputs {
+                if visited.contains(&block_id) {
+                    continue;
+                } else {
+                    let block_option = blocks.get(&block_id);
+                    if let Some(block) = block_option {
+                        dfs(original_block_id, block, visited, blocks);
+                    }
+                }
+            }
+        }
+
+        let block_id = self.processing_order.last().unwrap();
+        let block = self.blocks.get(block_id).unwrap();
+        let mut visited: Vec<NodeId> = Vec::with_capacity(self.blocks.len());
+        dfs(*block_id, block, &mut visited, &self.blocks);
+
+        if self.blocks.len() != visited.len() {
+            panic!("{:?}", BbxAudioDspError::GraphContainsNonConvergingPaths);
         }
     }
 }
