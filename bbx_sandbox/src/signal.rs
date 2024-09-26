@@ -25,14 +25,18 @@ impl Signal {
 
 impl Signal {
     fn process(&mut self) -> f32 {
+        // If the index has wrapped around back to the beginning,
+        // then the graph needs to be processed again.
         if self.next_idx == 0 {
+            // TODO: Remove this clone statement, and read value from graph
+            // so the buffer can stay there.
             self.output = self.graph.evaluate().clone();
         }
 
-        let sample = self.output.get(0).unwrap()[self.next_idx];
+        let prev_idx = self.next_idx;
         self.next_idx += 1;
         self.next_idx %= self.graph.context.buffer_size;
-        sample
+        self.output.get(0).unwrap()[prev_idx]
     }
 }
 
