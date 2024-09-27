@@ -1,8 +1,11 @@
 use rand::Rng;
-use crate::context::Context;
-use crate::effector::Effector;
-use crate::generator::Generator;
-use crate::operation::{Operation, OperationType};
+
+use crate::{
+    context::Context,
+    effector::Effector,
+    generator::Generator,
+    operation::{Operation, OperationType},
+};
 
 /// The identifier for a node in a graph.
 pub type NodeId = usize;

@@ -1,8 +1,8 @@
 use crate::{
+    context::Context,
     effectors::{mixer::MixerEffector, overdrive::OverdriveEffector},
     operation::Operation,
 };
-use crate::context::Context;
 
 /// A type of DSP `Node` that produces an output signal by modifying an input signal.
 pub enum Effector {

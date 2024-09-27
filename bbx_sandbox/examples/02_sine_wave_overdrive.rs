@@ -1,4 +1,7 @@
-use bbx_dsp::{constants::DEFAULT_CONTEXT, effector::Effector, generator::Generator, graph::Graph};
+use bbx_dsp::{
+    constants::DEFAULT_CONTEXT, effector::Effector, generator::Generator, generators::wave_table::Waveform,
+    graph::Graph,
+};
 use bbx_sandbox::{player::Player, signal::Signal};
 
 fn main() {
@@ -6,7 +9,10 @@ fn main() {
     let mut graph = Graph::new(DEFAULT_CONTEXT);
 
     // Add nodes for an oscillator and overdrive
-    let oscillator = graph.add_generator(Generator::WaveTable { frequency: 110.0 });
+    let oscillator = graph.add_generator(Generator::WaveTable {
+        frequency: 110.0,
+        waveform: Waveform::Sine,
+    });
     let overdrive = graph.add_effector(Effector::Overdrive());
 
     // Form the connection from the oscillator to the overdrive

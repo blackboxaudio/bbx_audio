@@ -1,8 +1,10 @@
 use std::{
     fs::File,
+    io::{BufReader, Read},
 };
-use std::io::{BufReader, Read};
+
 use hound::WavReader;
+
 use crate::reader::Reader;
 
 #[derive(Clone, Copy, Debug)]
@@ -58,13 +60,14 @@ impl Reader for WavFileReader {
         println!("{:?}", metadata);
 
         let reader = WavReader::open(filename).unwrap();
-        WavFileReader {
-            reader,
-        }
+        WavFileReader { reader }
     }
 
     // Read the WAV file's audio data, normalizing to f32 format
     fn read_file(&mut self) -> Vec<f32> {
-        self.reader.samples::<i16>().map(|s| s.unwrap() as f32 / i16::MAX as f32).collect()
+        self.reader
+            .samples::<i16>()
+            .map(|s| s.unwrap() as f32 / i16::MAX as f32)
+            .collect()
     }
 }

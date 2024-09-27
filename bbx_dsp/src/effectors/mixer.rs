@@ -1,9 +1,8 @@
 use crate::{
     buffer::AudioBuffer,
     process::{AudioInput, Process},
-    utils::sum_audio_inputs,
+    utils::{clear_output, sum_audio_inputs},
 };
-use crate::utils::clear_output;
 
 pub struct MixerEffector;
 

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use crate::{
     buffer::{AudioBuffer, Buffer},
     context::Context,
@@ -169,9 +170,7 @@ impl Graph {
         for (node_id, node) in self.nodes.iter() {
             if node.operation_type == OperationType::Effector && node.inputs.is_empty() {
                 panic!("{:?}", BbxAudioDspError::NodeHasNoInputs(format!("{}", node_id)));
-            } else if node.operation_type == OperationType::Generator
-                && node.outputs.is_empty()
-                && self.nodes.len() > 1
+            } else if node.operation_type == OperationType::Generator && node.outputs.is_empty() && self.nodes.len() > 1
             {
                 panic!("{:?}", BbxAudioDspError::NodeHasNoOutputs(format!("{}", node_id)));
             }
@@ -179,7 +178,7 @@ impl Graph {
     }
 
     fn validate_convergence(&self) {
-        fn dfs(original_node_id: NodeId, node: &Node, visited: &mut Vec<NodeId>, nodes: &HashMap<NodeId, Node>) {
+        fn dfs(_original_node_id: NodeId, node: &Node, visited: &mut Vec<NodeId>, nodes: &HashMap<NodeId, Node>) {
             visited.push(node.id);
             for &node_id in &node.inputs {
                 if visited.contains(&node_id) {
@@ -187,7 +186,7 @@ impl Graph {
                 } else {
                     let node_option = nodes.get(&node_id);
                     if let Some(node) = node_option {
-                        dfs(original_node_id, node, visited, nodes);
+                        dfs(_original_node_id, node, visited, nodes);
                     }
                 }
             }
@@ -215,8 +214,7 @@ impl Graph {
                 .iter()
                 .map(|i| AudioInput::new(self.processes.get(i).unwrap().as_slice()))
                 .collect::<Vec<AudioInput>>()[..];
-            node
-                .operation
+            node.operation
                 .process(inputs, self.processes.get_mut(&node_id).unwrap());
         }
 

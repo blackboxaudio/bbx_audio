@@ -1,4 +1,7 @@
-use bbx_dsp::{constants::DEFAULT_CONTEXT, effector::Effector, generator::Generator, graph::Graph};
+use bbx_dsp::{
+    constants::DEFAULT_CONTEXT, effector::Effector, generator::Generator, generators::wave_table::Waveform,
+    graph::Graph,
+};
 use bbx_sandbox::{player::Player, signal::Signal};
 
 const NUM_OSCILLATORS: usize = 12;
@@ -16,6 +19,7 @@ fn main() {
     for n in 0..NUM_OSCILLATORS {
         let oscillator = graph.add_generator(Generator::WaveTable {
             frequency: BASE_FREQUENCY * (n + 1) as f32,
+            waveform: Waveform::Sine,
         });
         graph.create_connection(oscillator, mixer);
     }
