@@ -13,7 +13,7 @@ fn main() {
         frequency: 110.0,
         waveform: Waveform::Sine,
     });
-    let overdrive = graph.add_effector(Effector::Overdrive());
+    let overdrive = graph.add_effector(Effector::Overdrive);
 
     // Form the connection from the oscillator to the overdrive
     graph.create_connection(oscillator, overdrive);

@@ -1,5 +1,6 @@
+use bbx_buffer::buffer::{AudioBuffer, Buffer};
+
 use crate::{
-    buffer::{AudioBuffer, Buffer},
     process::{AudioInput, Process},
     utils::{clear_output, sum_audio_inputs},
 };

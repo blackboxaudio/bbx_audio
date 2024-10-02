@@ -1,73 +1,60 @@
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-};
+use std::path::Path;
 
-use hound::WavReader;
+use bbx_buffer::buffer::{AudioBuffer, Buffer};
+use wavers::Wav;
 
 use crate::reader::Reader;
 
-#[derive(Clone, Copy, Debug)]
-pub enum WavFormat {
-    PCM,
-    Float,
-    Unsupported,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct WavMetadata {
-    pub sample_rate: u32,
-    pub num_channels: u16,
-    pub bits_per_sample: u16,
-    pub format: WavFormat,
-}
-
 pub struct WavFileReader {
-    // file: File,
-    // metadata: WavMetadata,
-    reader: WavReader<BufReader<File>>,
+    sample_rate: usize,
+    num_channels: usize,
+    num_samples: usize,
+    channels: Vec<AudioBuffer<f32>>,
+}
+
+impl WavFileReader {
+    pub fn new(file_path: String) -> Self {
+        let mut reader: Wav<f32> = Wav::from_path(Path::new(file_path.as_str())).unwrap();
+
+        let sample_rate = reader.sample_rate() as usize;
+        let num_channels = reader.n_channels() as usize;
+        let num_samples = reader.n_samples();
+
+        println!("{} {} {}", sample_rate, num_channels, num_samples);
+
+        let mut channels = vec![AudioBuffer::new(reader.n_samples()); num_channels];
+        for (channel_idx, channel) in reader.channels().enumerate() {
+            for (sample_idx, sample) in channel.iter().enumerate() {
+                channels[channel_idx][sample_idx] = *sample;
+            }
+        }
+
+        WavFileReader {
+            sample_rate,
+            num_channels,
+            num_samples,
+            channels,
+        }
+    }
+
+    pub fn sample_rate(&self) -> usize {
+        self.sample_rate
+    }
+
+    pub fn num_channels(&self) -> usize {
+        self.num_channels
+    }
+
+    pub fn num_samples(&self) -> usize {
+        self.num_samples
+    }
 }
 
 impl Reader for WavFileReader {
-    type Metadata = WavMetadata;
-
-    // Open the file and read its metadata
-    fn open(filename: &str) -> WavFileReader {
-        let mut file = File::open(filename).unwrap();
-
-        // Read RIFF header
-        let mut header = [0; 44];
-        file.read_exact(&mut header).unwrap();
-
-        // Read the fmt subchunk
-        let audio_format = u16::from_le_bytes(header[20..22].try_into().unwrap());
-        let num_channels = u16::from_le_bytes(header[22..24].try_into().unwrap());
-        let sample_rate = u32::from_le_bytes(header[24..28].try_into().unwrap());
-        let bits_per_sample = u16::from_le_bytes(header[34..36].try_into().unwrap());
-
-        let format = match audio_format {
-            1 => WavFormat::PCM,   // PCM (uncompressed)
-            3 => WavFormat::Float, // IEEE float
-            _ => WavFormat::Unsupported,
-        };
-
-        let metadata = WavMetadata {
-            sample_rate,
-            num_channels,
-            bits_per_sample,
-            format,
-        };
-        println!("{:?}", metadata);
-
-        let reader = WavReader::open(filename).unwrap();
-        WavFileReader { reader }
+    fn read_channel(&mut self, channel_idx: usize, sample_idx: usize, buffer_len: usize) -> &[f32] {
+        &self.channels[channel_idx].as_slice()[sample_idx..(sample_idx + buffer_len)]
     }
-
-    // Read the WAV file's audio data, normalizing to f32 format
-    fn read_file(&mut self) -> Vec<f32> {
-        self.reader
-            .samples::<i16>()
-            .map(|s| s.unwrap() as f32 / i16::MAX as f32)
-            .collect()
+    fn read_sample(&self, channel_idx: usize, sample_idx: usize) -> f32 {
+        self.channels[channel_idx][sample_idx]
     }
 }

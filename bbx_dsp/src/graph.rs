@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
+use bbx_buffer::buffer::{AudioBuffer, Buffer};
+
 use crate::{
-    buffer::{AudioBuffer, Buffer},
     context::Context,
     effector::Effector,
     error::BbxAudioDspError,

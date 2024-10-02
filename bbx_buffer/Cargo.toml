@@ -1,0 +1,7 @@
+[package]
+name = "bbx_buffer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bbx_sample = { path = "../bbx_sample" }

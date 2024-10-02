@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use crate::sample::Sample;
+use bbx_sample::sample::Sample;
 
 /// An iterable container for data, usually audio samples or
 /// modulation data.

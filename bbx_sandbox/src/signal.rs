@@ -1,9 +1,7 @@
 use std::time::Duration;
 
-use bbx_dsp::{
-    buffer::{AudioBuffer, Buffer},
-    graph::Graph,
-};
+use bbx_buffer::buffer::{AudioBuffer, Buffer};
+use bbx_dsp::graph::Graph;
 use rodio::Source;
 
 pub struct Signal {

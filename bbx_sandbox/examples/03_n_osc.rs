@@ -13,7 +13,7 @@ fn main() {
     let mut graph = Graph::new(DEFAULT_CONTEXT);
 
     // Add a mixer node to sum the oscillators
-    let mixer = graph.add_effector(Effector::Mixer());
+    let mixer = graph.add_effector(Effector::Mixer);
 
     // Create a number of oscillator nodes and connect to the mixer
     for n in 0..NUM_OSCILLATORS {
@@ -25,7 +25,7 @@ fn main() {
     }
 
     // Add an overdrive just because
-    let overdrive = graph.add_effector(Effector::Overdrive());
+    let overdrive = graph.add_effector(Effector::Overdrive);
     graph.create_connection(mixer, overdrive);
 
     // Prepare the graph for playback

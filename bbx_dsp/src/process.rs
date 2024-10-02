@@ -1,4 +1,4 @@
-use crate::buffer::AudioBuffer;
+use bbx_buffer::buffer::AudioBuffer;
 
 /// Implemented by `Node` objects used in a DSP `Graph` to process or generate signals.
 pub trait Process {

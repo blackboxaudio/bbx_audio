@@ -1,8 +1,7 @@
-use crate::{
-    buffer::{AudioBuffer, Buffer},
-    process::AudioInput,
-    sample::Sample,
-};
+use bbx_buffer::buffer::{AudioBuffer, Buffer};
+use bbx_sample::sample::Sample;
+
+use crate::process::AudioInput;
 
 /// Zeroes the sample data inside a slice of `AudioBuffer`s.
 pub fn clear_output<S: Sample>(output: &mut [AudioBuffer<S>]) {

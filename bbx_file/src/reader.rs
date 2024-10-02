@@ -1,8 +1,4 @@
-use crate::readers::wav::WavFileReader;
-
 pub trait Reader {
-    type Metadata;
-
-    fn open(filename: &str) -> WavFileReader;
-    fn read_file(&mut self) -> Vec<f32>;
+    fn read_channel(&mut self, channel_idx: usize, sample_idx: usize, buffer_len: usize) -> &[f32];
+    fn read_sample(&self, channel_idx: usize, sample_idx: usize) -> f32;
 }
