@@ -14,6 +14,9 @@ jobs:
         steps:
             - uses: actions/checkout@v3
 
+            - name: Setup Linux Dependencies
+              run: sudo apt install alsa libasound2-dev libssl-dev pkg-config
+
             - name: Setup Rust
               uses: actions-rs/toolchain@v1
               with:
