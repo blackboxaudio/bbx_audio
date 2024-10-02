@@ -1,5 +1,6 @@
 # `bbx_audio`
 
+[![Version: v0.1.0](https://img.shields.io/badge/Version-v0.1.0-blue.svg)](https://github.com/blackboxdsp/bbx_audio)
 [![Test](https://github.com/blackboxdsp/bbx_audio/actions/workflows/ci-test.yml/badge.svg)](https://github.com/blackboxdsp/bbx_audio/actions/workflows/ci-test.yml)
 
 > A collection of Rust crates for audio-related DSP operations 🧮
