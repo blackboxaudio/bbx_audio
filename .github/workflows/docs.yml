@@ -39,7 +39,7 @@ jobs:
               run: cargo clean --doc
 
             - name: Build Docs
-              run: cargo doc --workspace --no-deps
+              run: RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo +nightly doc --no-deps
 
             - name: Add Redirect
               run: echo '<meta http-equiv="refresh" content="0;url=doc/index.html" />' > target/doc/index.html
