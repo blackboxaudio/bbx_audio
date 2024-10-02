@@ -13,7 +13,7 @@ impl Process for OverdriveEffector {
         sum_audio_inputs(inputs, output);
 
         for channel_buffer in output.iter_mut() {
-            channel_buffer.apply(|s| s - (s.powi(3) / 3.0))
+            channel_buffer.apply(|s| s - (s.powi(3) / 3.0));
         }
     }
 }

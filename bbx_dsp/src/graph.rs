@@ -226,6 +226,8 @@ impl Graph {
 
 #[cfg(test)]
 mod tests {
+    use test::Bencher;
+
     use super::*;
     use crate::{context::Context, effector::Effector, generator::Generator, generators::wave_table::Waveform};
 
@@ -322,5 +324,28 @@ mod tests {
 
         let result = graph.evaluate();
         assert_eq!(result.len(), 6); // Assuming 2 channels for this context
+    }
+
+    #[bench]
+    fn bench_evaluate(b: &mut Bencher) {
+        let context = Context::new(44100, 2, 128, 2048);
+        let mut graph = Graph::new(context);
+
+        let mixer = graph.add_effector(Effector::Mixer);
+        for n in 0..256 {
+            let osc = graph.add_generator(Generator::WaveTable {
+                frequency: 110.0 * (n + 1) as f32,
+                waveform: Waveform::Sine,
+            });
+            graph.create_connection(osc, mixer);
+        }
+        let overdrive = graph.add_effector(Effector::Overdrive);
+        graph.create_connection(mixer, overdrive);
+
+        graph.prepare_for_playback();
+
+        b.iter(|| {
+            graph.evaluate();
+        });
     }
 }
