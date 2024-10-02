@@ -7,6 +7,7 @@ pub trait Process {
 
 /// A pointer to the output buffers of another node that is an input
 /// to the current node.
+#[derive(Debug)]
 pub struct AudioInput {
     buffers_ptr: *const AudioBuffer<f32>,
     buffers_len: usize,

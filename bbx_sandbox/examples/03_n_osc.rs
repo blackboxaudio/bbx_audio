@@ -4,7 +4,7 @@ use bbx_dsp::{
 };
 use bbx_sandbox::{player::Player, signal::Signal};
 
-const NUM_OSCILLATORS: usize = 12;
+const NUM_OSCILLATORS: usize = 128;
 
 const BASE_FREQUENCY: f32 = 55.0;
 
@@ -27,6 +27,10 @@ fn main() {
     // Add an overdrive just because
     let overdrive = graph.add_effector(Effector::Overdrive);
     graph.create_connection(mixer, overdrive);
+
+    // Add a filter because it sounds harsh
+    let filter = graph.add_effector(Effector::Filter(DEFAULT_CONTEXT, 1500.0, 1.5));
+    graph.create_connection(overdrive, filter);
 
     // Prepare the graph for playback
     graph.prepare_for_playback();

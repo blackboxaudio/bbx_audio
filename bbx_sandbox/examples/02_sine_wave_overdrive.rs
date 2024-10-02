@@ -18,6 +18,10 @@ fn main() {
     // Form the connection from the oscillator to the overdrive
     graph.create_connection(oscillator, overdrive);
 
+    // Add amplifier just for fun
+    let amp = graph.add_effector(Effector::Amplifier(1.2));
+    graph.create_connection(overdrive, amp);
+
     // Prepare the graph for playback
     graph.prepare_for_playback();
 

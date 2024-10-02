@@ -34,7 +34,7 @@ pub trait Buffer<T> {
 
 /// A `Buffer` specifically for data that is trait-bound to
 /// a `Sample`.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AudioBuffer<S: Sample> {
     capacity: usize,
     next_idx: usize,
