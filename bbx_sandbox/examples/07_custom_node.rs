@@ -16,10 +16,10 @@ impl Process for NoiseGenerator {
         let amplitude_multiplier: f32 = 0.1;
         let mut rng = rand::thread_rng();
         for channel_buffer in output.iter_mut() {
-            for sample_idx in 0..channel_buffer.len() {
+            channel_buffer.apply_mut(|_s| {
                 let random_value: f32 = rng.gen();
-                channel_buffer[sample_idx] = random_value * amplitude_multiplier;
-            }
+                random_value * amplitude_multiplier
+            })
         }
     }
 }
