@@ -24,8 +24,8 @@ jobs:
                   toolchain: nightly
                   override: true
 
-            - name: Install `fmt` Component
-              run: rustup component add --toolchain nightly rustfmt
+            - name: Install `clippy` Component
+              run: rustup component add --toolchain nightly clippy
 
             - name: Run Format
-              run: cargo +nightly fmt
+              run: cargo +nightly clippy
