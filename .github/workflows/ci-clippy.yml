@@ -1,4 +1,4 @@
-name: Format
+name: Lint
 
 on:
     pull_request:
@@ -8,7 +8,7 @@ on:
             - main
 
 jobs:
-    test:
+    lint:
         name: Cargo Format
         runs-on: ubuntu-latest
         steps:
