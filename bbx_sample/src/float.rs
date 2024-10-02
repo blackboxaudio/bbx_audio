@@ -100,3 +100,102 @@ impl Float for f32 {
         f32::log10(self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sin() {
+        let angle = f32::PI / 2.0;
+        assert_eq!(angle.sin(), 1.0);
+    }
+
+    #[test]
+    fn test_cos() {
+        let angle = f32::PI;
+        assert_eq!(angle.cos(), -1.0);
+    }
+
+    #[test]
+    fn test_tan() {
+        let angle = f32::PI / 4.0;
+        assert!((angle.tan() - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_atan() {
+        let value = 1.0;
+        assert!((value.atan() - (f32::PI / 4.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_avg() {
+        let a = 3.0;
+        let b = 5.0;
+        assert_eq!(a.avg(b), 4.0);
+    }
+
+    #[test]
+    fn test_powf() {
+        let base = 2.0;
+        let exp = 3.0;
+        assert_eq!(base.powf(exp), 8.0);
+    }
+
+    #[test]
+    fn test_log() {
+        let value = 8.0;
+        let base = 2.0;
+        assert_eq!(value.log(base), 3.0);
+    }
+
+    #[test]
+    fn test_log10() {
+        let value = 1000.0;
+        assert_eq!(value.log10(), 3.0);
+    }
+
+    #[test]
+    fn test_min() {
+        let a = 3.0;
+        let b = 5.0;
+        assert_eq!(a.min(b), a);
+    }
+
+    #[test]
+    fn test_max() {
+        let a = 3.0;
+        let b = 5.0;
+        assert_eq!(a.max(b), b);
+    }
+
+    #[test]
+    fn test_arithmetic_ops() {
+        let a = 3.0;
+        let b = 5.0;
+
+        assert_eq!(a + b, 8.0);
+        assert_eq!(b - a, 2.0);
+        assert_eq!(a * b, 15.0);
+        assert_eq!(b / a, 5.0 / 3.0);
+    }
+
+    #[test]
+    fn test_assign_ops() {
+        let mut a = 3.0;
+        let b = 5.0;
+
+        a += b;
+        assert_eq!(a, 8.0);
+
+        a -= b;
+        assert_eq!(a, 3.0);
+
+        a *= b;
+        assert_eq!(a, 15.0);
+
+        a /= b;
+        assert_eq!(a, 3.0);
+    }
+}

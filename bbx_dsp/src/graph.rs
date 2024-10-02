@@ -223,3 +223,104 @@ impl Graph {
         self.processes.get(self.processing_order.last().unwrap()).unwrap()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{context::Context, effector::Effector, generator::Generator, generators::wave_table::Waveform};
+
+    #[test]
+    fn test_graph_creation() {
+        let context = Context::new(1024, 7, 16, 32);
+        let graph = Graph::new(context);
+
+        assert_eq!(graph.context.sample_rate, 1024);
+        assert_eq!(graph.context.num_channels, 7);
+        assert_eq!(graph.context.buffer_size, 16);
+        assert!(graph.nodes.is_empty());
+        assert!(graph.connections.is_empty());
+        assert!(graph.processes.is_empty());
+    }
+
+    #[test]
+    fn test_add_effector() {
+        let context = Context::new(1024, 2, 4, 32);
+        let mut graph = Graph::new(context);
+        let effector_id = graph.add_effector(Effector::Overdrive);
+        assert!(graph.nodes.contains_key(&effector_id));
+    }
+
+    #[test]
+    fn test_add_generator() {
+        let context = Context::new(1024, 2, 4, 32);
+        let mut graph = Graph::new(context);
+        let generator_id = graph.add_generator(Generator::WaveTable {
+            frequency: 110.0,
+            waveform: Waveform::Sine,
+        });
+        assert!(graph.nodes.contains_key(&generator_id));
+    }
+
+    #[test]
+    fn test_create_connection() {
+        let context = Context::new(1024, 2, 4, 32);
+        let mut graph = Graph::new(context);
+
+        let osc = graph.add_generator(Generator::WaveTable {
+            frequency: 110.0,
+            waveform: Waveform::Sine,
+        });
+        let overdrive = graph.add_effector(Effector::Overdrive);
+        graph.create_connection(osc, overdrive);
+
+        assert!(graph.connections.contains(&(osc, overdrive)));
+    }
+
+    #[test]
+    #[should_panic(expected = "ConnectionAlreadyCreated")]
+    fn test_duplicate_connection() {
+        let context = Context::new(1024, 2, 4, 32);
+        let mut graph = Graph::new(context);
+
+        let osc = graph.add_generator(Generator::WaveTable {
+            frequency: 110.0,
+            waveform: Waveform::Sine,
+        });
+        let overdrive = graph.add_effector(Effector::Overdrive);
+        graph.create_connection(osc, overdrive);
+        graph.create_connection(osc, overdrive); // This should panic
+    }
+
+    #[test]
+    fn test_prepare_for_playback() {
+        let context = Context::new(1024, 2, 4, 32);
+        let mut graph = Graph::new(context);
+
+        let osc = graph.add_generator(Generator::WaveTable {
+            frequency: 110.0,
+            waveform: Waveform::Sine,
+        });
+        let overdrive = graph.add_effector(Effector::Overdrive);
+        graph.create_connection(osc, overdrive);
+        graph.prepare_for_playback();
+
+        assert_eq!(graph.processing_order.len(), 2);
+    }
+
+    #[test]
+    fn test_evaluate() {
+        let context = Context::new(1024, 6, 4, 32);
+        let mut graph = Graph::new(context);
+
+        let osc = graph.add_generator(Generator::WaveTable {
+            frequency: 110.0,
+            waveform: Waveform::Sine,
+        });
+        let overdrive = graph.add_effector(Effector::Overdrive);
+        graph.create_connection(osc, overdrive);
+        graph.prepare_for_playback();
+
+        let result = graph.evaluate();
+        assert_eq!(result.len(), 6); // Assuming 2 channels for this context
+    }
+}

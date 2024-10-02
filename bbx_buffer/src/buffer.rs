@@ -109,3 +109,75 @@ impl<S: Sample> IndexMut<usize> for AudioBuffer<S> {
         self.data.get_mut(idx).unwrap()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_buffer() {
+        let buffer = AudioBuffer::<f32>::new(10);
+        assert_eq!(buffer.len(), 10);
+        assert_eq!(buffer.as_slice(), &[0.0; 10]);
+    }
+
+    #[test]
+    fn test_from_slice() {
+        let data = [1.0, 2.0, 3.0];
+        let buffer = AudioBuffer::<f32>::from_slice(&data);
+        assert_eq!(buffer.len(), 3);
+        assert_eq!(buffer.as_slice(), &data);
+    }
+
+    #[test]
+    fn test_copy_from_slice() {
+        let mut buffer = AudioBuffer::<f32>::new(3);
+        let data = [1.0, 2.0, 3.0];
+        buffer.copy_from_slice(&data);
+        assert_eq!(buffer.as_slice(), &data);
+    }
+
+    #[test]
+    fn test_apply() {
+        let mut buffer = AudioBuffer::<f32>::from_slice(&[1.0, 2.0, 3.0]);
+        buffer.apply(|x| x * 2.0);
+        assert_eq!(buffer.as_slice(), &[2.0, 4.0, 6.0]);
+    }
+
+    #[test]
+    fn test_apply_mut() {
+        let mut buffer = AudioBuffer::<f32>::from_slice(&[1.0, 2.0, 3.0]);
+        buffer.apply_mut(|x| x + 1.0);
+        assert_eq!(buffer.as_slice(), &[2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut buffer = AudioBuffer::<f32>::from_slice(&[1.0, 2.0, 3.0]);
+        buffer.clear();
+        assert_eq!(buffer.as_slice(), &[0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_iterator() {
+        let buffer = AudioBuffer::<f32>::from_slice(&[1.0, 2.0, 3.0]);
+        let mut iter = buffer.clone().into_iter();
+        assert_eq!(iter.next(), Some(1.0));
+        assert_eq!(iter.next(), Some(2.0));
+        assert_eq!(iter.next(), Some(3.0));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_index() {
+        let buffer = AudioBuffer::<f32>::from_slice(&[1.0, 2.0, 3.0]);
+        assert_eq!(buffer[1], 2.0);
+    }
+
+    #[test]
+    fn test_index_mut() {
+        let mut buffer = AudioBuffer::<f32>::from_slice(&[1.0, 2.0, 3.0]);
+        buffer[1] = 4.0;
+        assert_eq!(buffer[1], 4.0);
+    }
+}
