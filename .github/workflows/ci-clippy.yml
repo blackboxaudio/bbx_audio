@@ -1,4 +1,4 @@
-name: Lint
+name: Clippy
 
 on:
     pull_request:
@@ -7,7 +7,7 @@ on:
 
 jobs:
     lint:
-        name: Cargo Format
+        name: Cargo Clippy
         runs-on: ubuntu-latest
         steps:
             - name: Checkout Repository

@@ -42,7 +42,7 @@ jobs:
               run: cargo doc --workspace --no-deps
 
             - name: Add Redirect
-              run: echo '<meta http-equiv="refresh" content="0;url=aoc/index.html" />' > target/doc/index.html
+              run: echo '<meta http-equiv="refresh" content="0;url=doc/index.html" />' > target/doc/index.html
 
             - name: Remove Lock File
               run: rm target/doc/.lock
