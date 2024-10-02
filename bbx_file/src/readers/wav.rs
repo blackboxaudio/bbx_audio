@@ -6,9 +6,6 @@ use wavers::Wav;
 use crate::reader::Reader;
 
 pub struct WavFileReader {
-    sample_rate: usize,
-    num_channels: usize,
-    num_samples: usize,
     channels: Vec<AudioBuffer<f32>>,
 }
 
@@ -16,11 +13,9 @@ impl WavFileReader {
     pub fn new(file_path: String) -> Self {
         let mut reader: Wav<f32> = Wav::from_path(Path::new(file_path.as_str())).unwrap();
 
-        let sample_rate = reader.sample_rate() as usize;
+        let _sample_rate = reader.sample_rate() as usize;
         let num_channels = reader.n_channels() as usize;
-        let num_samples = reader.n_samples();
-
-        println!("{} {} {}", sample_rate, num_channels, num_samples);
+        let _num_samples = reader.n_samples();
 
         let mut channels = vec![AudioBuffer::new(reader.n_samples()); num_channels];
         for (channel_idx, channel) in reader.channels().enumerate() {
@@ -29,24 +24,7 @@ impl WavFileReader {
             }
         }
 
-        WavFileReader {
-            sample_rate,
-            num_channels,
-            num_samples,
-            channels,
-        }
-    }
-
-    pub fn sample_rate(&self) -> usize {
-        self.sample_rate
-    }
-
-    pub fn num_channels(&self) -> usize {
-        self.num_channels
-    }
-
-    pub fn num_samples(&self) -> usize {
-        self.num_samples
+        WavFileReader { channels }
     }
 }
 
