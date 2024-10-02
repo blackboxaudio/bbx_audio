@@ -3,9 +3,7 @@ name: Lint
 on:
     pull_request:
     push:
-        branches:
-            - developer
-            - main
+        branches: [main, develop]
 
 jobs:
     lint:
