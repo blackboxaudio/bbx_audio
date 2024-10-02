@@ -3,6 +3,9 @@ pub type Result<T> = std::result::Result<T, BbxAudioDspError>;
 /// The error type for the `bbx_dsp` crate.
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum BbxAudioDspError {
+    #[error("cannot add node to graph")]
+    CannotAddNode,
+
     #[error("cannot add effector node to graph")]
     CannotAddEffectorNode,
 

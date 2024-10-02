@@ -3,7 +3,7 @@ use bbx_sandbox::{player::Player, signal::Signal};
 
 fn main() {
     // Create a `Graph` with the default context, add a wave table generator,
-    // and prepare it for black
+    // and prepare it for playback
     let mut graph = Graph::new(DEFAULT_CONTEXT);
     graph.add_generator(Generator::WaveTable {
         frequency: 110.0,

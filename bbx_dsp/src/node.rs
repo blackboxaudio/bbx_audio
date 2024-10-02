@@ -32,7 +32,7 @@ pub struct Node {
 }
 
 impl Node {
-    fn new(context: Context, operation: Operation, operation_type: OperationType) -> Self {
+    pub fn new(context: Context, operation: Operation, operation_type: OperationType) -> Self {
         let mut rng = rand::thread_rng();
         let id = rng.gen::<NodeId>();
         Node {

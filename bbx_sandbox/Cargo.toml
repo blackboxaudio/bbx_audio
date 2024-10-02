@@ -8,4 +8,5 @@ bbx_buffer = { path = "../bbx_buffer" }
 bbx_dsp = { path = "../bbx_dsp" }
 bbx_midi = { path = "../bbx_midi" }
 
+rand = "0.8.5"
 rodio = "0.18.1"

@@ -9,7 +9,7 @@ fn main() {
     file_path.push_str("/examples/06_sample.wav");
 
     // Create a `Graph` with the default context, add a wave table generator,
-    // and prepare it for black
+    // and prepare it for playback
     let mut graph = Graph::new(DEFAULT_CONTEXT);
     graph.add_generator(Generator::FileReader { file_path });
     graph.prepare_for_playback();

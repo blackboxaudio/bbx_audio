@@ -38,19 +38,8 @@ impl Graph {
 }
 
 impl Graph {
-    /// Adds an `Effector` to the graph
-    pub fn add_effector(&mut self, effector: Effector) -> usize {
-        let effector_node = Node::from_effector(self.context, effector);
-        self.add_node(effector_node, BbxAudioDspError::CannotAddEffectorNode)
-    }
-
-    /// Adds a `Generator` to the graph
-    pub fn add_generator(&mut self, generator: Generator) -> usize {
-        let generator_node = Node::from_generator(self.context, generator);
-        self.add_node(generator_node, BbxAudioDspError::CannotAddGeneratorNode)
-    }
-
-    fn add_node(&mut self, node: Node, error: BbxAudioDspError) -> usize {
+    /// Adds a `Node` to the graph
+    pub fn add_node(&mut self, node: Node, error: Option<BbxAudioDspError>) -> NodeId {
         let node_id = node.id;
         self.nodes.insert(node_id, node);
         self.processes.insert(
@@ -61,8 +50,20 @@ impl Graph {
         if let Some(node) = self.nodes.get(&node_id) {
             node.id
         } else {
-            panic!("{:?}", error);
+            panic!("{:?}", error.unwrap_or(BbxAudioDspError::CannotAddNode));
         }
+    }
+
+    /// Adds an `Effector` to the graph
+    pub fn add_effector(&mut self, effector: Effector) -> NodeId {
+        let effector_node = Node::from_effector(self.context, effector);
+        self.add_node(effector_node, Some(BbxAudioDspError::CannotAddEffectorNode))
+    }
+
+    /// Adds a `Generator` to the graph
+    pub fn add_generator(&mut self, generator: Generator) -> NodeId {
+        let generator_node = Node::from_generator(self.context, generator);
+        self.add_node(generator_node, Some(BbxAudioDspError::CannotAddGeneratorNode))
     }
 
     /// Creates a connection between a source node and destination node.
