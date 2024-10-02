@@ -32,7 +32,4 @@ impl Reader for WavFileReader {
     fn read_channel(&mut self, channel_idx: usize, sample_idx: usize, buffer_len: usize) -> &[f32] {
         &self.channels[channel_idx].as_slice()[sample_idx..(sample_idx + buffer_len)]
     }
-    fn read_sample(&self, channel_idx: usize, sample_idx: usize) -> f32 {
-        self.channels[channel_idx][sample_idx]
-    }
 }
