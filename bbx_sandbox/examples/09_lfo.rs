@@ -12,15 +12,15 @@ fn main() {
     // Create a `Graph` with the default context, add a wave table generator,
     // and prepare it for playback
     let mut graph = Graph::new(DEFAULT_CONTEXT);
-    let lfo1 = graph.add_modulator(Modulator::LowFrequencyOscillator { frequency: 330.0 });
-    let lfo2 = graph.add_modulator(Modulator::LowFrequencyOscillator { frequency: 660.0 });
+    let lfo1 = graph.add_modulator(Modulator::LowFrequencyOscillator { frequency: 40.0 });
+    let lfo2 = graph.add_modulator(Modulator::LowFrequencyOscillator { frequency: 0.2 });
     let osc = graph.add_generator(Generator::WaveTable {
         frequency: 110.0,
         waveform: Waveform::Sine,
     });
-    let filter = graph.add_effector(Effector::Filter(DEFAULT_CONTEXT, 1000.0, 1.6));
+    let filter = graph.add_effector(Effector::Filter(DEFAULT_CONTEXT, 3000.0, 1.6));
     graph.create_modulation(lfo1, osc, ModulationDestination::Frequency);
-    graph.create_modulation(lfo2, lfo1, ModulationDestination::Frequency);
+    graph.create_modulation(lfo2, lfo1, ModulationDestination::Depth);
     graph.create_connection(osc, filter);
     graph.prepare_for_playback();
 

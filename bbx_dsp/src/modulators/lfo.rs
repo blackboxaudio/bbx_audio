@@ -83,28 +83,32 @@ impl LowFrequencyOscillatorModulator {
 impl Process for LowFrequencyOscillatorModulator {
     fn process(
         &mut self,
-        _inputs: &[AudioInput],
-        _output: &mut [AudioBuffer<f32>],
+        _audio_inputs: &[AudioInput],
+        _audio_output: &mut [AudioBuffer<f32>],
         mod_inputs: &[ModulationInput],
         mod_output: &mut Vec<f32>,
     ) {
         let mut sample_idx: usize = 0;
-        let freq_mod_input_idx = mod_inputs
-            .iter()
-            .position(|i| i.destination == ModulationDestination::Frequency);
         *mod_output = mod_output
             .iter_mut()
             .map(|_| {
                 let sine_value = self.lerp();
+
                 self.phase += self.phase_increment;
                 self.phase %= self.wave_table.len() as f32;
-                if let Some(freq_mod_input) = freq_mod_input_idx {
+
+                if let Some(freq_mod_idx) = self.get_mod_index(ModulationDestination::Frequency, mod_inputs) {
                     // TOOD: Change hard-coded value (aka depth)
-                    let freq_mod = 55.0 * mod_inputs[freq_mod_input].as_slice()[sample_idx];
+                    let freq_mod = 55.0 * mod_inputs[freq_mod_idx].as_slice()[sample_idx];
                     self.set_frequency(self.get_frequency() + freq_mod);
                     sample_idx += 1;
                 }
-                self.get_waveform_value(sine_value)
+
+                if let Some(depth_mod_idx) = self.get_mod_index(ModulationDestination::Depth, mod_inputs) {
+                    self.get_waveform_value(sine_value * mod_inputs[depth_mod_idx].as_slice()[sample_idx])
+                } else {
+                    self.get_waveform_value(sine_value)
+                }
             })
             .collect();
     }

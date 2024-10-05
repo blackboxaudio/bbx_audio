@@ -6,11 +6,15 @@ use crate::modulator::ModulationDestination;
 pub trait Process {
     fn process(
         &mut self,
-        inputs: &[AudioInput],
-        output: &mut [AudioBuffer<f32>],
+        audio_inputs: &[AudioInput],
+        audio_output: &mut [AudioBuffer<f32>],
         mod_inputs: &[ModulationInput],
         mod_output: &mut Vec<f32>,
     );
+
+    fn get_mod_index(&self, mod_destination: ModulationDestination, mod_inputs: &[ModulationInput]) -> Option<usize> {
+        mod_inputs.iter().position(|i| i.destination == mod_destination)
+    }
 }
 
 /// A pointer to the output buffers of another node that is an input

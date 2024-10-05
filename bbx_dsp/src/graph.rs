@@ -265,8 +265,7 @@ impl Graph {
             let inputs = &node
                 .inputs
                 .iter()
-                .filter(|&n| !self.mod_processes.contains_key(n))
-                .map(|i| AudioInput::new(self.audio_processes.get(i).unwrap().as_slice()))
+                .filter_map(|n| if self.mod_processes.contains_key(n) { None } else { Some(AudioInput::new(self.audio_processes.get(n).unwrap().as_slice())) })
                 .collect::<Vec<AudioInput>>()[..];
             let mod_inputs = &node
                 .modulations

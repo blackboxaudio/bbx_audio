@@ -44,13 +44,13 @@ impl FlangerEffector {
 impl Process for FlangerEffector {
     fn process(
         &mut self,
-        inputs: &[AudioInput],
-        output: &mut [AudioBuffer<f32>],
+        audio_input: &[AudioInput],
+        audio_output: &mut [AudioBuffer<f32>],
         _mod_inputs: &[ModulationInput],
         _mod_output: &mut Vec<f32>,
     ) {
-        clear_output(output);
-        sum_audio_inputs(inputs, output);
+        clear_output(audio_output);
+        sum_audio_inputs(audio_input, audio_output);
 
         let max_delay_samples = (self.delay_time * self.context.sample_rate as f32).round() as usize;
 
@@ -59,7 +59,7 @@ impl Process for FlangerEffector {
             let modulated_delay = (self.delay_time + lfo) * self.context.sample_rate as f32;
             let delay_samples = modulated_delay.round() as usize;
 
-            for (channel_idx, channel_buffer) in output.iter_mut().enumerate() {
+            for (channel_idx, channel_buffer) in audio_output.iter_mut().enumerate() {
                 let delayed_sample = self.delay_buffer[channel_idx]
                     [(self.delay_idx + max_delay_samples - delay_samples) % max_delay_samples];
                 let wet_sample = channel_buffer[sample_idx] + self.feedback * delayed_sample;

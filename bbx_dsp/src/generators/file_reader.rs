@@ -22,18 +22,18 @@ impl FileReaderGenerator {
 impl Process for FileReaderGenerator {
     fn process(
         &mut self,
-        _inputs: &[AudioInput],
-        output: &mut [AudioBuffer<f32>],
+        _audio_inputs: &[AudioInput],
+        audio_output: &mut [AudioBuffer<f32>],
         _mod_inputs: &[ModulationInput],
         _mod_output: &mut Vec<f32>,
     ) {
-        clear_output(output);
-        for (channel_idx, channel_buffer) in output.iter_mut().enumerate() {
+        clear_output(audio_output);
+        for (channel_idx, channel_buffer) in audio_output.iter_mut().enumerate() {
             channel_buffer.copy_from_slice(
                 self.reader
                     .read_channel(channel_idx, self.sample_idx, channel_buffer.len()),
             )
         }
-        self.sample_idx += output[0].len();
+        self.sample_idx += audio_output[0].len();
     }
 }
