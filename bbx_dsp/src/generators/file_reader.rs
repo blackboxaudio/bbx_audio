@@ -3,7 +3,7 @@ use bbx_file::{reader::Reader, readers::wav::WavFileReader};
 
 use crate::{
     context::Context,
-    process::{AudioInput, Process},
+    process::{AudioInput, ModulationInput, Process},
     utils::clear_output,
 };
 
@@ -20,7 +20,13 @@ impl FileReaderGenerator {
 }
 
 impl Process for FileReaderGenerator {
-    fn process(&mut self, _inputs: &[AudioInput], output: &mut [AudioBuffer<f32>]) {
+    fn process(
+        &mut self,
+        _inputs: &[AudioInput],
+        output: &mut [AudioBuffer<f32>],
+        _mod_inputs: &[ModulationInput],
+        _mod_output: &mut Vec<f32>,
+    ) {
         clear_output(output);
         for (channel_idx, channel_buffer) in output.iter_mut().enumerate() {
             channel_buffer.copy_from_slice(

@@ -7,9 +7,10 @@ use crate::{
     effector::Effector,
     error::BbxAudioDspError,
     generator::Generator,
+    modulator::{ModulationDestination, Modulator},
     node::{Node, NodeId},
     operation::OperationType,
-    process::AudioInput,
+    process::{AudioInput, ModulationInput},
 };
 
 /// Contains a number of `Node`s connected in a certain way.
@@ -20,7 +21,8 @@ pub struct Graph {
     nodes: HashMap<NodeId, Node>,
     connections: Vec<(NodeId, NodeId)>,
 
-    processes: HashMap<NodeId, Vec<AudioBuffer<f32>>>,
+    audio_processes: HashMap<NodeId, Vec<AudioBuffer<f32>>>,
+    mod_processes: HashMap<NodeId, Vec<f32>>,
     processing_order: Vec<NodeId>,
 }
 
@@ -31,7 +33,8 @@ impl Graph {
             context,
             nodes: HashMap::with_capacity(max_num_graph_nodes),
             connections: Vec::with_capacity(max_num_graph_nodes),
-            processes: HashMap::with_capacity(max_num_graph_nodes),
+            audio_processes: HashMap::with_capacity(max_num_graph_nodes),
+            mod_processes: HashMap::with_capacity(max_num_graph_nodes),
             processing_order: Vec::with_capacity(max_num_graph_nodes),
         }
     }
@@ -41,11 +44,20 @@ impl Graph {
     /// Adds a `Node` to the graph
     pub fn add_node(&mut self, node: Node, error: Option<BbxAudioDspError>) -> NodeId {
         let node_id = node.id;
+
+        match &node.operation_type {
+            OperationType::Generator | OperationType::Effector => {
+                self.audio_processes.insert(
+                    node_id,
+                    vec![AudioBuffer::new(self.context.buffer_size); self.context.num_channels],
+                );
+            }
+            OperationType::Modulator => {
+                self.mod_processes.insert(node_id, vec![0.0; self.context.buffer_size]);
+            }
+        }
+
         self.nodes.insert(node_id, node);
-        self.processes.insert(
-            node_id,
-            vec![AudioBuffer::new(self.context.buffer_size); self.context.num_channels],
-        );
 
         if let Some(node) = self.nodes.get(&node_id) {
             node.id
@@ -66,28 +78,59 @@ impl Graph {
         self.add_node(generator_node, Some(BbxAudioDspError::CannotAddGeneratorNode))
     }
 
+    pub fn add_modulator(&mut self, modulator: Modulator) -> NodeId {
+        let modulator_node = Node::from_modulator(self.context, modulator);
+        self.add_node(modulator_node, Some(BbxAudioDspError::CannotAddModulatorNode))
+    }
+
     /// Creates a connection between a source node and destination node.
     pub fn create_connection(&mut self, source_id: NodeId, destination_id: NodeId) {
         if self.connections.contains(&(source_id, destination_id)) {
             panic!("{:?}", BbxAudioDspError::ConnectionAlreadyCreated);
         } else {
-            if let Some(source) = self.nodes.get_mut(&source_id) {
-                source.add_output(destination_id);
-            } else {
-                panic!(
-                    "{:?}",
-                    BbxAudioDspError::CannotRetrieveSourceNode(format!("{}", source_id))
-                );
-            }
+            self.add_node_io(source_id, destination_id, None);
+            self.connections.push((source_id, destination_id));
+        }
+    }
+
+    pub fn create_modulation(
+        &mut self,
+        source_id: NodeId,
+        destination_id: NodeId,
+        destination_param: ModulationDestination,
+    ) {
+        if self.connections.contains(&(source_id, destination_id)) {
+            panic!("{:?}", BbxAudioDspError::ConnectionAlreadyCreated);
+        } else {
+            self.add_node_io(source_id, destination_id, Some(destination_param));
+            self.connections.push((source_id, destination_id));
+        }
+    }
+
+    fn add_node_io(
+        &mut self,
+        source_id: NodeId,
+        destination_id: NodeId,
+        modulation_destination: Option<ModulationDestination>,
+    ) {
+        if let Some(source) = self.nodes.get_mut(&source_id) {
+            source.add_output(destination_id);
             if let Some(destination) = self.nodes.get_mut(&destination_id) {
                 destination.add_input(source_id);
+                if let Some(dest) = modulation_destination {
+                    destination.add_modulation(source_id, dest);
+                }
             } else {
                 panic!(
                     "{:?}",
                     BbxAudioDspError::CannotRetrieveDestinationNode(format!("{}", destination_id))
                 );
             }
-            self.connections.push((source_id, destination_id));
+        } else {
+            panic!(
+                "{:?}",
+                BbxAudioDspError::CannotRetrieveSourceNode(format!("{}", source_id))
+            );
         }
     }
 
@@ -172,7 +215,15 @@ impl Graph {
         for (node_id, node) in self.nodes.iter() {
             if node.operation_type == OperationType::Effector && node.inputs.is_empty() {
                 panic!("{:?}", BbxAudioDspError::NodeHasNoInputs(format!("{}", node_id)));
-            } else if node.operation_type == OperationType::Generator && node.outputs.is_empty() && self.nodes.len() > 1
+            } else if node.operation_type == OperationType::Generator
+                && node.outputs.is_empty()
+                && self
+                    .nodes
+                    .values()
+                    .filter(|&n| n.operation_type == OperationType::Generator)
+                    .collect::<Vec<_>>()
+                    .len()
+                    > 1
             {
                 panic!("{:?}", BbxAudioDspError::NodeHasNoOutputs(format!("{}", node_id)));
             }
@@ -214,13 +265,31 @@ impl Graph {
             let inputs = &node
                 .inputs
                 .iter()
-                .map(|i| AudioInput::new(self.processes.get(i).unwrap().as_slice()))
+                .filter(|&n| !self.mod_processes.contains_key(n))
+                .map(|i| AudioInput::new(self.audio_processes.get(i).unwrap().as_slice()))
                 .collect::<Vec<AudioInput>>()[..];
-            node.operation
-                .process(inputs, self.processes.get_mut(&node_id).unwrap());
+            let mod_inputs = &node
+                .modulations
+                .iter()
+                .map(|(src, dest)| ModulationInput::new(self.mod_processes.get(src).unwrap().as_slice(), *dest))
+                .collect::<Vec<ModulationInput>>()[..];
+            match &node.operation_type {
+                OperationType::Generator | OperationType::Effector => {
+                    node.operation.process(
+                        inputs,
+                        self.audio_processes.get_mut(&node_id).unwrap(),
+                        mod_inputs,
+                        &mut vec![],
+                    );
+                }
+                OperationType::Modulator => {
+                    node.operation
+                        .process(&[], &mut [], mod_inputs, self.mod_processes.get_mut(&node_id).unwrap());
+                }
+            }
         }
 
-        self.processes.get(self.processing_order.last().unwrap()).unwrap()
+        self.audio_processes.get(self.processing_order.last().unwrap()).unwrap()
     }
 }
 
@@ -241,7 +310,7 @@ mod tests {
         assert_eq!(graph.context.buffer_size, 16);
         assert!(graph.nodes.is_empty());
         assert!(graph.connections.is_empty());
-        assert!(graph.processes.is_empty());
+        assert!(graph.audio_processes.is_empty());
     }
 
     #[test]

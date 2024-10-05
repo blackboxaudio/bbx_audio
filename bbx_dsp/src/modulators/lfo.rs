@@ -1,22 +1,15 @@
-use bbx_buffer::buffer::{AudioBuffer, Buffer};
+use bbx_buffer::buffer::AudioBuffer;
 
 use crate::{
     context::Context,
+    generators::wave_table::Waveform,
     modulator::ModulationDestination,
     process::{AudioInput, ModulationInput, Process},
-    utils::clear_output,
 };
 
 const WAVE_TABLE_SIZE: usize = 128;
 
-pub enum Waveform {
-    Sine,
-    Square,
-    Triangle,
-    Sawtooth,
-}
-
-pub struct WaveTableGenerator {
+pub struct LowFrequencyOscillatorModulator {
     context: Context,
     wave_table: Vec<f32>,
     phase: f32,
@@ -24,16 +17,16 @@ pub struct WaveTableGenerator {
     waveform: Waveform,
 }
 
-impl WaveTableGenerator {
-    pub fn new(context: Context, frequency: f32, waveform: Waveform) -> Self {
+impl LowFrequencyOscillatorModulator {
+    pub fn new(context: Context, frequency: f32) -> Self {
         let wave_table = Self::create_wave_table(WAVE_TABLE_SIZE);
         let phase_increment = Self::calculate_phase_increment(context.sample_rate, frequency, wave_table.len());
-        WaveTableGenerator {
+        LowFrequencyOscillatorModulator {
             context,
             wave_table,
             phase: 0.0,
             phase_increment,
-            waveform,
+            waveform: Waveform::Sine,
         }
     }
 
@@ -51,7 +44,7 @@ impl WaveTableGenerator {
     }
 }
 
-impl WaveTableGenerator {
+impl LowFrequencyOscillatorModulator {
     pub fn get_frequency(&self) -> f32 {
         (self.phase_increment * self.context.sample_rate as f32) / self.wave_table.len() as f32
     }
@@ -62,7 +55,7 @@ impl WaveTableGenerator {
     }
 }
 
-impl WaveTableGenerator {
+impl LowFrequencyOscillatorModulator {
     fn lerp(&self) -> f32 {
         let truncated_index = self.phase as usize;
         let next_index = (truncated_index + 1) % self.wave_table.len();
@@ -87,37 +80,32 @@ impl WaveTableGenerator {
     }
 }
 
-impl Process for WaveTableGenerator {
+impl Process for LowFrequencyOscillatorModulator {
     fn process(
         &mut self,
         _inputs: &[AudioInput],
-        output: &mut [AudioBuffer<f32>],
+        _output: &mut [AudioBuffer<f32>],
         mod_inputs: &[ModulationInput],
-        _mod_output: &mut Vec<f32>,
+        mod_output: &mut Vec<f32>,
     ) {
-        clear_output(output);
-
-        let mut output_iter = output.iter_mut();
         let mut sample_idx: usize = 0;
-        let model_buffer = output_iter.next().unwrap();
         let freq_mod_input_idx = mod_inputs
             .iter()
             .position(|i| i.destination == ModulationDestination::Frequency);
-        model_buffer.apply_mut(|_| {
-            let sine_value = self.lerp();
-            self.phase += self.phase_increment;
-            self.phase %= self.wave_table.len() as f32;
-            if let Some(freq_mod_input) = freq_mod_input_idx {
-                // TOOD: Change hard-coded value (aka depth)
-                let freq_mod = 55.0 * mod_inputs[freq_mod_input].as_slice()[sample_idx];
-                self.set_frequency(self.get_frequency() + freq_mod);
-                sample_idx += 1;
-            }
-            self.get_waveform_value(sine_value)
-        });
-
-        for channel_buffer in output_iter {
-            channel_buffer.copy_from_slice(model_buffer.as_slice());
-        }
+        *mod_output = mod_output
+            .iter_mut()
+            .map(|_| {
+                let sine_value = self.lerp();
+                self.phase += self.phase_increment;
+                self.phase %= self.wave_table.len() as f32;
+                if let Some(freq_mod_input) = freq_mod_input_idx {
+                    // TOOD: Change hard-coded value (aka depth)
+                    let freq_mod = 55.0 * mod_inputs[freq_mod_input].as_slice()[sample_idx];
+                    self.set_frequency(self.get_frequency() + freq_mod);
+                    sample_idx += 1;
+                }
+                self.get_waveform_value(sine_value)
+            })
+            .collect();
     }
 }
