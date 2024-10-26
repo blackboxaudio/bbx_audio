@@ -6,9 +6,23 @@
 
 > A collection of Rust crates for audio-related DSP operations 🧮
 
-## Setup
+## Overview
+
+`bbx_audio` is a collection of crates focused around audio-related DSP operations. The following crates are included within this repository:
+
+- [`bbx_buffer`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_buffer) - Buffer trait, types, and operations
+- [`bbx_draw`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_draw) - Visualization tooling
+- [`bbx_dsp`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_dsp) - Graphs, nodes, and DSP logic
+- [`bbx_file`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_file) - Reading / writing audio files
+- [`bbx_midi`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_midi) - Streaming MIDI events
+- [`bbx_sample`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_sample) - Numerical data traits, types, and operations
+- [`bbx_sandbox`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_sandbox) - Playground for all crates
+
+## Getting Started
 
 Setup is quite minimal except for a few required installations on Linux-based platforms.
+
+:information_source: If you would like to use the `bbx_draw` crate for visualizations, follow the [instruction guide](https://guide.nannou.cc/getting_started/platform-specific_setup) to setup your environment for [Nannou](https://nannou.cc/).
 
 ### Linux
 
@@ -17,10 +31,7 @@ Install the following packages:
 sudo apt install alsa libasound2-dev libssl-dev pkg-config
 ```
 
-:info: If you would like to use the `bbx_draw` crate for visualizations, follow the [instruction guide](https://guide.nannou.cc/getting_started/platform-specific_setup) to setup
-[Nannou](https://nannou.cc/).
-
-## Running
+## Using the Sandbox
 
 To run an example in the sandbox, use the following command:
 
