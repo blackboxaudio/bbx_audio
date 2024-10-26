@@ -17,8 +17,8 @@ Install the following packages:
 sudo apt install alsa libasound2-dev libssl-dev pkg-config
 ```
 
-:info: If you would like to use the `bbx_draw` crate for visualizations, follow the [instruction guide](https://guide.nannou.cc/getting_started/platform-specific_setup) to setup
-[Nannou](https://nannou.cc/).
+:info: If you would like to use the `bbx_draw` crate for visualizations, follow the [instruction guide](https://guide.nannou.cc/getting_started/platform-specific_setup){:target="_blank"} to setup
+[Nannou](https://nannou.cc/){:target="_blank"}.
 
 ## Running
 
