@@ -23,6 +23,7 @@
 Setup is quite minimal except for a few required installations on Linux-based platforms.
 
 :information_source: If you would like to use the `bbx_draw` crate for visualizations, follow the [instruction guide](https://guide.nannou.cc/getting_started/platform-specific_setup) to setup your environment for [Nannou](https://nannou.cc/).
+Otherwise, continue on to the following steps.
 
 ### Linux
 
