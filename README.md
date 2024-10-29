@@ -1,8 +1,8 @@
 # `bbx_audio`
 
-[![Test](https://github.com/blackboxdsp/bbx_audio/actions/workflows/ci-test.yml/badge.svg)](https://github.com/blackboxdsp/bbx_audio/actions/workflows/ci-test.yml)
-[![Version: v0.1.0](https://img.shields.io/badge/Version-v0.1.0-blue.svg)](https://github.com/blackboxdsp/bbx_audio)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](https://github.com/blackboxdsp/bbx_audio/blob/develop/LICENSE)
+[![Test](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci-test.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci-test.yml)
+[![Version: v0.1.0](https://img.shields.io/badge/Version-v0.1.0-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](https://github.com/blackboxaudio/bbx_audio/blob/develop/LICENSE)
 
 > A collection of Rust crates for audio-related DSP operations 🧮
 
@@ -10,13 +10,13 @@
 
 `bbx_audio` is a collection of crates focused around audio-related DSP operations. The following crates are included within this repository:
 
-- [`bbx_buffer`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_buffer) - Buffer trait, types, and operations
-- [`bbx_draw`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_draw) - Visualization tooling
-- [`bbx_dsp`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_dsp) - Graphs, nodes, and DSP logic
-- [`bbx_file`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_file) - Reading / writing audio files
-- [`bbx_midi`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_midi) - Streaming MIDI events
-- [`bbx_sample`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_sample) - Numerical data traits, types, and operations
-- [`bbx_sandbox`](https://github.com/blackboxdsp/bbx_audio/tree/develop/bbx_sandbox) - Playground for all crates
+- [`bbx_buffer`](https://github.com/blackboxaudio/bbx_audio/tree/develop/bbx_buffer) - Buffer trait, types, and operations
+- [`bbx_draw`](https://github.com/blackboxaudio/bbx_audio/tree/develop/bbx_draw) - Visualization tooling
+- [`bbx_dsp`](https://github.com/blackboxaudio/bbx_audio/tree/develop/bbx_dsp) - Graphs, nodes, and DSP logic
+- [`bbx_file`](https://github.com/blackboxaudio/bbx_audio/tree/develop/bbx_file) - Reading / writing audio files
+- [`bbx_midi`](https://github.com/blackboxaudio/bbx_audio/tree/develop/bbx_midi) - Streaming MIDI events
+- [`bbx_sample`](https://github.com/blackboxaudio/bbx_audio/tree/develop/bbx_sample) - Numerical data traits, types, and operations
+- [`bbx_sandbox`](https://github.com/blackboxaudio/bbx_audio/tree/develop/bbx_sandbox) - Playground for all crates
 
 ## Getting Started
 
