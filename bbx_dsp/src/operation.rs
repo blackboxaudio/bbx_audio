@@ -8,4 +8,5 @@ pub type Operation = Box<dyn Process + Send>;
 pub enum OperationType {
     Effector,
     Generator,
+    Modulator,
 }

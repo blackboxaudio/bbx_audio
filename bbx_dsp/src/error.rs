@@ -12,6 +12,9 @@ pub enum BbxAudioDspError {
     #[error("cannot add generator node to graph")]
     CannotAddGeneratorNode,
 
+    #[error("cannot add modulator node to graph")]
+    CannotAddModulatorNode,
+
     #[error("cannot retrieve the current node (`{0}`)")]
     CannotRetrieveCurrentNode(String),
 
@@ -35,6 +38,9 @@ pub enum BbxAudioDspError {
 
     #[error("graph has non-converging paths")]
     GraphContainsNonConvergingPaths,
+
+    #[error("modulation has already been created")]
+    ModulationAlreadyCreated,
 
     #[error("node (`{0}`) has no inputs")]
     NodeHasNoInputs(String),

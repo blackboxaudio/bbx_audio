@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+
 use rand::Rng;
 
 use crate::{
     context::Context,
     effector::Effector,
     generator::Generator,
+    modulator::{ModulationDestination, Modulator},
     operation::{Operation, OperationType},
 };
 
@@ -24,6 +27,8 @@ pub struct Node {
     /// The `NodeId`s of the output nodes.
     pub outputs: Vec<NodeId>,
 
+    pub modulations: HashMap<NodeId, ModulationDestination>,
+
     /// The associated `Operation` for this `Node`.
     pub operation: Operation,
 
@@ -40,6 +45,7 @@ impl Node {
             context,
             inputs: Vec::with_capacity(context.max_num_graph_nodes),
             outputs: Vec::with_capacity(context.max_num_graph_nodes),
+            modulations: HashMap::with_capacity(context.max_num_graph_nodes),
             operation,
             operation_type,
         }
@@ -52,6 +58,10 @@ impl Node {
     pub fn from_generator(context: Context, generator: Generator) -> Self {
         Self::new(context, generator.to_operation(context), OperationType::Generator)
     }
+
+    pub fn from_modulator(context: Context, modulator: Modulator) -> Self {
+        Self::new(context, modulator.to_operation(context), OperationType::Modulator)
+    }
 }
 
 impl Node {
@@ -61,5 +71,9 @@ impl Node {
 
     pub fn add_input(&mut self, input: NodeId) {
         self.inputs.push(input);
+    }
+
+    pub fn add_modulation(&mut self, mod_id: NodeId, mod_destination: ModulationDestination) {
+        self.modulations.insert(mod_id, mod_destination);
     }
 }

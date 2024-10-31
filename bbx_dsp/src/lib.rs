@@ -3,6 +3,7 @@ extern crate test;
 
 pub mod effectors;
 pub mod generators;
+pub mod modulators;
 
 pub mod constants;
 pub mod context;
@@ -10,6 +11,7 @@ pub mod effector;
 pub mod error;
 pub mod generator;
 pub mod graph;
+pub mod modulator;
 pub mod node;
 pub mod operation;
 pub mod process;
