@@ -25,10 +25,7 @@ impl Phasor {
     }
 
     pub fn add_inflection(&mut self, x: f32, y: f32) {
-        self.inflections.push((
-            x.clamp(0.0, 1.0),
-            y.clamp(0.0, 1.0)
-        ));
+        self.inflections.push((x.clamp(0.0, 1.0), y.clamp(0.0, 1.0)));
         self.inflections.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
     }
 

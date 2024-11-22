@@ -5,6 +5,7 @@ use nannou_egui::{self, egui, Egui};
 use rand::Rng;
 
 const CONTEXT: DisplayContext = ctx!(DisplayContext, 1280.0, 720.0, 256);
+const NUM_INFLECTIONS: usize = 6;
 
 pub fn main() {
     nannou::app(model)
@@ -32,16 +33,14 @@ fn model(app: &App) -> Model {
     let egui = Egui::from_window(&window);
 
     let mut phasor = Phasor::new();
-    let inflections: Vec<(f32, f32)> = vec![
-        // Add pre-determined inflections here
-    ];
-    for &(x, y) in &inflections {
+    let mut slider_groups: Vec<(SliderState, SliderState)> = vec![];
+    let mut rng = rand::thread_rng();
+    for _n in 0..NUM_INFLECTIONS {
+        let x = rng.gen::<f32>();
+        let y = rng.gen::<f32>();
         phasor.add_inflection(x, y);
+        slider_groups.push((SliderState { resolution: x }, SliderState { resolution: y }))
     }
-    let slider_groups = inflections
-        .iter()
-        .map(|&(x, y)| (SliderState { resolution: x }, SliderState { resolution: y }))
-        .collect();
 
     Model {
         egui,
@@ -95,22 +94,10 @@ fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
 
     draw_chart(ChartConfiguration::new("Time", "Amplitude"), &CONTEXT, &draw);
-    draw_phasor_lines(&draw, model);
     draw_sample_data(&draw, model);
 
     draw.to_frame(app, &frame).unwrap();
     model.egui.draw_to_frame(&frame).unwrap();
-}
-
-fn draw_phasor_lines(draw: &Draw, model: &Model) {
-    for idx in 0..model.phasor.get_inflections().len() - 1 {
-        let i1 = *model.phasor.get_inflection(idx);
-        let i2 = *model.phasor.get_inflection(idx + 1);
-        draw.line()
-            .color(CORNFLOWERBLUE)
-            .start(map_normalized_point_to_display_point(Point2::from(i1), &CONTEXT))
-            .end(map_normalized_point_to_display_point(Point2::from(i2), &CONTEXT));
-    }
 }
 
 fn draw_sample_data(draw: &Draw, model: &Model) {
@@ -153,18 +140,6 @@ fn draw_sample_data(draw: &Draw, model: &Model) {
         }
 
         previous_sample = *sample;
-    }
-
-    for (inflection_idx, sample_idx) in inflection_indices.iter().enumerate() {
-        let sample = sample_data[*sample_idx];
-        let inflection = phasor.get_inflection(inflection_idx + 1);
-        draw.line()
-            .color(MEDIUMPURPLE)
-            .start(map_sample_data_to_display_point(sample, *sample_idx, &CONTEXT))
-            .end(map_normalized_point_to_display_point(
-                Point2::from(*inflection),
-                &CONTEXT,
-            ));
     }
 }
 
