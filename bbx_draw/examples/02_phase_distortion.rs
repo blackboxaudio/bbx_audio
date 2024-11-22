@@ -20,7 +20,8 @@ struct SliderState {
 struct Model {
     egui: Egui,
     phasor: Phasor,
-    slider_state: SliderState,
+    x_slider: SliderState,
+    y_slider: SliderState,
 }
 
 /// Initializes the app state (e.g. window, GUI) and performs startup
@@ -33,7 +34,10 @@ fn model(app: &App) -> Model {
     Model {
         egui,
         phasor: Phasor::new(),
-        slider_state: SliderState {
+        x_slider: SliderState {
+            resolution: 0.5,
+        },
+        y_slider: SliderState {
             resolution: 0.5,
         },
     }
@@ -43,15 +47,19 @@ fn model(app: &App) -> Model {
 fn update(_app: &App, model: &mut Model, update: Update) {
     let egui = &mut model.egui;
     let phasor = &mut model.phasor;
-    let state = &mut model.slider_state;
-    phasor.set_pivot(state.resolution, 0.5);
+    let x_slider = &mut model.x_slider;
+    let y_slider = &mut model.y_slider;
+    phasor.set_pivot(x_slider.resolution, y_slider.resolution);
 
     egui.set_elapsed_time(update.since_start);
     let ctx = egui.begin_frame();
 
     egui::Window::new("Settings").show(&ctx, |ui| {
-        ui.label("Inflection:");
-        ui.add(egui::Slider::new(&mut state.resolution, 0.01..=0.99).fixed_decimals(2).step_by(0.01))
+        ui.label("Inflection X:");
+        ui.add(egui::Slider::new(&mut x_slider.resolution, 0.01..=0.99).fixed_decimals(2).step_by(0.01));
+
+        ui.label("Inflection Y:");
+        ui.add(egui::Slider::new(&mut y_slider.resolution, 0.01..=0.99).fixed_decimals(2).step_by(0.01));
     });
 }
 
