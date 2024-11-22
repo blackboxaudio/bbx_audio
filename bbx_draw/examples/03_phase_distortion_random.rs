@@ -4,8 +4,8 @@ use nannou::prelude::*;
 use nannou_egui::{self, egui, Egui};
 use rand::Rng;
 
-const CONTEXT: DisplayContext = ctx!(DisplayContext, 1280.0, 720.0, 256);
-const NUM_INFLECTIONS: usize = 6;
+const CONTEXT: DisplayContext = ctx!(DisplayContext, 1280.0, 720.0, 1024);
+const NUM_INFLECTIONS: usize = 4;
 
 pub fn main() {
     nannou::app(model)
