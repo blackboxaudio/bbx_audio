@@ -1,3 +1,4 @@
+use rand::Rng;
 use nannou::prelude::*;
 use nannou_egui::{self, egui, Egui};
 use bbx_draw::*;
@@ -20,8 +21,7 @@ struct SliderState {
 struct Model {
     egui: Egui,
     phasor: Phasor,
-    x_slider: SliderState,
-    y_slider: SliderState,
+    slider_groups: Vec<(SliderState, SliderState)>,
 }
 
 /// Initializes the app state (e.g. window, GUI) and performs startup
@@ -31,15 +31,19 @@ fn model(app: &App) -> Model {
     let window = app.window(window_id).unwrap();
     let egui = Egui::from_window(&window);
 
+    let mut phasor = Phasor::new();
+    let inflections: Vec<(f32, f32)> = vec![
+        // Add pre-determined inflections here
+    ];
+    for inflection in &inflections {
+        phasor.add_inflection(inflection.0, inflection.1);
+    }
+    let slider_groups = inflections.iter().map(|inflection| (SliderState { resolution: inflection.0 }, SliderState { resolution: inflection.1 })).collect();
+
     Model {
         egui,
-        phasor: Phasor::new(),
-        x_slider: SliderState {
-            resolution: 0.5,
-        },
-        y_slider: SliderState {
-            resolution: 0.5,
-        },
+        phasor,
+        slider_groups,
     }
 }
 
@@ -47,19 +51,31 @@ fn model(app: &App) -> Model {
 fn update(_app: &App, model: &mut Model, update: Update) {
     let egui = &mut model.egui;
     let phasor = &mut model.phasor;
-    let x_slider = &mut model.x_slider;
-    let y_slider = &mut model.y_slider;
-    phasor.set_pivot(x_slider.resolution, y_slider.resolution);
+
+    let slider_groups = &mut model.slider_groups;
+    for (group_idx, group) in slider_groups.iter().enumerate() {
+        let (x_slider, y_slider) = group;
+        phasor.set_inflection(group_idx + 1, x_slider.resolution, y_slider.resolution);
+    }
 
     egui.set_elapsed_time(update.since_start);
     let ctx = egui.begin_frame();
 
     egui::Window::new("Settings").show(&ctx, |ui| {
-        ui.label("Inflection X:");
-        ui.add(egui::Slider::new(&mut x_slider.resolution, 0.01..=0.99).fixed_decimals(2).step_by(0.01));
+        let clicked = ui.button("Add inflection").clicked();
+        if clicked {
+            let mut rng = rand::thread_rng();
+            let new_x = rng.gen::<f32>();
+            phasor.add_inflection(new_x, new_x);
+            slider_groups.push((SliderState { resolution: new_x }, SliderState { resolution: new_x }));
+        }
 
-        ui.label("Inflection Y:");
-        ui.add(egui::Slider::new(&mut y_slider.resolution, 0.01..=0.99).fixed_decimals(2).step_by(0.01));
+        for (group_idx, group) in slider_groups.iter_mut().enumerate() {
+            let (x_slider, y_slider) = group;
+            ui.label(format!("Inflection {}:", group_idx + 1));
+            ui.add(egui::Slider::new(&mut x_slider.resolution, 0.001..=0.999).fixed_decimals(3).step_by(0.001));
+            ui.add(egui::Slider::new(&mut y_slider.resolution, 0.001..=0.999).fixed_decimals(3).step_by(0.001));
+        }
     });
 }
 
@@ -76,23 +92,26 @@ fn view(app: &App, model: &Model, frame: Frame) {
 }
 
 fn draw_phasor_lines(draw: &Draw, model: &Model) {
-    let (ix, iy) = model.phasor.get_inflection();
-    draw.line().color(CORNFLOWERBLUE).start(map_normalized_point_to_display_point(Point2::new(0.0, 0.0), &CONTEXT)).end(map_normalized_point_to_display_point(Point2::new(ix, iy), &CONTEXT));
-    draw.line().color(CORNFLOWERBLUE).start(map_normalized_point_to_display_point(Point2::new(ix, iy), &CONTEXT)).end(map_normalized_point_to_display_point(Point2::new(1.0, 1.0), &CONTEXT));
+    for idx in 0..model.phasor.get_inflections().len() - 1 {
+        let i1 = *model.phasor.get_inflection(idx);
+        let i2 = *model.phasor.get_inflection(idx + 1);
+        draw.line().color(CORNFLOWERBLUE).start(map_normalized_point_to_display_point(Point2::from(i1), &CONTEXT)).end(map_normalized_point_to_display_point(Point2::from(i2), &CONTEXT));
+    }
 }
 
 fn draw_sample_data(draw: &Draw, model: &Model) {
     let phasor = &model.phasor;
-    let mut phasor_sample_idx: usize = 0;
-    let mut phasor_sample_marked: bool = false;
-    let inflection = phasor.get_inflection();
 
     let mut sample_data: Vec<f32> = Vec::with_capacity(CONTEXT.buffer_size);
+    let mut inflection_indices: Vec<usize> = Vec::new();
+    let mut inflection_count: usize = 1;
+
     for n in 0..CONTEXT.buffer_size {
         let normalized_phase = n as f32 / CONTEXT.buffer_size as f32;
-        if normalized_phase > inflection.0 && !phasor_sample_marked {
-            phasor_sample_idx = n;
-            phasor_sample_marked = true;
+        let inflection = phasor.get_inflection(inflection_count);
+        if normalized_phase > inflection.0 {
+            inflection_count += 1;
+            inflection_indices.push(n - 1);
         }
 
         let phase = phasor.apply(normalized_phase) * 2.0 * PI;
@@ -108,13 +127,20 @@ fn draw_sample_data(draw: &Draw, model: &Model) {
                 .end(map_sample_data_to_display_point(*sample, sample_idx, &CONTEXT));
         }
 
-        if sample_idx == phasor_sample_idx {
-            draw.line().color(MEDIUMPURPLE)
+        if sample_idx == sample_data.len() - 1 {
+            draw.line()
+                .color(BLACK)
                 .start(map_sample_data_to_display_point(*sample, sample_idx, &CONTEXT))
-                .end(map_normalized_point_to_display_point(Point2::new(inflection.0, inflection.1), &CONTEXT));
+                .end(map_sample_data_to_display_point(1.0, sample_idx + 1, &CONTEXT));
         }
 
         previous_sample = *sample;
+    }
+
+    for (inflection_idx, sample_idx) in inflection_indices.iter().enumerate() {
+        let sample = sample_data[*sample_idx];
+        let inflection = phasor.get_inflection(inflection_idx + 1);
+        draw.line().color(MEDIUMPURPLE).start(map_sample_data_to_display_point(sample, *sample_idx, &CONTEXT)).end(map_normalized_point_to_display_point(Point2::from(*inflection), &CONTEXT));
     }
 }
 

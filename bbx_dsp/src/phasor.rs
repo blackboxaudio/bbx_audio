@@ -1,38 +1,49 @@
 pub struct Phasor {
-    ix: f32,
-    iy: f32,
+    inflections: Vec<(f32, f32)>,
 }
 
 impl Phasor {
     pub fn new() -> Phasor {
         Phasor {
-            ix: 0.5,
-            iy: 0.5,
+            inflections: vec![(0.0, 0.0), (1.0, 1.0)],
         }
     }
 }
 
 impl Phasor {
     pub fn apply(&self, phase: f32) -> f32 {
-        if phase <= self.ix {
-            phase * self.iy / self.ix
-        } else {
-            let slope = (1.0 - self.iy) / (1.0 - self.ix);
-            ((phase - self.ix) * slope) + self.iy
+        for idx in 0..self.inflections.len() - 1 {
+            let (x1, y1) = self.inflections[idx];
+            let (x2, y2) = self.inflections[idx + 1];
+            if x1 <= phase && phase <= x2 {
+                let slope = (y2 - y1) / (x2 - x1);
+                return slope * (phase - x1) + y1;
+            }
         }
+
+        0.0
     }
 
-    // pub fn add_pivot(&mut self, pivot: (f32, f32)) {
-    //     self.inflections.push(pivot);
-    //     self.inflections.sort_by(|p1, p2| p1.0.partial_cmp(&p2.0).unwrap());
-    // }
-
-    pub fn get_inflection(&self) -> (f32, f32) {
-        (self.ix, self.iy)
+    pub fn add_inflection(&mut self, x: f32, y: f32) {
+        self.inflections.push((
+            x.clamp(0.0, 1.0),
+            y.clamp(0.0, 1.0)
+        ));
+        self.inflections.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
     }
 
-    pub fn set_pivot(&mut self, x: f32, y: f32) {
-        self.ix = x.clamp(0.0, 1.0);
-        self.iy = y.clamp(0.0, 1.0);
+    pub fn get_inflection(&self, index: usize) -> &(f32, f32) {
+        self.inflections.get(index).unwrap_or(&(0.0, 0.0))
+    }
+
+    pub fn get_inflections(&self) -> &[(f32, f32)] {
+        self.inflections.as_slice()
+    }
+
+    pub fn set_inflection(&mut self, index: usize, x: f32, y: f32) {
+        if index < self.inflections.len() {
+            self.inflections[index] = (x, y);
+            self.inflections.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        }
     }
 }
