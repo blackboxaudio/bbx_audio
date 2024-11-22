@@ -35,10 +35,10 @@ fn model(app: &App) -> Model {
     let inflections: Vec<(f32, f32)> = vec![
         // Add pre-determined inflections here
     ];
-    for inflection in &inflections {
-        phasor.add_inflection(inflection.0, inflection.1);
+    for &(x, y) in &inflections {
+        phasor.add_inflection(x, y);
     }
-    let slider_groups = inflections.iter().map(|inflection| (SliderState { resolution: inflection.0 }, SliderState { resolution: inflection.1 })).collect();
+    let slider_groups = inflections.iter().map(|&(x, y)| (SliderState { resolution: x }, SliderState { resolution: y })).collect();
 
     Model {
         egui,
@@ -111,7 +111,7 @@ fn draw_sample_data(draw: &Draw, model: &Model) {
         let inflection = phasor.get_inflection(inflection_count);
         if normalized_phase > inflection.0 {
             inflection_count += 1;
-            inflection_indices.push(n - 1);
+            inflection_indices.push(n);
         }
 
         let phase = phasor.apply(normalized_phase) * 2.0 * PI;
