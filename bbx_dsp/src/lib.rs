@@ -12,5 +12,6 @@ pub mod generator;
 pub mod graph;
 pub mod node;
 pub mod operation;
+pub mod phasor;
 pub mod process;
 pub mod utils;
