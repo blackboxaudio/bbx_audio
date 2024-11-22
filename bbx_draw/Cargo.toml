@@ -7,3 +7,4 @@ edition = "2021"
 bbx_dsp = { path = "../bbx_dsp" }
 
 nannou = "0.19.0"
+nannou_egui = "0.19.0"
