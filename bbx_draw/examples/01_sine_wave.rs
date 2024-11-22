@@ -44,8 +44,8 @@ fn draw_data(draw: &Draw) {
         if sample_idx > 0 {
             draw.line()
                 .color(BLACK)
-                .start(map_sample_data_to_point2(previous_sample, sample_idx - 1, &CONTEXT))
-                .end(map_sample_data_to_point2(*sample, sample_idx, &CONTEXT));
+                .start(map_sample_data_to_display_point(previous_sample, sample_idx - 1, &CONTEXT))
+                .end(map_sample_data_to_display_point(*sample, sample_idx, &CONTEXT));
         }
 
         previous_sample = *sample;

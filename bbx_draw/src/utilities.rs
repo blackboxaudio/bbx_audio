@@ -2,8 +2,24 @@ use nannou::geom::Point2;
 
 use crate::context::DisplayContext;
 
+pub fn map_normalized_point_to_display_point(point: Point2, display_context: &DisplayContext) -> Point2 {
+    let x_axis_range = (
+        display_context.domain.0 + display_context.padding.0,
+        display_context.domain.1 - display_context.padding.0,
+    );
+    let range_midpoint = display_context.range.0 + (display_context.range.1 - display_context.range.0) / 2.0;
+    let y_axis_range = (
+        range_midpoint,
+        display_context.range.1 - display_context.padding.1,
+    );
+    Point2::new(
+        scale_number(point.x, 0.0, 1.0, x_axis_range.0, x_axis_range.1),
+        scale_number(point.y, 0.0, 1.0, y_axis_range.0, y_axis_range.1)
+    )
+}
+
 /// Create a 2D point from a sample's value and index.
-pub fn map_sample_data_to_point2(sample_value: f32, sample_index: usize, display_context: &DisplayContext) -> Point2 {
+pub fn map_sample_data_to_display_point(sample_value: f32, sample_index: usize, display_context: &DisplayContext) -> Point2 {
     let x_axis_range = (
         display_context.domain.0 + display_context.padding.0,
         display_context.domain.1 - display_context.padding.0,

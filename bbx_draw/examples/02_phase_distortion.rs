@@ -1,5 +1,6 @@
 use bbx_draw::*;
 use nannou::prelude::*;
+use bbx_draw::utilities::map_normalized_point_to_display_point;
 use bbx_dsp::phasor::Phasor;
 
 const CONTEXT: DisplayContext = ctx!(DisplayContext, 1280.0, 720.0, 256);
@@ -35,7 +36,7 @@ fn view(app: &App, _model: &Model, frame: Frame) {
 
 fn draw_data(draw: &Draw) {
     let mut phasor = Phasor::new();
-    phasor.set_pivot(0.4, 0.25);
+    phasor.set_pivot(0.5, 0.75);
 
     let mut sample_data: Vec<f32> = Vec::with_capacity(CONTEXT.buffer_size);
     for n in 0..CONTEXT.buffer_size {
@@ -43,13 +44,17 @@ fn draw_data(draw: &Draw) {
         sample_data.push(f32::cos(phase));
     }
 
+    let (ix, iy) = phasor.get_inflection();
+    draw.line().color(CORNFLOWERBLUE).start(map_normalized_point_to_display_point(Point2::new(0.0, 0.0), &CONTEXT)).end(map_normalized_point_to_display_point(Point2::new(ix, iy), &CONTEXT));
+    draw.line().color(CORNFLOWERBLUE).start(map_normalized_point_to_display_point(Point2::new(ix, iy), &CONTEXT)).end(map_normalized_point_to_display_point(Point2::new(1.0, 1.0), &CONTEXT));
+
     let mut previous_sample = 0.0;
     for (sample_idx, sample) in sample_data.iter().enumerate() {
         if sample_idx > 0 {
             draw.line()
                 .color(BLACK)
-                .start(map_sample_data_to_point2(previous_sample, sample_idx - 1, &CONTEXT))
-                .end(map_sample_data_to_point2(*sample, sample_idx, &CONTEXT));
+                .start(map_sample_data_to_display_point(previous_sample, sample_idx - 1, &CONTEXT))
+                .end(map_sample_data_to_display_point(*sample, sample_idx, &CONTEXT));
         }
 
         previous_sample = *sample;
