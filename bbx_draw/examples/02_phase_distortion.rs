@@ -33,7 +33,19 @@ fn model(app: &App) -> Model {
 
     let mut phasor = Phasor::new();
     let inflections: Vec<(f32, f32)> = vec![
-        // Add pre-determined inflections here
+        // BASIC
+        // (0.05, 0.5), // Sawtooth
+        // (0.0, 0.5), (0.5, 0.5), (0.5, 1.0), // Square
+        // (0.0, 0.5), (0.85, 0.5), (0.85, 1.0), // Square Pulse (25% Duty Cycle)
+        // (0.15, 1.0), // Sine Pulse (15% Duty Cycle)
+        // (0.0, 0.5), (0.5, 0.5), // Ramp
+
+        // COMPLEX
+        // (0.25, 0.1), (0.75, 0.9), // Bowed Sine
+        // (0.05, 0.5), (0.5, 0.0), (0.95, 0.5), // Symmetrical Sawtooth
+        // (0.2, 0.05), (0.5, 0.25), (0.8, 0.75), // Eased Sine
+        // (0.25, 0.3), (0.6, 0.25), (0.85, 0.75), (0.9, 0.8), (0.95, 0.85), // IDK
+        // (0.2, 0.75), (0.3, 0.0), // IDK
     ];
     for &(x, y) in &inflections {
         phasor.add_inflection(x, y);
