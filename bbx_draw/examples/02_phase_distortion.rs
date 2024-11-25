@@ -34,7 +34,7 @@ fn model(app: &App) -> Model {
     let mut phasor = Phasor::new();
     let inflections: Vec<(f32, f32)> = vec![
         // BASIC
-        // (0.05, 0.5), // Sawtooth
+        (0.05, 0.5), // Sawtooth
         // (0.0, 0.5), (0.5, 0.5), (0.5, 1.0), // Square
         // (0.0, 0.5), (0.85, 0.5), (0.85, 1.0), // Square Pulse (25% Duty Cycle)
         // (0.15, 1.0), // Sine Pulse (15% Duty Cycle)

@@ -16,8 +16,17 @@ impl Phasor {
             let (x1, y1) = self.inflections[idx];
             let (x2, y2) = self.inflections[idx + 1];
             if x1 <= phase && phase <= x2 {
+                // LINEAR
                 let slope = (y2 - y1) / (x2 - x1);
                 return slope * (phase - x1) + y1;
+
+                // LERPED
+                // let t = (phase - x1) / (x2 - x1);
+                // let smooth_t = t * t * (3.0 - 2.0 * t);
+                // return smooth_t * (y2 - y1) + y1;
+
+                // TRIG
+                // return f32::tan(phase * 2.0 * PI);
             }
         }
 
