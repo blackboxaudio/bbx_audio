@@ -1,10 +1,4 @@
 [workspace]
 members = [
-    "bbx_buffer",
-    "bbx_draw",
-    "bbx_dsp",
-    "bbx_file",
-    "bbx_midi",
-    "bbx_sample",
-    "bbx_sandbox",
+    "bbx_audio",
 ]
