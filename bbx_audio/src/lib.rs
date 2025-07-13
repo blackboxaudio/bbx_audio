@@ -87,8 +87,14 @@ pub enum BlockType<S: Sample> {
     Output(OutputBlock<S>),
 }
 
-impl <S: Sample> BlockType<S> {
-    pub fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
+impl<S: Sample> BlockType<S> {
+    pub fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &[S],
+        context: &DspContext,
+    ) {
         match self {
             BlockType::Oscillator(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Lfo(block) => block.process(inputs, outputs, modulation_values, context),
@@ -405,13 +411,7 @@ impl<S: Sample> OscillatorBlock<S> {
 }
 
 impl<S: Sample> Block<S> for OscillatorBlock<S> {
-    fn process(
-        &mut self,
-        _inputs: &[&[S]],
-        outputs: &mut [&mut [S]],
-        modulation_values: &[S],
-        context: &DspContext,
-    ) {
+    fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
         let freq = self.frequency.get_value(modulation_values);
         let phase_increment = freq.to_f64() / context.sample_rate * 2.0 * std::f64::consts::PI;
 
@@ -430,9 +430,15 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
         }
     }
 
-    fn input_count(&self) -> usize { 0 }
-    fn output_count(&self) -> usize { 1 }
-    fn modulation_outputs(&self) -> &[ModulationOutput] { &[] }
+    fn input_count(&self) -> usize {
+        0
+    }
+    fn output_count(&self) -> usize {
+        1
+    }
+    fn modulation_outputs(&self) -> &[ModulationOutput] {
+        &[]
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -478,8 +484,12 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
         }
     }
 
-    fn input_count(&self) -> usize { 0 }
-    fn output_count(&self) -> usize { 1 }
+    fn input_count(&self) -> usize {
+        0
+    }
+    fn output_count(&self) -> usize {
+        1
+    }
 
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         Self::MODULATION_OUTPUTS
@@ -495,31 +505,35 @@ pub struct OutputBlock<S: Sample> {
 }
 
 impl<S: Sample> OutputBlock<S> {
-    pub fn new (channels: usize) -> Self {
-        Self { channels, _phantom: PhantomData }
+    pub fn new(channels: usize) -> Self {
+        Self {
+            channels,
+            _phantom: PhantomData,
+        }
     }
 }
 
 impl<S: Sample> Block<S> for OutputBlock<S> {
-    fn process(
-        &mut self,
-        inputs: &[&[S]],
-        outputs: &mut [&mut [S]],
-        _modulation_values: &[S],
-        _context: &DspContext,
-    ) {
+    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
         for (input, output) in inputs.iter().zip(outputs.iter_mut()) {
             output.copy_from_slice(input);
         }
     }
 
-    fn input_count(&self) -> usize { self.channels }
-    fn output_count(&self) -> usize { self.channels }
-    fn modulation_outputs(&self) -> &[ModulationOutput] { &[] }
+    fn input_count(&self) -> usize {
+        self.channels
+    }
+    fn output_count(&self) -> usize {
+        self.channels
+    }
+    fn modulation_outputs(&self) -> &[ModulationOutput] {
+        &[]
+    }
 }
 
 // SIGNAL
 use std::time::Duration;
+
 use rodio::Source;
 
 pub struct Signal<S: Sample> {
@@ -556,10 +570,7 @@ impl<S: Sample> Signal<S> {
 
     fn process(&mut self) -> S {
         if self.channel_index == 0 && self.sample_index == 0 {
-            let mut output_refs: Vec<&mut [S]> = self.output_buffers
-                .iter_mut()
-                .map(|b| b.as_mut_slice())
-                .collect();
+            let mut output_refs: Vec<&mut [S]> = self.output_buffers.iter_mut().map(|b| b.as_mut_slice()).collect();
             self.graph.process_buffer(&mut output_refs);
         }
 
@@ -606,7 +617,7 @@ impl Source for Signal<f32> {
 }
 
 // PLAYER
-use rodio::{OutputStream};
+use rodio::OutputStream;
 
 const PLAYTIME_DURATION_SECONDS: usize = 5;
 
@@ -625,9 +636,7 @@ impl Player<f32> {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let _result = stream_handle.play_raw(self.signal.convert_samples());
 
-        std::thread::sleep(Duration::from_secs(
-            duration.unwrap_or(PLAYTIME_DURATION_SECONDS) as u64,
-        ))
+        std::thread::sleep(Duration::from_secs(duration.unwrap_or(PLAYTIME_DURATION_SECONDS) as u64))
     }
 }
 
