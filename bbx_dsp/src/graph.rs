@@ -1,351 +1,285 @@
 use std::collections::HashMap;
 
-use bbx_buffer::buffer::{AudioBuffer, Buffer};
-
 use crate::{
-    context::Context,
-    effector::Effector,
-    error::BbxAudioDspError,
-    generator::Generator,
-    node::{Node, NodeId},
-    operation::OperationType,
-    process::AudioInput,
+    block::{BlockId, BlockType},
+    blocks::{generators::oscillator::OscillatorBlock, modulators::lfo::LfoBlock, output::OutputBlock},
+    context::DspContext,
+    parameter::Parameter,
+    sample::Sample,
+    waveform::Waveform,
 };
 
-/// Contains a number of `Node`s connected in a certain way.
-pub struct Graph {
-    /// The associated `Context` for this `Graph`.
-    pub context: Context,
-
-    nodes: HashMap<NodeId, Node>,
-    connections: Vec<(NodeId, NodeId)>,
-
-    processes: HashMap<NodeId, Vec<AudioBuffer<f32>>>,
-    processing_order: Vec<NodeId>,
+#[derive(Debug, Clone)]
+pub struct Connection {
+    pub from: BlockId,
+    pub from_output: usize,
+    pub to: BlockId,
+    pub to_input: usize,
 }
 
-impl Graph {
-    pub fn new(context: Context) -> Graph {
-        let max_num_graph_nodes = context.max_num_graph_nodes;
-        Graph {
+pub struct Graph<S: Sample> {
+    blocks: Vec<BlockType<S>>,
+    connections: Vec<Connection>,
+    execution_order: Vec<BlockId>,
+    output_blocks: Vec<BlockId>,
+
+    // Pre-allocated buffers
+    audio_buffers: Vec<Vec<S>>,
+    modulation_values: Vec<S>,
+
+    // Buffer management
+    block_buffer_start: Vec<usize>,
+    buffer_size: usize,
+    channels: usize,
+    context: DspContext,
+}
+
+impl<S: Sample> Graph<S> {
+    pub fn new(sample_rate: f64, buffer_size: usize, channels: usize) -> Self {
+        let context = DspContext {
+            sample_rate,
+            buffer_size,
+            channels,
+            current_sample: 0,
+        };
+
+        Self {
+            blocks: Vec::new(),
+            connections: Vec::new(),
+            execution_order: Vec::new(),
+            output_blocks: Vec::new(),
+            audio_buffers: Vec::new(),
+            modulation_values: Vec::new(),
+            block_buffer_start: Vec::new(),
+            buffer_size,
+            channels,
             context,
-            nodes: HashMap::with_capacity(max_num_graph_nodes),
-            connections: Vec::with_capacity(max_num_graph_nodes),
-            processes: HashMap::with_capacity(max_num_graph_nodes),
-            processing_order: Vec::with_capacity(max_num_graph_nodes),
-        }
-    }
-}
-
-impl Graph {
-    /// Adds a `Node` to the graph
-    pub fn add_node(&mut self, node: Node, error: Option<BbxAudioDspError>) -> NodeId {
-        let node_id = node.id;
-        self.nodes.insert(node_id, node);
-        self.processes.insert(
-            node_id,
-            vec![AudioBuffer::new(self.context.buffer_size); self.context.num_channels],
-        );
-
-        if let Some(node) = self.nodes.get(&node_id) {
-            node.id
-        } else {
-            panic!("{:?}", error.unwrap_or(BbxAudioDspError::CannotAddNode));
         }
     }
 
-    /// Adds an `Effector` to the graph
-    pub fn add_effector(&mut self, effector: Effector) -> NodeId {
-        let effector_node = Node::from_effector(self.context, effector);
-        self.add_node(effector_node, Some(BbxAudioDspError::CannotAddEffectorNode))
+    pub fn context(&self) -> &DspContext {
+        &self.context
     }
 
-    /// Adds a `Generator` to the graph
-    pub fn add_generator(&mut self, generator: Generator) -> NodeId {
-        let generator_node = Node::from_generator(self.context, generator);
-        self.add_node(generator_node, Some(BbxAudioDspError::CannotAddGeneratorNode))
-    }
+    pub fn add_block(&mut self, block: BlockType<S>) -> BlockId {
+        let block_id = BlockId(self.blocks.len());
 
-    /// Creates a connection between a source node and destination node.
-    pub fn create_connection(&mut self, source_id: NodeId, destination_id: NodeId) {
-        if self.connections.contains(&(source_id, destination_id)) {
-            panic!("{:?}", BbxAudioDspError::ConnectionAlreadyCreated);
-        } else {
-            if let Some(source) = self.nodes.get_mut(&source_id) {
-                source.add_output(destination_id);
-            } else {
-                panic!(
-                    "{:?}",
-                    BbxAudioDspError::CannotRetrieveSourceNode(format!("{}", source_id))
-                );
-            }
-            if let Some(destination) = self.nodes.get_mut(&destination_id) {
-                destination.add_input(source_id);
-            } else {
-                panic!(
-                    "{:?}",
-                    BbxAudioDspError::CannotRetrieveDestinationNode(format!("{}", destination_id))
-                );
-            }
-            self.connections.push((source_id, destination_id));
+        self.block_buffer_start.push(self.audio_buffers.len());
+        self.blocks.push(block);
+
+        let output_count = self.blocks[block_id.0].output_count();
+        for _ in 0..output_count {
+            self.audio_buffers.push(vec![S::ZERO; self.buffer_size * self.channels]);
         }
+
+        block_id
     }
 
-    /// Prepares a `Graph` to be processed, i.e. ensures optimal node evaluation order,
-    /// validates acyclicity, and checks that all connections are valid.
+    pub fn add_output_block(&mut self, channels: usize) -> BlockId {
+        let block = BlockType::Output(OutputBlock::<S>::new(channels));
+        let block_id = self.add_block(block);
+        self.output_blocks.push(block_id);
+        block_id
+    }
+
+    pub fn connect(&mut self, from: BlockId, from_output: usize, to: BlockId, to_input: usize) {
+        self.connections.push(Connection {
+            from,
+            from_output,
+            to,
+            to_input,
+        })
+    }
+
     pub fn prepare_for_playback(&mut self) {
-        self.update_processing_order();
-        self.validate_acyclicity();
-        self.validate_connections();
-        self.validate_convergence();
+        self.execution_order = self.topological_sort();
+        self.modulation_values.resize(self.blocks.len(), S::ZERO);
     }
-}
 
-impl Graph {
-    fn update_processing_order(&mut self) {
-        let mut stack: Vec<NodeId> = Vec::with_capacity(self.nodes.len());
-        let mut visited: Vec<NodeId> = Vec::with_capacity(self.nodes.len());
+    fn topological_sort(&self) -> Vec<BlockId> {
+        let mut in_degree = vec![0; self.blocks.len()];
+        let mut adjacency_list: HashMap<BlockId, Vec<BlockId>> = HashMap::new();
 
-        fn dfs(node: &Node, order: &mut Vec<NodeId>, visited: &mut Vec<NodeId>, nodes: &HashMap<NodeId, Node>) {
-            visited.push(node.id);
-            for &node_id in &node.outputs {
-                if visited.contains(&node_id) {
-                    continue;
-                } else {
-                    let node_option = nodes.get(&node_id);
-                    if let Some(node) = node_option {
-                        dfs(node, order, visited, nodes);
-                    }
-                }
-            }
-            order.push(node.id);
+        // Build adjacency list and calculate in-degrees
+        for connection in &self.connections {
+            adjacency_list.entry(connection.from).or_default().push(connection.to);
+            in_degree[connection.to.0] += 1;
         }
 
-        for node in self.nodes.values() {
-            if visited.contains(&node.id) {
-                continue;
-            } else {
-                dfs(node, &mut stack, &mut visited, &self.nodes);
+        // Kahn's algorithm
+        let mut queue = Vec::new();
+        let mut result = Vec::new();
+
+        for (i, &degree) in in_degree.iter().enumerate() {
+            if degree == 0 {
+                queue.push(BlockId(i));
             }
         }
 
-        if stack.len() == self.nodes.len() {
-            stack.reverse();
-            self.processing_order = stack.clone();
-        } else {
-            panic!("{:?}", BbxAudioDspError::CannotUpdateGraphProcessingOrder);
-        }
-    }
-
-    fn validate_acyclicity(&self) {
-        fn dfs(original_node_id: NodeId, node: &Node, visited: &mut Vec<NodeId>, nodes: &HashMap<NodeId, Node>) {
-            visited.push(node.id);
-            for &node_id in &node.outputs {
-                if visited.contains(&node_id) {
-                    if node_id == original_node_id {
-                        panic!("{:?}", BbxAudioDspError::GraphContainsCycle(format!("{}", node_id)))
-                    }
-                    continue;
-                } else {
-                    let node_option = nodes.get(&node_id);
-                    if let Some(node) = node_option {
-                        dfs(original_node_id, node, visited, nodes);
+        while let Some(block) = queue.pop() {
+            result.push(block);
+            if let Some(neighbors) = adjacency_list.get(&block) {
+                for &neighbor in neighbors {
+                    in_degree[neighbor.0] -= 1;
+                    if in_degree[neighbor.0] == 0 {
+                        queue.push(neighbor);
                     }
                 }
             }
         }
 
-        for node in self.nodes.values() {
-            let mut visited: Vec<NodeId> = Vec::with_capacity(self.nodes.len());
-            dfs(node.id, node, &mut visited, &self.nodes);
+        result
+    }
+
+    pub fn process_buffer(&mut self, output_buffer: &mut [&mut [S]]) {
+        // Clear all buffers
+        for buffer in &mut self.audio_buffers {
+            buffer.fill(S::ZERO);
+        }
+
+        // Process blocks according to execution order
+        for i in 0..self.execution_order.len() {
+            let block_id = self.execution_order[i];
+            self.process_block_unsafe(block_id);
+            self.collect_modulation_values(block_id);
+        }
+
+        // Copy final output to the provided buffer
+        self.copy_to_output_buffer(output_buffer);
+    }
+
+    fn process_block_unsafe(&mut self, block_id: BlockId) {
+        let mut input_indices = Vec::new();
+        let mut output_indices = Vec::new();
+
+        for connection in &self.connections {
+            if connection.to == block_id {
+                let buffer_index = self.get_buffer_index(connection.from, connection.from_output);
+                input_indices.push(buffer_index);
+            }
+        }
+
+        let output_count = self.blocks[block_id.0].output_count();
+        for output_index in 0..output_count {
+            let buffer_index = self.get_buffer_index(block_id, output_index);
+            output_indices.push(buffer_index);
+        }
+
+        // SAFETY: Our buffer indexing guarantees that:
+        // 1. Input indices come from other blocks' outputs
+        // 2. Output indices are unique to this block
+        // 3. Therefore, input_indices and output_indices NEVER overlap
+        // 4. All indices are valid (within the bounds of self.audio_buffers)
+        unsafe {
+            let buffers_ptr = self.audio_buffers.as_mut_ptr();
+
+            let input_slices: Vec<&[S]> = input_indices
+                .into_iter()
+                .map(|index| {
+                    let buffer_ptr = buffers_ptr.add(index);
+                    std::slice::from_raw_parts((&*buffer_ptr).as_ptr(), (&*buffer_ptr).len())
+                })
+                .collect();
+            let mut output_slices: Vec<&mut [S]> = output_indices
+                .into_iter()
+                .map(|idx| {
+                    let buffer_ptr = buffers_ptr.add(idx);
+                    std::slice::from_raw_parts_mut((&mut *buffer_ptr).as_mut_ptr(), (&mut *buffer_ptr).len())
+                })
+                .collect();
+
+            self.blocks[block_id.0].process(
+                &input_slices,
+                &mut output_slices,
+                &self.modulation_values,
+                &self.context,
+            );
         }
     }
 
-    fn validate_connections(&self) {
-        for (source_id, destination_id) in &self.connections {
-            if self.nodes.contains_key(source_id) && self.nodes.contains_key(destination_id) {
-                continue;
-            } else {
-                panic!("{:?}", BbxAudioDspError::ConnectionHasNoNode);
-            }
-        }
-        for (node_id, node) in self.nodes.iter() {
-            if node.operation_type == OperationType::Effector && node.inputs.is_empty() {
-                panic!("{:?}", BbxAudioDspError::NodeHasNoInputs(format!("{}", node_id)));
-            } else if node.operation_type == OperationType::Generator && node.outputs.is_empty() && self.nodes.len() > 1
-            {
-                panic!("{:?}", BbxAudioDspError::NodeHasNoOutputs(format!("{}", node_id)));
+    fn collect_modulation_values(&mut self, block_id: BlockId) {
+        let has_modulation = !self.blocks[block_id.0].modulation_outputs().is_empty();
+        if has_modulation {
+            let buffer_index = self.get_buffer_index(block_id, 0);
+            if !self.audio_buffers[buffer_index].is_empty() {
+                self.modulation_values[block_id.0] = self.audio_buffers[buffer_index][0];
             }
         }
     }
 
-    fn validate_convergence(&self) {
-        fn dfs(_original_node_id: NodeId, node: &Node, visited: &mut Vec<NodeId>, nodes: &HashMap<NodeId, Node>) {
-            visited.push(node.id);
-            for &node_id in &node.inputs {
-                if visited.contains(&node_id) {
-                    continue;
-                } else {
-                    let node_option = nodes.get(&node_id);
-                    if let Some(node) = node_option {
-                        dfs(_original_node_id, node, visited, nodes);
-                    }
-                }
+    fn copy_to_output_buffer(&self, output_buffer: &mut [&mut [S]]) {
+        // In a more complex system, there could be multiple output blocks...
+        if let Some(&output_block_id) = self.output_blocks.first() {
+            let output_count = self.blocks[output_block_id.0].output_count();
+            for channel in 0..output_count.min(output_buffer.len()) {
+                let internal_buffer_index = self.get_buffer_index(output_block_id, channel);
+                let internal_buffer = &self.audio_buffers[internal_buffer_index];
+
+                let copy_length = internal_buffer.len().min(output_buffer[channel].len());
+                output_buffer[channel][..copy_length].copy_from_slice(&internal_buffer[..copy_length]);
             }
         }
+    }
 
-        let node_id = self.processing_order.last().unwrap();
-        let node = self.nodes.get(node_id).unwrap();
-        let mut visited: Vec<NodeId> = Vec::with_capacity(self.nodes.len());
-        dfs(*node_id, node, &mut visited, &self.nodes);
-
-        if self.nodes.len() != visited.len() {
-            panic!("{:?}", BbxAudioDspError::GraphContainsNonConvergingPaths);
-        }
+    fn get_buffer_index(&self, block_id: BlockId, output_index: usize) -> usize {
+        self.block_buffer_start[block_id.0] + output_index
     }
 }
 
-impl Graph {
-    /// Iterates through the nodes of a graph and processes each of them.
-    #[allow(unused_assignments)]
-    pub fn evaluate(&mut self) -> &Vec<AudioBuffer<f32>> {
-        for &node_id in &self.processing_order {
-            let node = self.nodes.get_mut(&node_id).unwrap();
-            let inputs = &node
-                .inputs
-                .iter()
-                .map(|i| AudioInput::new(self.processes.get(i).unwrap().as_slice()))
-                .collect::<Vec<AudioInput>>()[..];
-            node.operation
-                .process(inputs, self.processes.get_mut(&node_id).unwrap());
-        }
+// GRAPH BUILDER
 
-        self.processes.get(self.processing_order.last().unwrap()).unwrap()
-    }
+pub struct GraphBuilder<S: Sample> {
+    graph: Graph<S>,
 }
 
-#[cfg(test)]
-mod tests {
-    use test::Bencher;
-
-    use super::*;
-    use crate::{context::Context, effector::Effector, generator::Generator, generators::wave_table::Waveform};
-
-    #[test]
-    fn test_graph_creation() {
-        let context = Context::new(1024, 7, 16, 32);
-        let graph = Graph::new(context);
-
-        assert_eq!(graph.context.sample_rate, 1024);
-        assert_eq!(graph.context.num_channels, 7);
-        assert_eq!(graph.context.buffer_size, 16);
-        assert!(graph.nodes.is_empty());
-        assert!(graph.connections.is_empty());
-        assert!(graph.processes.is_empty());
-    }
-
-    #[test]
-    fn test_add_effector() {
-        let context = Context::new(1024, 2, 4, 32);
-        let mut graph = Graph::new(context);
-        let effector_id = graph.add_effector(Effector::Overdrive);
-        assert!(graph.nodes.contains_key(&effector_id));
-    }
-
-    #[test]
-    fn test_add_generator() {
-        let context = Context::new(1024, 2, 4, 32);
-        let mut graph = Graph::new(context);
-        let generator_id = graph.add_generator(Generator::WaveTable {
-            frequency: 110.0,
-            waveform: Waveform::Sine,
-        });
-        assert!(graph.nodes.contains_key(&generator_id));
-    }
-
-    #[test]
-    fn test_create_connection() {
-        let context = Context::new(1024, 2, 4, 32);
-        let mut graph = Graph::new(context);
-
-        let osc = graph.add_generator(Generator::WaveTable {
-            frequency: 110.0,
-            waveform: Waveform::Sine,
-        });
-        let overdrive = graph.add_effector(Effector::Overdrive);
-        graph.create_connection(osc, overdrive);
-
-        assert!(graph.connections.contains(&(osc, overdrive)));
-    }
-
-    #[test]
-    #[should_panic(expected = "ConnectionAlreadyCreated")]
-    fn test_duplicate_connection() {
-        let context = Context::new(1024, 2, 4, 32);
-        let mut graph = Graph::new(context);
-
-        let osc = graph.add_generator(Generator::WaveTable {
-            frequency: 110.0,
-            waveform: Waveform::Sine,
-        });
-        let overdrive = graph.add_effector(Effector::Overdrive);
-        graph.create_connection(osc, overdrive);
-        graph.create_connection(osc, overdrive); // This should panic
-    }
-
-    #[test]
-    fn test_prepare_for_playback() {
-        let context = Context::new(1024, 2, 4, 32);
-        let mut graph = Graph::new(context);
-
-        let osc = graph.add_generator(Generator::WaveTable {
-            frequency: 110.0,
-            waveform: Waveform::Sine,
-        });
-        let overdrive = graph.add_effector(Effector::Overdrive);
-        graph.create_connection(osc, overdrive);
-        graph.prepare_for_playback();
-
-        assert_eq!(graph.processing_order.len(), 2);
-    }
-
-    #[test]
-    fn test_evaluate() {
-        let context = Context::new(1024, 6, 4, 32);
-        let mut graph = Graph::new(context);
-
-        let osc = graph.add_generator(Generator::WaveTable {
-            frequency: 110.0,
-            waveform: Waveform::Sine,
-        });
-        let overdrive = graph.add_effector(Effector::Overdrive);
-        graph.create_connection(osc, overdrive);
-        graph.prepare_for_playback();
-
-        let result = graph.evaluate();
-        assert_eq!(result.len(), 6); // Assuming 2 channels for this context
-    }
-
-    #[bench]
-    fn bench_evaluate(b: &mut Bencher) {
-        let context = Context::new(44100, 2, 128, 2048);
-        let mut graph = Graph::new(context);
-
-        let mixer = graph.add_effector(Effector::Mixer);
-        for n in 0..256 {
-            let osc = graph.add_generator(Generator::WaveTable {
-                frequency: 110.0 * (n + 1) as f32,
-                waveform: Waveform::Sine,
-            });
-            graph.create_connection(osc, mixer);
+impl<S: Sample> GraphBuilder<S> {
+    pub fn new(sample_rate: f64, buffer_size: usize, channels: usize) -> Self {
+        Self {
+            graph: Graph::new(sample_rate, buffer_size, channels),
         }
-        let overdrive = graph.add_effector(Effector::Overdrive);
-        graph.create_connection(mixer, overdrive);
+    }
 
-        graph.prepare_for_playback();
+    pub fn add_output(&mut self, channels: usize) -> BlockId {
+        self.graph.add_output_block(channels)
+    }
 
-        b.iter(|| {
-            graph.evaluate();
-        });
+    pub fn add_oscillator(&mut self, frequency: f64, waveform: Waveform) -> BlockId {
+        let block = BlockType::Oscillator(OscillatorBlock::new(S::from_f64(frequency), waveform));
+        self.graph.add_block(block)
+    }
+
+    pub fn add_lfo(&mut self, frequency: f64, depth: f64) -> BlockId {
+        // Because the modulation is happening at *control rate*, we are
+        // limited to a frequency that is 1/2 of the sample rate divided
+        // by the buffer size. Audio rate modulation is not supported because:
+        // 1. Processing modulation at audio rate is too CPU-intensive.
+        // 2. Most musical modulation happens below 20Hz.
+        // 3. Control rate limitations help avoid artifacts from aliasing.
+        let max_frequency = 0.5 * (self.graph.context.sample_rate / self.graph.context.buffer_size as f64);
+        let clamped_frequency = frequency.clamp(0.01, max_frequency);
+
+        let block = BlockType::Lfo(LfoBlock::new(
+            S::from_f64(clamped_frequency),
+            S::from_f64(depth),
+            Waveform::Sine,
+        ));
+        self.graph.add_block(block)
+    }
+
+    pub fn connect(&mut self, from: BlockId, from_output: usize, to: BlockId, to_input: usize) -> &mut Self {
+        self.graph.connect(from, from_output, to, to_input);
+        self
+    }
+
+    pub fn modulate(&mut self, source: BlockId, target: BlockId, parameter: &str) -> &mut Self {
+        if let Err(e) = self.graph.blocks[target.0].set_parameter(parameter, Parameter::Modulated(source)) {
+            eprintln!("Modulation error: {}", e);
+        }
+        self
+    }
+
+    pub fn build(mut self) -> Graph<S> {
+        self.graph.prepare_for_playback();
+        self.graph
     }
 }

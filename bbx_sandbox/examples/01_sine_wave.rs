@@ -1,17 +1,25 @@
-use bbx_dsp::{constants::DEFAULT_CONTEXT, generator::Generator, generators::wave_table::Waveform, graph::Graph};
+use bbx_dsp::{
+    graph::{Graph, GraphBuilder},
+    waveform::Waveform,
+};
 use bbx_sandbox::{player::Player, signal::Signal};
 
-fn main() {
-    // Create a `Graph` with the default context, add a wave table generator,
-    // and prepare it for playback
-    let mut graph = Graph::new(DEFAULT_CONTEXT);
-    graph.add_generator(Generator::WaveTable {
-        frequency: 110.0,
-        waveform: Waveform::Sine,
-    });
-    graph.prepare_for_playback();
+fn create_graph() -> Graph<f32> {
+    let mut builder = GraphBuilder::new(44100.0, 512, 2);
 
-    // Play a `Signal` created from the graph
+    let oscillator = builder.add_oscillator(440.0, Waveform::Sine);
+
+    let output = builder.add_output(2);
+
+    builder.connect(oscillator, 0, output, 0);
+    builder.connect(oscillator, 0, output, 1);
+
+    builder.build()
+}
+
+fn main() {
+    let graph = create_graph();
     let signal = Signal::new(graph);
-    Player::new(signal).play(None);
+    let player = Player::new(signal);
+    player.play(Some(2));
 }

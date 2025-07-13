@@ -1,81 +1,81 @@
 use std::time::Duration;
 
-use bbx_buffer::buffer::{AudioBuffer, Buffer};
-use bbx_dsp::graph::Graph;
+use bbx_dsp::{graph::Graph, sample::Sample};
 use rodio::Source;
 
-pub struct Signal {
-    graph: Graph,
-    output: Vec<AudioBuffer<f32>>,
-    channel_idx: usize,
-    sample_idx: usize,
+pub struct Signal<S: Sample> {
+    graph: Graph<S>,
+    output_buffers: Vec<Vec<S>>,
+    channel_index: usize,
+    sample_index: usize,
+    channels: usize,
+    buffer_size: usize,
+    sample_rate: u32,
 }
 
-impl Signal {
-    pub fn new(graph: Graph) -> Signal {
-        let context = graph.context;
-        Signal {
+impl<S: Sample> Signal<S> {
+    pub fn new(graph: Graph<S>) -> Self {
+        let channels = graph.context().channels;
+        let buffer_size = graph.context().buffer_size;
+        let sample_rate = graph.context().sample_rate as u32;
+
+        let mut output_buffers = Vec::with_capacity(channels);
+        for _ in 0..channels {
+            output_buffers.push(vec![S::ZERO; buffer_size]);
+        }
+
+        Self {
             graph,
-            output: vec![AudioBuffer::new(context.buffer_size); context.num_channels],
-            channel_idx: 0,
-            sample_idx: 0,
+            output_buffers,
+            channel_index: 0,
+            sample_index: 0,
+            channels,
+            buffer_size,
+            sample_rate,
         }
     }
-}
 
-impl Signal {
-    fn process(&mut self) -> f32 {
-        // If both indices have wrapped around back to the beginning,
-        // then the graph needs to be processed again.
-        if self.channel_idx == 0 && self.sample_idx == 0 {
-            let result_output = self.graph.evaluate();
-            for (channel_idx, channel_buffer) in self.output.iter_mut().enumerate() {
-                for sample_idx in 0..channel_buffer.len() {
-                    channel_buffer[sample_idx] = result_output[channel_idx][sample_idx];
-                }
-            }
+    fn process(&mut self) -> S {
+        if self.channel_index == 0 && self.sample_index == 0 {
+            let mut output_refs: Vec<&mut [S]> = self.output_buffers.iter_mut().map(|b| b.as_mut_slice()).collect();
+            self.graph.process_buffer(&mut output_refs);
         }
 
-        let sample = self.output[self.channel_idx][self.sample_idx];
+        let sample = self.output_buffers[self.channel_index][self.sample_index];
 
-        // `rodio` is expecting interleaved samples, meaning a format
-        // where there is only one buffer with the samples for each channel
-        // being placed consecutively. Because of that, we have to increment the
+        // `rodio` expects interleaved samples, so we have to increment the
         // channel index every time and only increment the sample index when the
         // channel index has to be wrapped around.
-        //
-        // Non-Interleaved: [L1, L2, L3, R1, R2, R3]
-        // Interleaved:     [L1, R1, L2, R2, L3, R3]
-        self.channel_idx += 1;
-        if self.channel_idx >= self.graph.context.num_channels {
-            self.channel_idx = 0;
-            self.sample_idx += 1;
-            self.sample_idx %= self.graph.context.buffer_size;
+        self.channel_index += 1;
+        if self.channel_index >= self.channels {
+            self.channel_index = 0;
+            self.sample_index += 1;
+            self.sample_index %= self.buffer_size;
         }
 
         sample
     }
 }
 
-impl Iterator for Signal {
-    type Item = f32;
+impl<S: Sample> Iterator for Signal<S> {
+    type Item = S;
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.process())
     }
 }
 
-impl Source for Signal {
+impl Source for Signal<f32> {
     fn current_frame_len(&self) -> Option<usize> {
         None
     }
 
     fn channels(&self) -> u16 {
-        self.graph.context.num_channels as u16
+        self.channels as u16
     }
 
     fn sample_rate(&self) -> u32 {
-        self.graph.context.sample_rate as u32
+        self.sample_rate
     }
 
     fn total_duration(&self) -> Option<Duration> {

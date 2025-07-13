@@ -1,12 +1,15 @@
-use bbx_audio::{Graph, GraphBuilder, Player, Signal, Waveform};
+use bbx_dsp::{
+    graph::{Graph, GraphBuilder},
+    waveform::Waveform,
+};
+use bbx_sandbox::{player::Player, signal::Signal};
 
-// EXAMPLE
 fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(44100.0, 512, 2);
 
-    let oscillator = builder.add_oscillator(220.0, Waveform::Sine);
+    let oscillator = builder.add_oscillator(440.0, Waveform::Sine);
 
-    let lfo = builder.add_lfo(2.0, 100.0);
+    let lfo = builder.add_lfo(22.5, 100.0);
     builder.modulate(lfo, oscillator, "Frequency");
 
     let output = builder.add_output(2);

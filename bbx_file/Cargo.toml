@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bbx_buffer = { path = "../bbx_buffer" }
+bbx_dsp = { path = "../bbx_dsp" }
 
-thiserror = "1.0.63"
+thiserror = "2.0.6"
 wavers = "1.4.3"

@@ -1,24 +1,40 @@
+use std::time::Duration;
+
+use bbx_dsp::sample::Sample;
 use rodio::{OutputStream, Source};
 
-use crate::{constants::PLAYTIME_DURATION_SECONDS, signal::Signal};
+use crate::signal::Signal;
 
-pub struct Player {
-    signal: Signal,
+const PLAYTIME_DURATION_SECONDS: usize = 5;
+
+pub struct Player<S: Sample> {
+    signal: Signal<S>,
 }
 
-impl Player {
-    pub fn new(signal: Signal) -> Player {
-        Player { signal }
+impl<S: Sample> Player<S> {
+    pub fn new(signal: Signal<S>) -> Self {
+        Self { signal }
     }
 }
 
-impl Player {
+impl Player<f32> {
     pub fn play(self, duration: Option<usize>) {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let _result = stream_handle.play_raw(self.signal.convert_samples());
 
-        std::thread::sleep(std::time::Duration::from_secs(
-            duration.unwrap_or(PLAYTIME_DURATION_SECONDS) as u64,
-        ));
+        std::thread::sleep(Duration::from_secs(duration.unwrap_or(PLAYTIME_DURATION_SECONDS) as u64))
     }
 }
+
+// impl Player<f64> {
+//     pub fn play(self, duration: Option<usize>) {
+//         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+//
+//         let f32_signal = self.signal.map(|sample| sample as f32);
+//         let _result = stream_handle.play_raw(f32_signal.convert_samples());
+//
+//         std::thread::sleep(Duration::from_secs(
+//             duration.unwrap_or(PLAYTIME_DURATION_SECONDS) as u64,
+//         ))
+//     }
+// }
