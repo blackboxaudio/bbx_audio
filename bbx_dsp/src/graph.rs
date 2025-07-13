@@ -184,7 +184,7 @@ impl<S: Sample> Graph<S> {
                 .into_iter()
                 .map(|idx| {
                     let buffer_ptr = buffers_ptr.add(idx);
-                    std::slice::from_raw_parts_mut((&mut *buffer_ptr).as_mut_ptr(), (&mut *buffer_ptr).len())
+                    std::slice::from_raw_parts_mut((&mut *buffer_ptr).as_mut_ptr(), (&*buffer_ptr).len())
                 })
                 .collect();
 
@@ -273,7 +273,7 @@ impl<S: Sample> GraphBuilder<S> {
 
     pub fn modulate(&mut self, source: BlockId, target: BlockId, parameter: &str) -> &mut Self {
         if let Err(e) = self.graph.blocks[target.0].set_parameter(parameter, Parameter::Modulated(source)) {
-            eprintln!("Modulation error: {}", e);
+            eprintln!("Modulation error: {e}");
         }
         self
     }

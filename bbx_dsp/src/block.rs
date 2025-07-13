@@ -73,7 +73,7 @@ impl<S: Sample> BlockType<S> {
                     block.frequency = parameter;
                     Ok(())
                 }
-                _ => Err(format!("Unknown oscillator parameter: {}", parameter_name)),
+                _ => Err(format!("Unknown oscillator parameter: {parameter_name}")),
             },
             BlockType::Lfo(block) => match parameter_name.to_lowercase().as_str() {
                 "frequency" => {
@@ -84,7 +84,7 @@ impl<S: Sample> BlockType<S> {
                     block.depth = parameter;
                     Ok(())
                 }
-                _ => Err(format!("Unknown LFO parameter: {}", parameter_name)),
+                _ => Err(format!("Unknown LFO parameter: {parameter_name}")),
             },
             BlockType::Output(_) => Err("Output blocks have no modulatable parameters".to_string()),
         }

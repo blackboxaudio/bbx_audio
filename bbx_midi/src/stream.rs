@@ -62,7 +62,7 @@ impl MidiInputStream {
         };
         thread::spawn(move || match self.create_midi_input_stream(midi_in, in_port.unwrap()) {
             Ok(_) => (),
-            Err(err) => println!("Error : {}", err),
+            Err(err) => println!("Error : {err}"),
         })
     }
 
@@ -87,10 +87,7 @@ impl MidiInputStream {
             (),
         )?;
 
-        println!(
-            "Connection open, reading MIDI input from '{}' (press enter to exit) ...",
-            in_port_name
-        );
+        println!("Connection open, reading MIDI input from '{in_port_name}' (press enter to exit) ...");
 
         let mut input = String::new();
         input.clear();
