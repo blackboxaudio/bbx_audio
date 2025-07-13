@@ -1,5 +1,12 @@
 // SAMPLE
-pub trait Sample: Copy + Clone + Send + Sync + 'static {
+use std::ops::{Add, Sub, Mul, Div, AddAssign, MulAssign, DivAssign};
+
+pub trait Sample:
+    Copy + Clone + Send + Sync + 'static +
+    Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Div<Output = Self> +
+    AddAssign + SubAssign + MulAssign + DivAssign +
+    PartialOrd + PartialEq
+{
     const ZERO: Self;
     const ONE: Self;
 
@@ -118,19 +125,43 @@ impl<S: Sample> BlockType<S> {
         }
     }
 
-    // pub fn set_parameter(&mut self, parameter_name: &str, parameter: Parameter<S>) -> Result<(), String> {
-    //     match self {
-    //         BlockType::Oscillator(block) => {},
-    //         BlockType::Lfo(block) => {
-    //             match parameter_name.to_lowercase().as_str() {
-    //                 "frequency" => {}
-    //             }
-    //         },
-    //         BlockType::Output(_) => {
-    //             Err("Output blocks have no modulatable parameters".to_string())
-    //         },
-    //     }
-    // }
+    pub fn modulation_outputs(&self) -> &[ModulationOutput] {
+        match self {
+            BlockType::Oscillator(block) => block.modulation_outputs(),
+            BlockType::Lfo(block) => block.modulation_outputs(),
+            BlockType::Output(block) => block.modulation_outputs(),
+        }
+    }
+
+    pub fn set_parameter(&mut self, parameter_name: &str, parameter: Parameter<S>) -> Result<(), String> {
+        match self {
+            BlockType::Oscillator(block) => {
+                match parameter_name.to_lowercase().as_str() {
+                    "frequency" => {
+                        block.frequency = parameter;
+                        Ok(())
+                    },
+                    _ => Err(format!("Unknown oscillator parameter: {}", parameter_name)),
+                }
+            },
+            BlockType::Lfo(block) => {
+                match parameter_name.to_lowercase().as_str() {
+                    "frequency" => {
+                        block.frequency = parameter;
+                        Ok(())
+                    },
+                    "depth" => {
+                        block.depth = parameter;
+                        Ok(())
+                    },
+                    _ => Err(format!("Unknown LFO parameter: {}", parameter_name)),
+                }
+            },
+            BlockType::Output(_) => {
+                Err("Output blocks have no modulatable parameters".to_string())
+            },
+        }
+    }
 }
 
 // GRAPH
@@ -265,24 +296,11 @@ impl<S: Sample> Graph<S> {
         for i in 0..self.execution_order.len() {
             let block_id = self.execution_order[i];
             self.process_block_unsafe(block_id);
+            self.collect_modulation_values(block_id);
         }
 
         // Copy final output to the provided buffer
         self.copy_to_output_buffer(output_buffer);
-    }
-
-    fn copy_to_output_buffer(&self, output_buffer: &mut [&mut [S]]) {
-        // In a more complex system, there could be multiple output blocks...
-        if let Some(&output_block_id) = self.output_blocks.first() {
-            let output_count = self.blocks[output_block_id.0].output_count();
-            for channel in 0..output_count.min(output_buffer.len()) {
-                let internal_buffer_index = self.get_buffer_index(output_block_id, channel);
-                let internal_buffer = &self.audio_buffers[internal_buffer_index];
-
-                let copy_length = internal_buffer.len().min(output_buffer[channel].len());
-                output_buffer[channel][..copy_length].copy_from_slice(&internal_buffer[..copy_length]);
-            }
-        }
     }
 
     fn process_block_unsafe(&mut self, block_id: BlockId) {
@@ -334,6 +352,30 @@ impl<S: Sample> Graph<S> {
         }
     }
 
+    fn collect_modulation_values(&mut self, block_id: BlockId) {
+        let has_modulation = !self.blocks[block_id.0].modulation_outputs().is_empty();
+        if has_modulation {
+            let buffer_index = self.get_buffer_index(block_id, 0);
+            if !self.audio_buffers[buffer_index].is_empty() {
+                self.modulation_values[block_id.0] = self.audio_buffers[buffer_index][0];
+            }
+        }
+    }
+
+    fn copy_to_output_buffer(&self, output_buffer: &mut [&mut [S]]) {
+        // In a more complex system, there could be multiple output blocks...
+        if let Some(&output_block_id) = self.output_blocks.first() {
+            let output_count = self.blocks[output_block_id.0].output_count();
+            for channel in 0..output_count.min(output_buffer.len()) {
+                let internal_buffer_index = self.get_buffer_index(output_block_id, channel);
+                let internal_buffer = &self.audio_buffers[internal_buffer_index];
+
+                let copy_length = internal_buffer.len().min(output_buffer[channel].len());
+                output_buffer[channel][..copy_length].copy_from_slice(&internal_buffer[..copy_length]);
+            }
+        }
+    }
+
     fn get_buffer_index(&self, block_id: BlockId, output_index: usize) -> usize {
         self.block_buffer_start[block_id.0] + output_index
     }
@@ -358,15 +400,24 @@ impl<S: Sample> GraphBuilder<S> {
 
     pub fn add_oscillator(&mut self, frequency: f64, waveform: Waveform) -> BlockId {
         let block = BlockType::Oscillator(OscillatorBlock::new(
-            Parameter::Constant(S::from_f64(frequency)),
+            S::from_f64(frequency),
             waveform,
         ));
         self.graph.add_block(block)
     }
 
     pub fn add_lfo(&mut self, frequency: f64, depth: f64) -> BlockId {
+        // Because the modulation is happening at *control rate*, we are
+        // limited to a frequency that is 1/2 of the sample rate divided
+        // by the buffer size. Audio rate modulation is not supported because:
+        // 1. Processing modulation at audio rate is too CPU-intensive.
+        // 2. Most musical modulation happens below 20Hz.
+        // 3. Control rate limitations help avoid artifacts from aliasing.
+        let max_frequency = 0.5 * (self.graph.context.sample_rate / self.graph.context.buffer_size as f64);
+        let clamped_frequency = frequency.clamp(0.01, max_frequency);
+
         let block = BlockType::Lfo(LfoBlock {
-            frequency: Parameter::Constant(S::from_f64(frequency)),
+            frequency: Parameter::Constant(S::from_f64(clamped_frequency)),
             phase: 0.0,
             waveform: Waveform::Sine,
             depth: Parameter::Constant(S::from_f64(depth)),
@@ -379,9 +430,10 @@ impl<S: Sample> GraphBuilder<S> {
         self
     }
 
-    pub fn modulate(&mut self, _source: BlockId, _target: BlockId, _parameter: &str) -> &mut Self {
-        // TODO: Implement logic to modify the target block's parameter to be
-        // Parameter::Modulated(source)
+    pub fn modulate(&mut self, source: BlockId, target: BlockId, parameter: &str) -> &mut Self {
+        if let Err(e) = self.graph.blocks[target.0].set_parameter(parameter, Parameter::Modulated(source)) {
+            eprintln!("Modulation error: {}", e);
+        }
         self
     }
 
@@ -395,15 +447,17 @@ impl<S: Sample> GraphBuilder<S> {
 
 // OSCILLATOR
 pub struct OscillatorBlock<S: Sample> {
+    base_frequency: S,
     frequency: Parameter<S>,
     phase: f64,
     waveform: Waveform,
 }
 
 impl<S: Sample> OscillatorBlock<S> {
-    pub fn new(frequency: Parameter<S>, waveform: Waveform) -> Self {
+    pub fn new(frequency: S, waveform: Waveform) -> Self {
         Self {
-            frequency,
+            base_frequency: frequency,
+            frequency: Parameter::Constant(frequency),
             phase: 0.0,
             waveform,
         }
@@ -412,7 +466,13 @@ impl<S: Sample> OscillatorBlock<S> {
 
 impl<S: Sample> Block<S> for OscillatorBlock<S> {
     fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        let freq = self.frequency.get_value(modulation_values);
+        let freq = match &self.frequency {
+            Parameter::Constant(freq) => *freq,
+            Parameter::Modulated(block_id) => {
+                self.base_frequency + modulation_values[block_id.0]
+            }
+        };
+
         let phase_increment = freq.to_f64() / context.sample_rate * 2.0 * std::f64::consts::PI;
 
         for sample_index in 0..context.buffer_size {
@@ -468,17 +528,23 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
         let depth = self.depth.get_value(modulation_values);
         let phase_increment = frequency.to_f64() / context.sample_rate * 2.0 * std::f64::consts::PI;
 
+        // Calculate LFO value at the start of the buffer
+        let lfo_value = match self.waveform {
+            Waveform::Sine => self.phase.sin(),
+        } * depth.to_f64();
+
+        let sample_value = S::from_f64(lfo_value);
+
+        // Fill the entire buffer with this value
+        // (For audio-rate modulation, you'd calculate per-sample)
         for sample_index in 0..context.buffer_size {
-            let lfo_value = match self.waveform {
-                Waveform::Sine => self.phase.sin(),
-            } * depth.to_f64();
-
-            let sample_value = S::from_f64(lfo_value);
             outputs[0][sample_index] = sample_value;
-
-            self.phase += phase_increment;
         }
 
+        // Advance phase by the entire buffer duration
+        self.phase += phase_increment * context.buffer_size as f64;
+
+        // Wrap phase
         while self.phase >= 2.0 * std::f64::consts::PI {
             self.phase -= 2.0 * std::f64::consts::PI;
         }
@@ -498,6 +564,7 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
 
 // OUTPUT
 use std::marker::PhantomData;
+use std::ops::SubAssign;
 
 pub struct OutputBlock<S: Sample> {
     channels: usize,
