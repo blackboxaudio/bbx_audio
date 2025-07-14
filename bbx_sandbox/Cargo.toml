@@ -7,5 +7,4 @@ edition = "2021"
 bbx_dsp = { path = "../bbx_dsp" }
 bbx_midi = { path = "../bbx_midi" }
 
-rand = "0.8.5"
 rodio = "0.20.1"

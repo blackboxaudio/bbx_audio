@@ -2,6 +2,3 @@
 name = "bbx_dsp"
 version = "0.1.0"
 edition = "2021"
-
-[dependencies]
-rodio = "0.20.1"
