@@ -46,7 +46,7 @@ impl<S: Sample> Graph<S> {
         let context = DspContext {
             sample_rate,
             buffer_size,
-            channels,
+            num_channels: channels,
             current_sample: 0,
         };
 

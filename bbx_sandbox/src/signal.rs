@@ -1,27 +1,31 @@
 use std::time::Duration;
 
-use bbx_dsp::{graph::Graph, sample::Sample};
+use bbx_dsp::{
+    buffer::{AudioBuffer, Buffer},
+    graph::Graph,
+    sample::Sample,
+};
 use rodio::Source;
 
 pub struct Signal<S: Sample> {
     graph: Graph<S>,
-    output_buffers: Vec<Vec<S>>,
+    output_buffers: Vec<AudioBuffer<S>>,
+    sample_rate: u32,
+    num_channels: usize,
+    buffer_size: usize,
     channel_index: usize,
     sample_index: usize,
-    channels: usize,
-    buffer_size: usize,
-    sample_rate: u32,
 }
 
 impl<S: Sample> Signal<S> {
     pub fn new(graph: Graph<S>) -> Self {
-        let channels = graph.context().channels;
+        let channels = graph.context().num_channels;
         let buffer_size = graph.context().buffer_size;
         let sample_rate = graph.context().sample_rate as u32;
 
         let mut output_buffers = Vec::with_capacity(channels);
         for _ in 0..channels {
-            output_buffers.push(vec![S::ZERO; buffer_size]);
+            output_buffers.push(AudioBuffer::new(buffer_size));
         }
 
         Self {
@@ -29,7 +33,7 @@ impl<S: Sample> Signal<S> {
             output_buffers,
             channel_index: 0,
             sample_index: 0,
-            channels,
+            num_channels: channels,
             buffer_size,
             sample_rate,
         }
@@ -47,7 +51,7 @@ impl<S: Sample> Signal<S> {
         // channel index every time and only increment the sample index when the
         // channel index has to be wrapped around.
         self.channel_index += 1;
-        if self.channel_index >= self.channels {
+        if self.channel_index >= self.num_channels {
             self.channel_index = 0;
             self.sample_index += 1;
             self.sample_index %= self.buffer_size;
@@ -71,7 +75,7 @@ impl Source for Signal<f32> {
     }
 
     fn channels(&self) -> u16 {
-        self.channels as u16
+        self.num_channels as u16
     }
 
     fn sample_rate(&self) -> u32 {

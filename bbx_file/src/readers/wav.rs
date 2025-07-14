@@ -8,7 +8,7 @@ use bbx_dsp::{
 use wavers::Wav;
 
 pub struct WavFileReader<S: Sample> {
-    channels: Vec<AudioBuffer<S>>,
+    channel_buffers: Vec<AudioBuffer<S>>,
     sample_rate: f64,
     num_channels: usize,
     num_samples: usize,
@@ -34,7 +34,7 @@ impl<S: Sample> WavFileReader<S> {
         }
 
         Ok(Self {
-            channels,
+            channel_buffers: channels,
             sample_rate,
             num_channels,
             num_samples,
@@ -56,6 +56,6 @@ impl<S: Sample> Reader<S> for WavFileReader<S> {
     }
 
     fn read_channel(&self, channel_index: usize) -> &[S] {
-        self.channels[channel_index].as_slice()
+        self.channel_buffers[channel_index].as_slice()
     }
 }
