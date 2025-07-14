@@ -11,10 +11,14 @@ fn create_graph() -> Graph<f32> {
 
     let mut rng = thread_rng();
 
-    let oscillator = builder.add_oscillator(440.0, Waveform::Sine, Some(rng.next_u64()));
+    let oscillator = builder.add_oscillator(440.0, Waveform::Sawtooth, Some(rng.next_u64()));
 
-    let lfo = builder.add_lfo(22.5, 100.0, Some(rng.next_u64()));
-    builder.modulate(lfo, oscillator, "Frequency");
+    let lfo1 = builder.add_lfo(1.0, 5.0, Some(rng.next_u64()));
+    let lfo2 = builder.add_lfo(1.0, 2.0, Some(rng.next_u64()));
+    let lfo3 = builder.add_lfo(1.0, 3.0, Some(rng.next_u64()));
+    builder.modulate(lfo1, oscillator, "Frequency");
+    builder.modulate(lfo2, lfo1, "Depth");
+    builder.modulate(lfo3, lfo2, "Frequency");
 
     let output = builder.add_output(2);
 
