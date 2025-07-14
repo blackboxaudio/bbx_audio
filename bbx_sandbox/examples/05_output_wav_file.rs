@@ -1,8 +1,8 @@
 use bbx_dsp::{
+    context::DEFAULT_SAMPLE_RATE,
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
 };
-use bbx_dsp::context::DEFAULT_SAMPLE_RATE;
 use bbx_file::writers::wav::WavFileWriter;
 use bbx_sandbox::{player::Player, signal::Signal};
 

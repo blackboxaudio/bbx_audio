@@ -4,7 +4,7 @@ use crate::{
     block::{BlockId, BlockType},
     blocks::{
         generators::oscillator::OscillatorBlock,
-        io::{file_input::FileInputBlock, output::OutputBlock},
+        io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
         modulators::lfo::LfoBlock,
     },
     buffer::{AudioBuffer, Buffer},
@@ -13,9 +13,8 @@ use crate::{
     reader::Reader,
     sample::Sample,
     waveform::Waveform,
+    writer::Writer,
 };
-use crate::blocks::io::file_output::FileOutputBlock;
-use crate::writer::Writer;
 
 #[derive(Debug, Clone)]
 pub struct Connection {

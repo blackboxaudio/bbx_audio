@@ -1,9 +1,11 @@
-use crate::block::Block;
-use crate::buffer::{AudioBuffer, Buffer};
-use crate::context::{DspContext, DEFAULT_SAMPLE_RATE};
-use crate::parameter::ModulationOutput;
-use crate::sample::Sample;
-use crate::writer::Writer;
+use crate::{
+    block::Block,
+    buffer::{AudioBuffer, Buffer},
+    context::{DspContext, DEFAULT_SAMPLE_RATE},
+    parameter::ModulationOutput,
+    sample::Sample,
+    writer::Writer,
+};
 
 pub struct FileOutputBlock<S: Sample> {
     writer: Box<dyn Writer<S>>,
@@ -63,13 +65,12 @@ impl<S: Sample> FileOutputBlock<S> {
 impl<S: Sample> Block<S> for FileOutputBlock<S> {
     fn process(&mut self, inputs: &[&[S]], _outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
         if !self.is_recording || inputs.is_empty() {
-            return
+            return;
         }
 
         let num_channels = inputs.len().min(self.sample_buffer.len());
-        for channel_index in 0..num_channels {
-            let input_channel = inputs[channel_index];
-            self.sample_buffer[channel_index].extend_from_slice(input_channel);
+        for (channel_index, channel) in inputs.iter().enumerate().take(num_channels) {
+            self.sample_buffer[channel_index].extend_from_slice(channel);
         }
 
         const FLUSH_THRESHOLD: usize = 44100;

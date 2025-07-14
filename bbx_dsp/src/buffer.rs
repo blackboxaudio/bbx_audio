@@ -54,7 +54,7 @@ impl<S: Sample> AudioBuffer<S> {
 
     pub fn extend<I>(&mut self, iter: I)
     where
-        I: IntoIterator<Item = S>
+        I: IntoIterator<Item = S>,
     {
         self.data.extend(iter);
     }
@@ -65,7 +65,7 @@ impl<S: Sample> AudioBuffer<S> {
 
     pub fn drain<R>(&mut self, range: R) -> std::vec::Drain<'_, S>
     where
-        R: std::ops::RangeBounds<usize>
+        R: std::ops::RangeBounds<usize>,
     {
         self.data.drain(range)
     }

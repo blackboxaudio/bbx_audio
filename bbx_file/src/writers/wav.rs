@@ -1,12 +1,12 @@
-use std::error::Error;
-use std::fs::File;
-use std::io::BufWriter;
-use std::path::Path;
+use std::{error::Error, fs::File, io::BufWriter, path::Path};
+
+use bbx_dsp::{
+    buffer::{AudioBuffer, Buffer},
+    context::DEFAULT_SAMPLE_RATE,
+    sample::Sample,
+    writer::Writer,
+};
 use hound::{SampleFormat, WavSpec, WavWriter};
-use bbx_dsp::buffer::{AudioBuffer, Buffer};
-use bbx_dsp::context::DEFAULT_SAMPLE_RATE;
-use bbx_dsp::sample::Sample;
-use bbx_dsp::writer::Writer;
 
 const BIT_DEPTH: u16 = 32;
 
@@ -58,9 +58,7 @@ impl<S: Sample> Writer<S> for WavFileWriter<S> {
             return Err("Channel index out of bounds".into());
         }
 
-        self.channel_buffers[channel_index].extend(
-            samples.iter().map(|&s| s)
-        );
+        self.channel_buffers[channel_index].extend(samples.iter().copied());
 
         if self.channel_buffers.iter().all(|buf| !buf.is_empty()) {
             self.write_interleaved_samples()?;
@@ -85,10 +83,7 @@ impl<S: Sample> Writer<S> for WavFileWriter<S> {
 impl<S: Sample> WavFileWriter<S> {
     fn write_interleaved_samples(&mut self) -> Result<(), Box<dyn Error>> {
         if let Some(ref mut writer) = self.writer {
-            let min_len = self.channel_buffers.iter()
-                .map(|buf| buf.len())
-                .min()
-                .unwrap_or(0);
+            let min_len = self.channel_buffers.iter().map(|buf| buf.len()).min().unwrap_or(0);
 
             for sample_idx in 0..min_len {
                 for channel_idx in 0..self.num_channels {
