@@ -1,8 +1,7 @@
 [workspace]
 members = [
-    "bbx_core",
     "bbx_dsp",
-#    "bbx_file",
+    "bbx_file",
     "bbx_midi",
     "bbx_sandbox",
 ]

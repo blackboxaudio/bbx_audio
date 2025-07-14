@@ -1,4 +1,3 @@
 pub mod generators;
-pub mod inputs;
+pub mod io;
 pub mod modulators;
-pub mod output;

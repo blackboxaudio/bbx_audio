@@ -1,8 +1,4 @@
-use crate::block::Block;
-use crate::context::DspContext;
-use crate::parameter::ModulationOutput;
-use crate::reader::Reader;
-use crate::sample::Sample;
+use crate::{block::Block, context::DspContext, parameter::ModulationOutput, reader::Reader, sample::Sample};
 
 pub struct FileInputBlock<S: Sample> {
     reader: Box<dyn Reader<S>>,

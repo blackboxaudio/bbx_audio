@@ -1,10 +1,13 @@
 use crate::{
-    blocks::{generators::oscillator::OscillatorBlock, modulators::lfo::LfoBlock, output::OutputBlock},
+    blocks::{
+        generators::oscillator::OscillatorBlock,
+        io::{file_input::FileInputBlock, output::OutputBlock},
+        modulators::lfo::LfoBlock,
+    },
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
 };
-use crate::blocks::inputs::file::FileInputBlock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockId(pub usize);

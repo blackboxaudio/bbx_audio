@@ -1,4 +1,5 @@
 use std::ops::{Index, IndexMut};
+
 use crate::sample::Sample;
 
 pub trait Buffer<T> {

@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bbx_core = { path = "../bbx_core" }
 bbx_dsp = { path = "../bbx_dsp" }
 
-wavers = "1.4.3"
+wavers = "1.5.1"

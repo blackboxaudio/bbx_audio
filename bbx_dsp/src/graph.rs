@@ -2,15 +2,18 @@ use std::collections::HashMap;
 
 use crate::{
     block::{BlockId, BlockType},
-    blocks::{generators::oscillator::OscillatorBlock, modulators::lfo::LfoBlock, output::OutputBlock},
+    blocks::{
+        generators::oscillator::OscillatorBlock,
+        io::{file_input::FileInputBlock, output::OutputBlock},
+        modulators::lfo::LfoBlock,
+    },
+    buffer::{AudioBuffer, Buffer},
     context::DspContext,
     parameter::Parameter,
+    reader::Reader,
     sample::Sample,
     waveform::Waveform,
 };
-use crate::blocks::inputs::file::FileInputBlock;
-use crate::buffer::{AudioBuffer, Buffer};
-use crate::reader::Reader;
 
 #[derive(Debug, Clone)]
 pub struct Connection {
@@ -72,7 +75,8 @@ impl<S: Sample> Graph<S> {
 
         let output_count = self.blocks[block_id.0].output_count();
         for _ in 0..output_count {
-            self.audio_buffers.push(AudioBuffer::new(self.buffer_size * self.channels));
+            self.audio_buffers
+                .push(AudioBuffer::new(self.buffer_size * self.channels));
         }
 
         block_id
