@@ -1,11 +1,12 @@
 use bbx_dsp::{
+    context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
 };
 use bbx_sandbox::{player::Player, signal::Signal};
 
 fn create_graph() -> Graph<f32> {
-    let mut builder = GraphBuilder::new(44100.0, 512, 2);
+    let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
     let oscillator = builder.add_oscillator(440.0, Waveform::Sine);
 

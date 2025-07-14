@@ -58,19 +58,14 @@ impl<S: Sample> Writer<S> for WavFileWriter<S> {
             return Err("Channel index out of bounds".into());
         }
 
-        self.channel_buffers[channel_index].extend(samples.iter().copied());
-
-        if self.channel_buffers.iter().all(|buf| !buf.is_empty()) {
-            self.write_interleaved_samples()?;
-        }
+        self.channel_buffers[channel_index].extend_from_slice(samples);
+        self.write_available_samples()?;
 
         Ok(())
     }
 
     fn finalize(&mut self) -> Result<(), Box<dyn Error>> {
-        if self.channel_buffers.iter().any(|buf| !buf.is_empty()) {
-            self.write_interleaved_samples()?;
-        }
+        self.write_available_samples()?;
 
         if let Some(writer) = self.writer.take() {
             writer.finalize()?;
@@ -81,9 +76,13 @@ impl<S: Sample> Writer<S> for WavFileWriter<S> {
 }
 
 impl<S: Sample> WavFileWriter<S> {
-    fn write_interleaved_samples(&mut self) -> Result<(), Box<dyn Error>> {
+    fn write_available_samples(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ref mut writer) = self.writer {
             let min_len = self.channel_buffers.iter().map(|buf| buf.len()).min().unwrap_or(0);
+
+            if min_len == 0 {
+                return Ok(());
+            }
 
             for sample_idx in 0..min_len {
                 for channel_idx in 0..self.num_channels {
@@ -93,7 +92,7 @@ impl<S: Sample> WavFileWriter<S> {
             }
 
             for channel_buffer in &mut self.channel_buffers {
-                channel_buffer.drain(0..min_len);
+                channel_buffer.drain_front(min_len);
             }
 
             self.samples_written += min_len * self.num_channels;

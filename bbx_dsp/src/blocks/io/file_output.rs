@@ -69,14 +69,10 @@ impl<S: Sample> Block<S> for FileOutputBlock<S> {
         }
 
         let num_channels = inputs.len().min(self.sample_buffer.len());
-        for (channel_index, channel) in inputs.iter().enumerate().take(num_channels) {
-            self.sample_buffer[channel_index].extend_from_slice(channel);
-        }
-
-        const FLUSH_THRESHOLD: usize = 44100;
-        if self.sample_buffer[0].len() >= FLUSH_THRESHOLD {
-            // TODO: Handle error appropriately
-            let _ = self.flush_buffers();
+        for (channel_idx, channel) in inputs.iter().enumerate().take(num_channels) {
+            if let Err(e) = self.writer.write_channel(channel_idx, channel) {
+                eprintln!("Error writing to file: {e}");
+            }
         }
     }
 

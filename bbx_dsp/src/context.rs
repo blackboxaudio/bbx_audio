@@ -1,3 +1,5 @@
+pub const DEFAULT_BUFFER_SIZE: usize = 512;
+
 pub const DEFAULT_SAMPLE_RATE: f64 = 44100.0;
 
 #[derive(Clone)]

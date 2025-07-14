@@ -52,22 +52,13 @@ impl<S: Sample> AudioBuffer<S> {
         self.data.as_mut_ptr()
     }
 
-    pub fn extend<I>(&mut self, iter: I)
-    where
-        I: IntoIterator<Item = S>,
-    {
-        self.data.extend(iter);
-    }
-
     pub fn extend_from_slice(&mut self, slice: &[S]) {
         self.data.extend_from_slice(slice);
     }
 
-    pub fn drain<R>(&mut self, range: R) -> std::vec::Drain<'_, S>
-    where
-        R: std::ops::RangeBounds<usize>,
-    {
-        self.data.drain(range)
+    pub fn drain_front(&mut self, count: usize) -> std::vec::Drain<'_, S> {
+        let actual_count = count.min(self.data.len());
+        self.data.drain(0..actual_count)
     }
 }
 
@@ -114,13 +105,5 @@ impl<S: Sample> IndexMut<usize> for AudioBuffer<S> {
 impl<S: Sample> Extend<S> for AudioBuffer<S> {
     fn extend<I: IntoIterator<Item = S>>(&mut self, iter: I) {
         self.data.extend(iter);
-    }
-}
-
-impl<S: Sample> FromIterator<S> for AudioBuffer<S> {
-    fn from_iter<I: IntoIterator<Item = S>>(iter: I) -> Self {
-        Self {
-            data: Vec::from_iter(iter),
-        }
     }
 }
