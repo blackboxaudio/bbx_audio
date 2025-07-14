@@ -8,6 +8,9 @@ use crate::{
     sample::Sample,
     waveform::Waveform,
 };
+use crate::blocks::inputs::file::FileInputBlock;
+use crate::buffer::{AudioBuffer, Buffer};
+use crate::reader::Reader;
 
 #[derive(Debug, Clone)]
 pub struct Connection {
@@ -24,7 +27,7 @@ pub struct Graph<S: Sample> {
     output_blocks: Vec<BlockId>,
 
     // Pre-allocated buffers
-    audio_buffers: Vec<Vec<S>>,
+    audio_buffers: Vec<AudioBuffer<S>>,
     modulation_values: Vec<S>,
 
     // Buffer management
@@ -69,7 +72,7 @@ impl<S: Sample> Graph<S> {
 
         let output_count = self.blocks[block_id.0].output_count();
         for _ in 0..output_count {
-            self.audio_buffers.push(vec![S::ZERO; self.buffer_size * self.channels]);
+            self.audio_buffers.push(AudioBuffer::new(self.buffer_size * self.channels));
         }
 
         block_id
@@ -134,7 +137,7 @@ impl<S: Sample> Graph<S> {
     pub fn process_buffer(&mut self, output_buffer: &mut [&mut [S]]) {
         // Clear all buffers
         for buffer in &mut self.audio_buffers {
-            buffer.fill(S::ZERO);
+            buffer.zeroize();
         }
 
         // Process blocks according to execution order
@@ -166,10 +169,10 @@ impl<S: Sample> Graph<S> {
         }
 
         // SAFETY: Our buffer indexing guarantees that:
-        // 1. Input indices come from other blocks' outputs
-        // 2. Output indices are unique to this block
-        // 3. Therefore, input_indices and output_indices NEVER overlap
-        // 4. All indices are valid (within the bounds of self.audio_buffers)
+        // 1. Input indices come from other blocks' outputs.
+        // 2. Output indices are unique to this block.
+        // 3. Therefore, input_indices and output_indices NEVER overlap.
+        // 4. All indices are valid (within the bounds of self.audio_buffers).
         unsafe {
             let buffers_ptr = self.audio_buffers.as_mut_ptr();
 
@@ -216,7 +219,7 @@ impl<S: Sample> Graph<S> {
                 let internal_buffer = &self.audio_buffers[internal_buffer_index];
 
                 let copy_length = internal_buffer.len().min(output_buffer[channel].len());
-                output_buffer[channel][..copy_length].copy_from_slice(&internal_buffer[..copy_length]);
+                output_buffer[channel][..copy_length].copy_from_slice(&internal_buffer.as_slice()[..copy_length]);
             }
         }
     }
@@ -239,14 +242,27 @@ impl<S: Sample> GraphBuilder<S> {
         }
     }
 
+    // I/O
+
+    pub fn add_file_input(&mut self, reader: Box<dyn Reader<S>>) -> BlockId {
+        let block = BlockType::FileInput(FileInputBlock::new(reader));
+        self.graph.add_block(block)
+    }
+
     pub fn add_output(&mut self, channels: usize) -> BlockId {
         self.graph.add_output_block(channels)
     }
+
+    // GENERATORS
 
     pub fn add_oscillator(&mut self, frequency: f64, waveform: Waveform) -> BlockId {
         let block = BlockType::Oscillator(OscillatorBlock::new(S::from_f64(frequency), waveform));
         self.graph.add_block(block)
     }
+
+    // EFFECTORS
+
+    // MODULATORS
 
     pub fn add_lfo(&mut self, frequency: f64, depth: f64) -> BlockId {
         // Because the modulation is happening at *control rate*, we are

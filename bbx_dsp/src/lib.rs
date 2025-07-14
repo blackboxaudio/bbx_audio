@@ -1,7 +1,9 @@
 pub mod block;
 pub mod blocks;
+pub mod buffer;
 pub mod context;
 pub mod graph;
 pub mod parameter;
+pub mod reader;
 pub mod sample;
 pub mod waveform;
