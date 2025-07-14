@@ -8,6 +8,7 @@ use crate::{
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
 };
+use crate::blocks::io::file_output::FileOutputBlock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockId(pub usize);
@@ -23,6 +24,7 @@ pub trait Block<S: Sample> {
 pub enum BlockType<S: Sample> {
     // I/O
     FileInput(FileInputBlock<S>),
+    FileOutput(FileOutputBlock<S>),
     Output(OutputBlock<S>),
 
     // GENERATORS
@@ -45,6 +47,7 @@ impl<S: Sample> BlockType<S> {
         match self {
             // I/O
             BlockType::FileInput(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::FileOutput(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Output(block) => block.process(inputs, outputs, modulation_values, context),
 
             // GENERATORS
@@ -61,6 +64,7 @@ impl<S: Sample> BlockType<S> {
         match self {
             // I/O
             BlockType::FileInput(block) => block.input_count(),
+            BlockType::FileOutput(block) => block.input_count(),
             BlockType::Output(block) => block.input_count(),
 
             // GENERATORS
@@ -77,6 +81,7 @@ impl<S: Sample> BlockType<S> {
         match self {
             // I/O
             BlockType::FileInput(block) => block.output_count(),
+            BlockType::FileOutput(block) => block.output_count(),
             BlockType::Output(block) => block.output_count(),
 
             // GENERATORS
@@ -93,6 +98,7 @@ impl<S: Sample> BlockType<S> {
         match self {
             // I/O
             BlockType::FileInput(block) => block.modulation_outputs(),
+            BlockType::FileOutput(block) => block.modulation_outputs(),
             BlockType::Output(block) => block.modulation_outputs(),
 
             // GENERATORS
@@ -109,6 +115,7 @@ impl<S: Sample> BlockType<S> {
         match self {
             // I/O
             BlockType::FileInput(_) => Err("File input blocks have no modulated parameters".to_string()),
+            BlockType::FileOutput(_) => Err("File output blocks have no modulated parameters".to_string()),
             BlockType::Output(_) => Err("Output blocks have no modulated parameters".to_string()),
 
             // GENERATORS

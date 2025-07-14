@@ -8,7 +8,6 @@ pub trait Buffer<T> {
     fn as_slice(&self) -> &[T];
     fn as_mut_slice(&mut self) -> &mut [T];
     fn clear(&mut self);
-
     fn zeroize(&mut self);
 }
 
@@ -52,6 +51,24 @@ impl<S: Sample> AudioBuffer<S> {
     pub fn as_mut_ptr(&mut self) -> *mut S {
         self.data.as_mut_ptr()
     }
+
+    pub fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = S>
+    {
+        self.data.extend(iter);
+    }
+
+    pub fn extend_from_slice(&mut self, slice: &[S]) {
+        self.data.extend_from_slice(slice);
+    }
+
+    pub fn drain<R>(&mut self, range: R) -> std::vec::Drain<'_, S>
+    where
+        R: std::ops::RangeBounds<usize>
+    {
+        self.data.drain(range)
+    }
 }
 
 impl<S: Sample> Buffer<S> for AudioBuffer<S> {
@@ -91,5 +108,19 @@ impl<S: Sample> Index<usize> for AudioBuffer<S> {
 impl<S: Sample> IndexMut<usize> for AudioBuffer<S> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.data[index]
+    }
+}
+
+impl<S: Sample> Extend<S> for AudioBuffer<S> {
+    fn extend<I: IntoIterator<Item = S>>(&mut self, iter: I) {
+        self.data.extend(iter);
+    }
+}
+
+impl<S: Sample> FromIterator<S> for AudioBuffer<S> {
+    fn from_iter<I: IntoIterator<Item = S>>(iter: I) -> Self {
+        Self {
+            data: Vec::from_iter(iter),
+        }
     }
 }

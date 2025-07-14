@@ -14,6 +14,8 @@ use crate::{
     sample::Sample,
     waveform::Waveform,
 };
+use crate::blocks::io::file_output::FileOutputBlock;
+use crate::writer::Writer;
 
 #[derive(Debug, Clone)]
 pub struct Connection {
@@ -250,6 +252,11 @@ impl<S: Sample> GraphBuilder<S> {
 
     pub fn add_file_input(&mut self, reader: Box<dyn Reader<S>>) -> BlockId {
         let block = BlockType::FileInput(FileInputBlock::new(reader));
+        self.graph.add_block(block)
+    }
+
+    pub fn add_file_output(&mut self, writer: Box<dyn Writer<S>>) -> BlockId {
+        let block = BlockType::FileOutput(FileOutputBlock::new(writer));
         self.graph.add_block(block)
     }
 

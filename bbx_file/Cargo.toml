@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 bbx_dsp = { path = "../bbx_dsp" }
 
+hound = "3.5.1"
 wavers = "1.5.1"

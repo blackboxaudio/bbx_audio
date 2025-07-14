@@ -7,3 +7,4 @@ pub mod parameter;
 pub mod reader;
 pub mod sample;
 pub mod waveform;
+pub mod writer;
