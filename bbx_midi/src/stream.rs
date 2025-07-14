@@ -1,6 +1,6 @@
 use std::{
     error::Error,
-    io::{stdin, stdout, Write},
+    io::{Write, stdin, stdout},
     sync::{mpsc, mpsc::Sender},
     thread,
     thread::JoinHandle,
@@ -18,8 +18,10 @@ pub struct MidiInputStream {
 impl MidiInputStream {
     pub fn new(filters: Vec<MidiMessageStatus>, message_handler: fn(MidiMessage) -> ()) -> Self {
         let (tx, rx) = mpsc::channel::<MidiMessage>();
-        thread::spawn(move || loop {
-            message_handler(rx.recv().unwrap());
+        thread::spawn(move || {
+            loop {
+                message_handler(rx.recv().unwrap());
+            }
         });
         MidiInputStream { tx, filters }
     }

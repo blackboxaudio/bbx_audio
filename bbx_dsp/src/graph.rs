@@ -265,8 +265,8 @@ impl<S: Sample> GraphBuilder<S> {
 
     // GENERATORS
 
-    pub fn add_oscillator(&mut self, frequency: f64, waveform: Waveform) -> BlockId {
-        let block = BlockType::Oscillator(OscillatorBlock::new(S::from_f64(frequency), waveform));
+    pub fn add_oscillator(&mut self, frequency: f64, waveform: Waveform, seed: Option<u64>) -> BlockId {
+        let block = BlockType::Oscillator(OscillatorBlock::new(S::from_f64(frequency), waveform, seed));
         self.graph.add_block(block)
     }
 
@@ -274,7 +274,7 @@ impl<S: Sample> GraphBuilder<S> {
 
     // MODULATORS
 
-    pub fn add_lfo(&mut self, frequency: f64, depth: f64) -> BlockId {
+    pub fn add_lfo(&mut self, frequency: f64, depth: f64, seed: Option<u64>) -> BlockId {
         // Because the modulation is happening at *control rate*, we are
         // limited to a frequency that is 1/2 of the sample rate divided
         // by the buffer size. Audio rate modulation is not supported because:
@@ -288,6 +288,7 @@ impl<S: Sample> GraphBuilder<S> {
             S::from_f64(clamped_frequency),
             S::from_f64(depth),
             Waveform::Sine,
+            seed,
         ));
         self.graph.add_block(block)
     }

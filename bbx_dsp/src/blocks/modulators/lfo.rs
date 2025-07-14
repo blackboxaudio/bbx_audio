@@ -1,9 +1,11 @@
+use bbx_core::random::XorShiftRng;
+
 use crate::{
     block::Block,
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
-    waveform::Waveform,
+    waveform::{DEFAULT_DUTY_CYCLE, Waveform, generate_waveform_sample},
 };
 
 pub struct LfoBlock<S: Sample> {
@@ -12,6 +14,7 @@ pub struct LfoBlock<S: Sample> {
 
     phase: f64,
     waveform: Waveform,
+    rng: XorShiftRng,
 }
 
 impl<S: Sample> LfoBlock<S> {
@@ -21,12 +24,13 @@ impl<S: Sample> LfoBlock<S> {
         max_value: 1.0,
     }];
 
-    pub fn new(frequency: S, depth: S, waveform: Waveform) -> Self {
+    pub fn new(frequency: S, depth: S, waveform: Waveform, seed: Option<u64>) -> Self {
         Self {
             frequency: Parameter::Constant(frequency),
             depth: Parameter::Constant(depth),
             phase: 0.0,
             waveform,
+            rng: XorShiftRng::new(seed.unwrap_or_default()),
         }
     }
 
@@ -41,23 +45,16 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
         let depth = self.depth.get_value(modulation_values);
         let phase_increment = frequency.to_f64() / context.sample_rate * 2.0 * std::f64::consts::PI;
 
-        // Calculate LFO value at the start of the buffer
-        let lfo_value = match self.waveform {
-            Waveform::Sine => self.phase.sin(),
-        } * depth.to_f64();
+        let lfo_value = generate_waveform_sample(self.waveform, self.phase, DEFAULT_DUTY_CYCLE, &mut self.rng);
+        let sample_value = lfo_value * depth.to_f64();
+        let sample = S::from_f64(sample_value);
 
-        let sample_value = S::from_f64(lfo_value);
-
-        // Fill the entire buffer with this value
-        // (For audio-rate modulation, you'd calculate per-sample)
         for sample_index in 0..context.buffer_size {
-            outputs[0][sample_index] = sample_value;
+            outputs[0][sample_index] = sample;
         }
 
-        // Advance phase by the entire buffer duration
         self.phase += phase_increment * context.buffer_size as f64;
 
-        // Wrap phase
         while self.phase >= 2.0 * std::f64::consts::PI {
             self.phase -= 2.0 * std::f64::consts::PI;
         }

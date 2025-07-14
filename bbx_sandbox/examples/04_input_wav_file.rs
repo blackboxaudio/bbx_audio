@@ -3,7 +3,7 @@ use bbx_dsp::{
     graph::{Graph, GraphBuilder},
 };
 use bbx_file::readers::wav::WavFileReader;
-use bbx_sandbox::{player::Player, signal::Signal};
+use bbx_sandbox::player::Player;
 
 fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
@@ -23,8 +23,6 @@ fn create_graph() -> Graph<f32> {
 }
 
 fn main() {
-    let graph = create_graph();
-    let signal = Signal::new(graph);
-    let player = Player::new(signal);
-    player.play(Some(2));
+    let player = Player::from_graph(create_graph());
+    player.play(None);
 }

@@ -1,9 +1,11 @@
+use bbx_core::random::XorShiftRng;
+
 use crate::{
     block::Block,
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
-    waveform::Waveform,
+    waveform::{DEFAULT_DUTY_CYCLE, Waveform, generate_waveform_sample},
 };
 
 pub struct OscillatorBlock<S: Sample> {
@@ -12,15 +14,17 @@ pub struct OscillatorBlock<S: Sample> {
     base_frequency: S,
     phase: f64,
     waveform: Waveform,
+    rng: XorShiftRng,
 }
 
 impl<S: Sample> OscillatorBlock<S> {
-    pub fn new(frequency: S, waveform: Waveform) -> Self {
+    pub fn new(frequency: S, waveform: Waveform, seed: Option<u64>) -> Self {
         Self {
             base_frequency: frequency,
             frequency: Parameter::Constant(frequency),
             phase: 0.0,
             waveform,
+            rng: XorShiftRng::new(seed.unwrap_or_default()),
         }
     }
 }
@@ -35,12 +39,9 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
         let phase_increment = freq.to_f64() / context.sample_rate * 2.0 * std::f64::consts::PI;
 
         for sample_index in 0..context.buffer_size {
-            let sample = match self.waveform {
-                Waveform::Sine => self.phase.sin(),
-                // Waveform::Square => if self.phase.sin() > 0.0 { 1.0 } else { -1.0 },
-            };
-            let sample_value = S::from_f64(sample);
-            outputs[0][sample_index] = sample_value;
+            let sample_value = generate_waveform_sample(self.waveform, self.phase, DEFAULT_DUTY_CYCLE, &mut self.rng);
+            let sample = S::from_f64(sample_value);
+            outputs[0][sample_index] = sample;
             self.phase += phase_increment;
         }
 

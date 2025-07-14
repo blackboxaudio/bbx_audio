@@ -1,7 +1,7 @@
 use crate::{
     block::Block,
     buffer::{AudioBuffer, Buffer},
-    context::{DspContext, DEFAULT_SAMPLE_RATE},
+    context::{DEFAULT_SAMPLE_RATE, DspContext},
     parameter::ModulationOutput,
     sample::Sample,
     writer::Writer,

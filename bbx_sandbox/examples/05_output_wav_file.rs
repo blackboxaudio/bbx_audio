@@ -4,14 +4,14 @@ use bbx_dsp::{
     waveform::Waveform,
 };
 use bbx_file::writers::wav::WavFileWriter;
-use bbx_sandbox::{player::Player, signal::Signal};
+use bbx_sandbox::player::Player;
 
 fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
-    let oscillator = builder.add_oscillator(440.0, Waveform::Sine);
+    let oscillator = builder.add_oscillator(440.0, Waveform::Sine, None);
 
-    let lfo = builder.add_lfo(22.5, 100.0);
+    let lfo = builder.add_lfo(22.5, 100.0, None);
     builder.modulate(lfo, oscillator, "Frequency");
 
     let output = builder.add_output(2);
@@ -32,8 +32,6 @@ fn create_graph() -> Graph<f32> {
 }
 
 fn main() {
-    let graph = create_graph();
-    let signal = Signal::new(graph);
-    let player = Player::new(signal);
-    player.play(Some(2));
+    let player = Player::from_graph(create_graph());
+    player.play(Some(3));
 }
