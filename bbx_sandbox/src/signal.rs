@@ -42,7 +42,7 @@ impl<S: Sample> Signal<S> {
     fn process(&mut self) -> S {
         if self.channel_index == 0 && self.sample_index == 0 {
             let mut output_refs: Vec<&mut [S]> = self.output_buffers.iter_mut().map(|b| b.as_mut_slice()).collect();
-            self.graph.process_buffer(&mut output_refs);
+            self.graph.process_buffers(&mut output_refs);
         }
 
         let sample = self.output_buffers[self.channel_index][self.sample_index];

@@ -75,8 +75,7 @@ impl<S: Sample> Graph<S> {
 
         let output_count = self.blocks[block_id.0].output_count();
         for _ in 0..output_count {
-            self.audio_buffers
-                .push(AudioBuffer::new(self.buffer_size * self.context.num_channels));
+            self.audio_buffers.push(AudioBuffer::new(self.buffer_size));
         }
 
         block_id
@@ -138,7 +137,7 @@ impl<S: Sample> Graph<S> {
         result
     }
 
-    pub fn process_buffer(&mut self, output_buffer: &mut [&mut [S]]) {
+    pub fn process_buffers(&mut self, output_buffers: &mut [&mut [S]]) {
         // Clear all buffers
         for buffer in &mut self.audio_buffers {
             buffer.zeroize();
@@ -152,7 +151,7 @@ impl<S: Sample> Graph<S> {
         }
 
         // Copy final output to the provided buffer
-        self.copy_to_output_buffer(output_buffer);
+        self.copy_to_output_buffer(output_buffers);
     }
 
     fn process_block_unsafe(&mut self, block_id: BlockId) {
@@ -189,8 +188,8 @@ impl<S: Sample> Graph<S> {
                 .collect();
             let mut output_slices: Vec<&mut [S]> = output_indices
                 .into_iter()
-                .map(|idx| {
-                    let buffer_ptr = buffers_ptr.add(idx);
+                .map(|index| {
+                    let buffer_ptr = buffers_ptr.add(index);
                     std::slice::from_raw_parts_mut((&mut *buffer_ptr).as_mut_ptr(), (&*buffer_ptr).len())
                 })
                 .collect();

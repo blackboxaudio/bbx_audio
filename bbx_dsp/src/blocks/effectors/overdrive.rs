@@ -52,7 +52,6 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
     fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
         for (input_index, input_buffer) in inputs.iter().enumerate() {
             for (sample_index, sample_value) in input_buffer.iter().enumerate() {
-                println!("Sample={}", sample_value.to_f64());
                 let driven = (*sample_value).to_f64() * self.drive;
                 let clipped = self.asymmetric_saturation(driven);
 

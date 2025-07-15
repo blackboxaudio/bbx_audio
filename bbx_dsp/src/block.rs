@@ -133,6 +133,7 @@ impl<S: Sample> BlockType<S> {
             },
 
             // EFFECTORS
+            // TODO: Add modulated parameters
             BlockType::Overdrive(_) => Err("Overdrive blocks have no parameters".to_string()),
 
             // MODULATORS

@@ -1,7 +1,11 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use std::{
+    fmt::Debug,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
+};
 
 pub trait Sample:
-    Copy
+    Debug
+    + Copy
     + Clone
     + Send
     + Sync
