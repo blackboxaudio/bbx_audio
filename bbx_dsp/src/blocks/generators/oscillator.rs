@@ -1,7 +1,7 @@
 use bbx_core::random::XorShiftRng;
 
 use crate::{
-    block::Block,
+    block::{Block, DEFAULT_GENERATOR_INPUT_COUNT, DEFAULT_GENERATOR_OUTPUT_COUNT},
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
@@ -51,10 +51,10 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
     }
 
     fn input_count(&self) -> usize {
-        0
+        DEFAULT_GENERATOR_INPUT_COUNT
     }
     fn output_count(&self) -> usize {
-        1
+        DEFAULT_GENERATOR_OUTPUT_COUNT
     }
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]

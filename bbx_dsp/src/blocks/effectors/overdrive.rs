@@ -1,6 +1,11 @@
 use std::marker::PhantomData;
 
-use crate::{block::Block, context::DspContext, parameter::ModulationOutput, sample::Sample};
+use crate::{
+    block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
+    context::DspContext,
+    parameter::ModulationOutput,
+    sample::Sample,
+};
 
 pub struct OverdriveBlock<S: Sample> {
     drive: f64,
@@ -62,11 +67,11 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
     }
 
     fn input_count(&self) -> usize {
-        1
+        DEFAULT_EFFECTOR_INPUT_COUNT
     }
 
     fn output_count(&self) -> usize {
-        1
+        DEFAULT_EFFECTOR_OUTPUT_COUNT
     }
 
     fn modulation_outputs(&self) -> &[ModulationOutput] {

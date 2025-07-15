@@ -10,6 +10,15 @@ use crate::{
     sample::Sample,
 };
 
+pub(crate) const DEFAULT_EFFECTOR_INPUT_COUNT: usize = 1;
+pub(crate) const DEFAULT_EFFECTOR_OUTPUT_COUNT: usize = 1;
+
+pub(crate) const DEFAULT_GENERATOR_INPUT_COUNT: usize = 0;
+pub(crate) const DEFAULT_GENERATOR_OUTPUT_COUNT: usize = 1;
+
+pub(crate) const DEFAULT_MODULATOR_INPUT_COUNT: usize = 0;
+pub(crate) const DEFAULT_MODULATOR_OUTPUT_COUNT: usize = 1;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockId(pub usize);
 
