@@ -3,13 +3,14 @@ use std::marker::PhantomData;
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
-    parameter::ModulationOutput,
+    parameter::{ModulationOutput, Parameter},
     sample::Sample,
 };
 
 pub struct OverdriveBlock<S: Sample> {
-    drive: f64,
-    level: f64,
+    pub drive: Parameter<S>,
+    pub level: Parameter<S>,
+
     tone: f64,
     filter_state: f64,
     filter_coefficient: f64,
@@ -17,10 +18,10 @@ pub struct OverdriveBlock<S: Sample> {
 }
 
 impl<S: Sample> OverdriveBlock<S> {
-    pub fn new(drive: f64, level: f64, tone: f64, sample_rate: f64) -> Self {
+    pub fn new(drive: S, level: S, tone: f64, sample_rate: f64) -> Self {
         let mut overdrive = Self {
-            drive,
-            level,
+            drive: Parameter::Constant(drive),
+            level: Parameter::Constant(level),
             tone,
             filter_state: 0.0,
             filter_coefficient: 0.0,
@@ -54,14 +55,25 @@ impl<S: Sample> OverdriveBlock<S> {
 }
 
 impl<S: Sample> Block<S> for OverdriveBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], _context: &DspContext) {
         for (input_index, input_buffer) in inputs.iter().enumerate() {
             for (sample_index, sample_value) in input_buffer.iter().enumerate() {
-                let driven = (*sample_value).to_f64() * self.drive;
+                let drive = match &self.drive {
+                    Parameter::Constant(drive) => *drive,
+                    Parameter::Modulated(block_id) => modulation_values[block_id.0],
+                };
+                let driven = (*sample_value).to_f64() * drive.to_f64();
                 let clipped = self.asymmetric_saturation(driven);
 
                 self.filter_state += self.filter_coefficient * (clipped - self.filter_state);
-                outputs[input_index][sample_index] = S::from_f64(self.filter_state * self.level);
+                let level = match &self.level {
+                    Parameter::Constant(level) => *level,
+                    Parameter::Modulated(block_id) => modulation_values[block_id.0],
+                };
+                let clamped_level = level.to_f64().clamp(0.0, 1.0);
+                // TODO: Should level be a dry/wet or a gain control?
+                // Emulate whatever is in Ableton
+                outputs[input_index][sample_index] = S::from_f64(self.filter_state * clamped_level);
             }
         }
     }

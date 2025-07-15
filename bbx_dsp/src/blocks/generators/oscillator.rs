@@ -20,8 +20,8 @@ pub struct OscillatorBlock<S: Sample> {
 impl<S: Sample> OscillatorBlock<S> {
     pub fn new(frequency: S, waveform: Waveform, seed: Option<u64>) -> Self {
         Self {
-            base_frequency: frequency,
             frequency: Parameter::Constant(frequency),
+            base_frequency: frequency,
             phase: 0.0,
             waveform,
             rng: XorShiftRng::new(seed.unwrap_or_default()),

@@ -267,7 +267,12 @@ impl<S: Sample> GraphBuilder<S> {
     // EFFECTORS
 
     pub fn add_overdrive(&mut self, drive: f64, level: f64, tone: f64, sample_rate: f64) -> BlockId {
-        let block = BlockType::Overdrive(OverdriveBlock::new(drive, level, tone, sample_rate));
+        let block = BlockType::Overdrive(OverdriveBlock::new(
+            S::from_f64(drive),
+            S::from_f64(level),
+            tone,
+            sample_rate,
+        ));
         self.graph.add_block(block)
     }
 

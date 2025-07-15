@@ -142,8 +142,17 @@ impl<S: Sample> BlockType<S> {
             },
 
             // EFFECTORS
-            // TODO: Add modulated parameters
-            BlockType::Overdrive(_) => Err("Overdrive blocks have no parameters".to_string()),
+            BlockType::Overdrive(block) => match parameter_name.to_lowercase().as_str() {
+                "drive" => {
+                    block.drive = parameter;
+                    Ok(())
+                }
+                "level" => {
+                    block.level = parameter;
+                    Ok(())
+                }
+                _ => Err(format!("Unknown overdrive parameter: {parameter_name}")),
+            },
 
             // MODULATORS
             BlockType::Lfo(block) => match parameter_name.to_lowercase().as_str() {
