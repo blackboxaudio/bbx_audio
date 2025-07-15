@@ -11,7 +11,6 @@ pub trait Sample:
     + Clone
     + Send
     + Sync
-    + 'static
     + Add<Output = Self>
     + Sub<Output = Self>
     + Mul<Output = Self>
@@ -22,6 +21,7 @@ pub trait Sample:
     + DivAssign
     + PartialOrd
     + PartialEq
+    + 'static
 {
     const ZERO: Self;
     const ONE: Self;
@@ -37,10 +37,12 @@ impl Sample for f32 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
 
+    #[inline]
     fn from_f64(value: f64) -> Self {
         value as f32
     }
 
+    #[inline]
     fn to_f64(self) -> f64 {
         self as f64
     }
@@ -50,10 +52,12 @@ impl Sample for f64 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
 
+    #[inline]
     fn from_f64(value: f64) -> Self {
         value
     }
 
+    #[inline]
     fn to_f64(self) -> f64 {
         self
     }

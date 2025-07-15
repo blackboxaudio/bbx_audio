@@ -70,6 +70,7 @@ impl<S: Sample> Graph<S> {
     }
 
     /// Get the underlying `DspContext` used by a `Graph`.
+    #[inline]
     pub fn context(&self) -> &DspContext {
         &self.context
     }
@@ -239,6 +240,7 @@ impl<S: Sample> Graph<S> {
         }
     }
 
+    #[inline]
     fn get_buffer_index(&self, block_id: BlockId, output_index: usize) -> usize {
         self.block_buffer_start[block_id.0] + output_index
     }

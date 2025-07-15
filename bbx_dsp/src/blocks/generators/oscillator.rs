@@ -51,12 +51,17 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
         }
     }
 
+    #[inline]
     fn input_count(&self) -> usize {
         DEFAULT_GENERATOR_INPUT_COUNT
     }
+
+    #[inline]
     fn output_count(&self) -> usize {
         DEFAULT_GENERATOR_OUTPUT_COUNT
     }
+
+    #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
     }

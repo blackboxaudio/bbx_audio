@@ -59,13 +59,17 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
         }
     }
 
+    #[inline]
     fn input_count(&self) -> usize {
         DEFAULT_MODULATOR_INPUT_COUNT
     }
+
+    #[inline]
     fn output_count(&self) -> usize {
         DEFAULT_MODULATOR_OUTPUT_COUNT
     }
 
+    #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         Self::MODULATION_OUTPUTS
     }

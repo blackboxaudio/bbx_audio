@@ -30,6 +30,7 @@ impl<S: Sample> FileOutputBlock<S> {
     }
 
     /// Tell the writer to begin storing audio sample data.
+    #[inline]
     pub fn start_recording(&mut self) {
         self.is_recording = true;
         for channel in &mut self.sample_buffer {
@@ -39,6 +40,7 @@ impl<S: Sample> FileOutputBlock<S> {
     }
 
     /// Tell the writer to stop storing audio sample data.
+    #[inline]
     pub fn stop_recording(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.is_recording = false;
         self.flush_buffers()?;
@@ -46,6 +48,7 @@ impl<S: Sample> FileOutputBlock<S> {
     }
 
     /// Check whether the writer is actively storing audio sample data.
+    #[inline]
     pub fn is_recording(&self) -> bool {
         self.is_recording
     }
@@ -81,14 +84,17 @@ impl<S: Sample> Block<S> for FileOutputBlock<S> {
         }
     }
 
+    #[inline]
     fn input_count(&self) -> usize {
         self.writer.num_channels()
     }
 
+    #[inline]
     fn output_count(&self) -> usize {
         0
     }
 
+    #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
     }

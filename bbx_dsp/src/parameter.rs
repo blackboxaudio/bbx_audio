@@ -11,6 +11,7 @@ pub enum Parameter<S: Sample> {
 
 impl<S: Sample> Parameter<S> {
     /// Get the appropriate value for a `Parameter`.
+    #[inline]
     pub fn get_value(&self, modulation_values: &[S]) -> S {
         match self {
             Parameter::Constant(value) => *value,

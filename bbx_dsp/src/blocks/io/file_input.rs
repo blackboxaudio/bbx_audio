@@ -18,26 +18,31 @@ impl<S: Sample> FileInputBlock<S> {
     }
 
     /// Set whether the audio will be looped or not.
+    #[inline]
     pub fn set_loop_enabled(&mut self, enabled: bool) {
         self.loop_enabled = enabled;
     }
 
     /// Set the position at which the audio file's samples are being read.
+    #[inline]
     pub fn set_position(&mut self, position: usize) {
         self.current_position = position;
     }
 
     /// Get the position at which the audio file's samples are being read.
+    #[inline]
     pub fn get_position(&self) -> usize {
         self.current_position
     }
 
     /// Check whether the reader has finished reading every sample in the audio file.
+    #[inline]
     pub fn is_finished(&self) -> bool {
         self.current_position >= self.reader.num_samples()
     }
 
     /// Get the underlying `Reader` implementation of the `FileInputBlock`.
+    #[inline]
     pub fn get_reader(&self) -> &dyn Reader<S> {
         self.reader.as_ref()
     }
@@ -83,14 +88,17 @@ impl<S: Sample> Block<S> for FileInputBlock<S> {
         self.advance_position(buffer_size);
     }
 
+    #[inline]
     fn input_count(&self) -> usize {
         0
     }
 
+    #[inline]
     fn output_count(&self) -> usize {
         self.reader.num_channels()
     }
 
+    #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
     }

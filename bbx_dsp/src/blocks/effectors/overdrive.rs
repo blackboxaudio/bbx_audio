@@ -39,6 +39,7 @@ impl<S: Sample> OverdriveBlock<S> {
         self.filter_coefficient = 1.0 - (-2.0 * std::f64::consts::PI * cutoff / sample_rate).exp();
     }
 
+    #[inline]
     fn asymmetric_saturation(&self, x: f64) -> f64 {
         if x > 0.0 {
             // Positive half: softer clipping (more headroom)
@@ -49,6 +50,7 @@ impl<S: Sample> OverdriveBlock<S> {
         }
     }
 
+    #[inline]
     fn soft_clip(&self, x: f64) -> f64 {
         // Hyperbolic tangent function provides smooth saturation.
         // The 1.5 factor adjusts the "knee" of the saturation curve.
@@ -60,18 +62,12 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
     fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], _context: &DspContext) {
         for (input_index, input_buffer) in inputs.iter().enumerate() {
             for (sample_index, sample_value) in input_buffer.iter().enumerate() {
-                let drive = match &self.drive {
-                    Parameter::Constant(drive) => *drive,
-                    Parameter::Modulated(block_id) => modulation_values[block_id.0],
-                };
+                let drive = self.drive.get_value(modulation_values);
                 let driven = (*sample_value).to_f64() * drive.to_f64();
                 let clipped = self.asymmetric_saturation(driven);
 
                 self.filter_state += self.filter_coefficient * (clipped - self.filter_state);
-                let level = match &self.level {
-                    Parameter::Constant(level) => *level,
-                    Parameter::Modulated(block_id) => modulation_values[block_id.0],
-                };
+                let level = self.level.get_value(modulation_values);
                 let clamped_level = level.to_f64().clamp(0.0, 1.0);
                 // TODO: Should level be a dry/wet or a gain control?
                 // Emulate whatever is in Ableton
@@ -80,14 +76,17 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
         }
     }
 
+    #[inline]
     fn input_count(&self) -> usize {
         DEFAULT_EFFECTOR_INPUT_COUNT
     }
 
+    #[inline]
     fn output_count(&self) -> usize {
         DEFAULT_EFFECTOR_OUTPUT_COUNT
     }
 
+    #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
     }

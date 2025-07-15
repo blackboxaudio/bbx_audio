@@ -39,47 +39,56 @@ impl<S: Sample> AudioBuffer<S> {
     }
 
     /// Create an `AudioBuffer` initialized with a given set of values.
+    #[inline]
     pub fn with_data(data: Vec<S>) -> Self {
         Self { data }
     }
 
     /// Get the capacity of the `AudioBuffer`.
+    #[inline]
     pub fn capacity(&self) -> usize {
         self.data.capacity()
     }
 
     /// Fill the `AudioBuffer` with a particular value.
+    #[inline]
     pub fn fill(&mut self, value: S) {
         self.data.fill(value);
     }
 
     /// Copy the values from a given source to the `AudioBuffer`.
+    #[inline]
     pub fn copy_from_slice(&mut self, source: &[S]) {
         self.data[..source.len()].copy_from_slice(source);
     }
 
     /// Copy the `AudioBuffer`'s values to a given slice.
+    #[inline]
     pub fn copy_to_slice(&self, target: &mut [S]) {
         let len = self.data.len().min(target.len());
         target[..len].copy_from_slice(&self.data[..len]);
     }
 
     /// Get the `AudioBuffer` as a pointer to its contents.
+    #[inline]
     pub fn as_ptr(&self) -> *const S {
         self.data.as_ptr()
     }
 
     /// Get the `AudioBuffer` as a mutable pointer to its contents.
+    #[inline]
     pub fn as_mut_ptr(&mut self) -> *mut S {
         self.data.as_mut_ptr()
     }
 
     /// Append the `AudioBuffer` with data from a given slice.
+    #[inline]
     pub fn extend_from_slice(&mut self, slice: &[S]) {
         self.data.extend_from_slice(slice);
     }
 
     /// Drain the first `count` values from the `AudioBuffer`.
+    #[inline]
     pub fn drain_front(&mut self, count: usize) -> std::vec::Drain<'_, S> {
         let actual_count = count.min(self.data.len());
         self.data.drain(0..actual_count)
@@ -87,26 +96,32 @@ impl<S: Sample> AudioBuffer<S> {
 }
 
 impl<S: Sample> Buffer<S> for AudioBuffer<S> {
+    #[inline]
     fn len(&self) -> usize {
         self.data.len()
     }
 
+    #[inline]
     fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
+    #[inline]
     fn as_slice(&self) -> &[S] {
         &self.data
     }
 
+    #[inline]
     fn as_mut_slice(&mut self) -> &mut [S] {
         &mut self.data
     }
 
+    #[inline]
     fn clear(&mut self) {
         self.data.clear();
     }
 
+    #[inline]
     fn zeroize(&mut self) {
         self.data.fill(S::ZERO);
     }

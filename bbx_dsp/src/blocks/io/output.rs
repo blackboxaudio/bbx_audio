@@ -25,12 +25,17 @@ impl<S: Sample> Block<S> for OutputBlock<S> {
         }
     }
 
+    #[inline]
     fn input_count(&self) -> usize {
         self.num_channels
     }
+
+    #[inline]
     fn output_count(&self) -> usize {
         self.num_channels
     }
+
+    #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
     }
