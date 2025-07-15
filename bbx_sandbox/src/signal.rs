@@ -7,6 +7,7 @@ use bbx_dsp::{
 };
 use rodio::Source;
 
+/// Used for wrapping a DSP graph with an iterable structure.
 pub struct Signal<S: Sample> {
     graph: Graph<S>,
     output_buffers: Vec<AudioBuffer<S>>,
@@ -18,6 +19,7 @@ pub struct Signal<S: Sample> {
 }
 
 impl<S: Sample> Signal<S> {
+    /// Create a `Signal` from a DSP `Graph`.
     pub fn new(graph: Graph<S>) -> Self {
         let channels = graph.context().num_channels;
         let buffer_size = graph.context().buffer_size;
@@ -39,6 +41,7 @@ impl<S: Sample> Signal<S> {
         }
     }
 
+    /// Execute the calculations within the `Signal`'s DSP graph.
     fn process(&mut self) -> S {
         if self.channel_index == 0 && self.sample_index == 0 {
             let mut output_refs: Vec<&mut [S]> = self.output_buffers.iter_mut().map(|b| b.as_mut_slice()).collect();
@@ -47,6 +50,7 @@ impl<S: Sample> Signal<S> {
 
         let sample = self.output_buffers[self.channel_index][self.sample_index];
 
+        // TODO: Change to `hound` and remove the `rodio` dependency
         // `rodio` expects interleaved samples, so we have to increment the
         // channel index every time and only increment the sample index when the
         // channel index has to be wrapped around.
@@ -70,18 +74,23 @@ impl<S: Sample> Iterator for Signal<S> {
 }
 
 impl Source for Signal<f32> {
+    /// Get the length of the current frame.
     fn current_frame_len(&self) -> Option<usize> {
         None
     }
 
+    /// Get the number of channels in the `Signal`
     fn channels(&self) -> u16 {
         self.num_channels as u16
     }
 
+    /// Get the sample rate of the `Signal`.
     fn sample_rate(&self) -> u32 {
         self.sample_rate
     }
 
+    /// Get the total duration (seconds) that the `Signal`
+    /// will play for.
     fn total_duration(&self) -> Option<Duration> {
         None
     }

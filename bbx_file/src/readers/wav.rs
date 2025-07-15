@@ -7,6 +7,8 @@ use bbx_dsp::{
 };
 use wavers::Wav;
 
+/// Used for reading audio files via the
+/// `FileInputBlock` component within the `bbx_dsp` crate.
 pub struct WavFileReader<S: Sample> {
     channel_buffers: Vec<AudioBuffer<S>>,
     sample_rate: f64,
@@ -15,6 +17,8 @@ pub struct WavFileReader<S: Sample> {
 }
 
 impl<S: Sample> WavFileReader<S> {
+    /// Create a `WavFileReader` for an audio file located
+    /// at the specified file path.
     pub fn from_path(file_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let mut reader: Wav<f32> = Wav::from_path(Path::new(file_path))?;
 

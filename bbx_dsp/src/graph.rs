@@ -17,6 +17,8 @@ use crate::{
     writer::Writer,
 };
 
+/// Used for storing information about which blocks are connected
+/// and in what way.
 #[derive(Debug, Clone)]
 pub struct Connection {
     pub from: BlockId,
@@ -25,6 +27,9 @@ pub struct Connection {
     pub to_input: usize,
 }
 
+/// Used for storing all relevant data about a DSP `Graph`,
+/// including its blocks, `AudioBuffer`s and modulation values for each block,
+/// what order to execute calculations in, and so forth.
 pub struct Graph<S: Sample> {
     blocks: Vec<BlockType<S>>,
     connections: Vec<Connection>,
@@ -42,11 +47,12 @@ pub struct Graph<S: Sample> {
 }
 
 impl<S: Sample> Graph<S> {
-    pub fn new(sample_rate: f64, buffer_size: usize, channels: usize) -> Self {
+    /// Create a `Graph` with a given sample rate, buffer size, and number of channels.
+    pub fn new(sample_rate: f64, buffer_size: usize, num_channels: usize) -> Self {
         let context = DspContext {
             sample_rate,
             buffer_size,
-            num_channels: channels,
+            num_channels,
             current_sample: 0,
         };
 
@@ -63,10 +69,12 @@ impl<S: Sample> Graph<S> {
         }
     }
 
+    /// Get the underlying `DspContext` used by a `Graph`.
     pub fn context(&self) -> &DspContext {
         &self.context
     }
 
+    /// Add an arbitrary block to the `Graph`.
     pub fn add_block(&mut self, block: BlockType<S>) -> BlockId {
         let block_id = BlockId(self.blocks.len());
 
@@ -81,6 +89,7 @@ impl<S: Sample> Graph<S> {
         block_id
     }
 
+    /// Add an output block to the `Graph`.
     pub fn add_output_block(&mut self) -> BlockId {
         let block = BlockType::Output(OutputBlock::<S>::new(self.context.num_channels));
         let block_id = self.add_block(block);
@@ -88,6 +97,7 @@ impl<S: Sample> Graph<S> {
         block_id
     }
 
+    /// Form a `Connection` between two particular blocks.
     pub fn connect(&mut self, from: BlockId, from_output: usize, to: BlockId, to_input: usize) {
         self.connections.push(Connection {
             from,
@@ -97,6 +107,7 @@ impl<S: Sample> Graph<S> {
         })
     }
 
+    /// Prepares the `Graph` to be processed.
     pub fn prepare_for_playback(&mut self) {
         self.execution_order = self.topological_sort();
         self.modulation_values.resize(self.blocks.len(), S::ZERO);
@@ -137,6 +148,7 @@ impl<S: Sample> Graph<S> {
         result
     }
 
+    /// Process the buffers for each of the `Graph`'s blocks.
     pub fn process_buffers(&mut self, output_buffers: &mut [&mut [S]]) {
         // Clear all buffers
         for buffer in &mut self.audio_buffers {
@@ -232,26 +244,31 @@ impl<S: Sample> Graph<S> {
     }
 }
 
-// GRAPH BUILDER
-
+/// Used for easily constructing a DSP `Graph`.
 pub struct GraphBuilder<S: Sample> {
     graph: Graph<S>,
 }
 
 impl<S: Sample> GraphBuilder<S> {
-    pub fn new(sample_rate: f64, buffer_size: usize, channels: usize) -> Self {
+    /// Create a `GraphBuilder` that will construct a `Graph` with a given
+    /// sample rate, buffer size, and number of channels.
+    pub fn new(sample_rate: f64, buffer_size: usize, num_channels: usize) -> Self {
         Self {
-            graph: Graph::new(sample_rate, buffer_size, channels),
+            graph: Graph::new(sample_rate, buffer_size, num_channels),
         }
     }
 
     // I/O
 
+    /// Add a `FileInputBlock` to the `Graph`, which is useful for processing
+    /// an audio file with the rest of the DSP `Graph`.
     pub fn add_file_input(&mut self, reader: Box<dyn Reader<S>>) -> BlockId {
         let block = BlockType::FileInput(FileInputBlock::new(reader));
         self.graph.add_block(block)
     }
 
+    /// Add a `FileOutputBlock` to the `Graph`, which is useful for rendering
+    /// an audio file of the DSP `Graph`.
     pub fn add_file_output(&mut self, writer: Box<dyn Writer<S>>) -> BlockId {
         let block = BlockType::FileOutput(FileOutputBlock::new(writer));
         self.graph.add_block(block)
@@ -259,6 +276,7 @@ impl<S: Sample> GraphBuilder<S> {
 
     // GENERATORS
 
+    /// Add an `OscillatorBlock` to the `Graph`.
     pub fn add_oscillator(&mut self, frequency: f64, waveform: Waveform, seed: Option<u64>) -> BlockId {
         let block = BlockType::Oscillator(OscillatorBlock::new(S::from_f64(frequency), waveform, seed));
         self.graph.add_block(block)
@@ -266,6 +284,7 @@ impl<S: Sample> GraphBuilder<S> {
 
     // EFFECTORS
 
+    /// Add an `OverdriveBlock` to the `Graph`.
     pub fn add_overdrive(&mut self, drive: f64, level: f64, tone: f64, sample_rate: f64) -> BlockId {
         let block = BlockType::Overdrive(OverdriveBlock::new(
             S::from_f64(drive),
@@ -278,6 +297,8 @@ impl<S: Sample> GraphBuilder<S> {
 
     // MODULATORS
 
+    /// Add an `LfoBlock` to the `Graph`, which is useful when wanting to
+    /// modulate one or more `Parameter`s of one or more blocks.
     pub fn add_lfo(&mut self, frequency: f64, depth: f64, seed: Option<u64>) -> BlockId {
         // Because the modulation is happening at *control rate*, we are
         // limited to a frequency that is 1/2 of the sample rate divided
@@ -297,11 +318,13 @@ impl<S: Sample> GraphBuilder<S> {
         self.graph.add_block(block)
     }
 
+    /// Form a `Connection` between two particular blocks.
     pub fn connect(&mut self, from: BlockId, from_output: usize, to: BlockId, to_input: usize) -> &mut Self {
         self.graph.connect(from, from_output, to, to_input);
         self
     }
 
+    /// Specify a `Parameter` to be modulated by a `Modulator` block.
     pub fn modulate(&mut self, source: BlockId, target: BlockId, parameter: &str) -> &mut Self {
         if let Err(e) = self.graph.blocks[target.0].set_parameter(parameter, Parameter::Modulated(source)) {
             eprintln!("Modulation error: {e}");
@@ -309,7 +332,11 @@ impl<S: Sample> GraphBuilder<S> {
         self
     }
 
+    /// Prepare the final DSP `Graph`.
     pub fn build(mut self) -> Graph<S> {
+        // TODO: Fix this logic to work with ALL last blocks that do not yet have an output
+        // Currently this logic would make so that if multiple oscillators are used, only
+        // one of them would be connected to the output.
         if let Some(last_block) = self.graph.topological_sort().last() {
             let output = self.graph.add_output_block();
             for channel_index in 0..self.graph.context.num_channels {

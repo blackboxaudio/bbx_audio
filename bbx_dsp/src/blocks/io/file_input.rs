@@ -1,5 +1,6 @@
 use crate::{block::Block, context::DspContext, parameter::ModulationOutput, reader::Reader, sample::Sample};
 
+/// Used for reading (and processing) an audio file into a DSP `Graph`.
 pub struct FileInputBlock<S: Sample> {
     reader: Box<dyn Reader<S>>,
     current_position: usize,
@@ -7,6 +8,7 @@ pub struct FileInputBlock<S: Sample> {
 }
 
 impl<S: Sample> FileInputBlock<S> {
+    /// Create a `FileInputBlock` with the `Reader` implementation for a particular type of audio file.
     pub fn new(reader: Box<dyn Reader<S>>) -> Self {
         Self {
             reader,
@@ -15,22 +17,27 @@ impl<S: Sample> FileInputBlock<S> {
         }
     }
 
+    /// Set whether the audio will be looped or not.
     pub fn set_loop_enabled(&mut self, enabled: bool) {
         self.loop_enabled = enabled;
     }
 
+    /// Set the position at which the audio file's samples are being read.
     pub fn set_position(&mut self, position: usize) {
         self.current_position = position;
     }
 
+    /// Get the position at which the audio file's samples are being read.
     pub fn get_position(&self) -> usize {
         self.current_position
     }
 
+    /// Check whether the reader has finished reading every sample in the audio file.
     pub fn is_finished(&self) -> bool {
         self.current_position >= self.reader.num_samples()
     }
 
+    /// Get the underlying `Reader` implementation of the `FileInputBlock`.
     pub fn get_reader(&self) -> &dyn Reader<S> {
         self.reader.as_ref()
     }

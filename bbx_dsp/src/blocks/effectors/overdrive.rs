@@ -7,6 +7,7 @@ use crate::{
     sample::Sample,
 };
 
+/// Used for applying an overdrive effect from another source block.
 pub struct OverdriveBlock<S: Sample> {
     pub drive: Parameter<S>,
     pub level: Parameter<S>,
@@ -18,6 +19,7 @@ pub struct OverdriveBlock<S: Sample> {
 }
 
 impl<S: Sample> OverdriveBlock<S> {
+    /// Create an `OverdriveBlock` with a given drive multiplier, level, tone (brightness), and sample rate.
     pub fn new(drive: S, level: S, tone: f64, sample_rate: f64) -> Self {
         let mut overdrive = Self {
             drive: Parameter::Constant(drive),

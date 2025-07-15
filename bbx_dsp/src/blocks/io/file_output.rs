@@ -7,6 +7,7 @@ use crate::{
     writer::Writer,
 };
 
+/// Used for writing i.e. rendering audio files from a DSP `Graph`.
 pub struct FileOutputBlock<S: Sample> {
     writer: Box<dyn Writer<S>>,
     is_recording: bool,
@@ -15,6 +16,7 @@ pub struct FileOutputBlock<S: Sample> {
 }
 
 impl<S: Sample> FileOutputBlock<S> {
+    /// Create a `FileOutputBlock` with the `Writer` implementation for a particular type of audio file.
     pub fn new(writer: Box<dyn Writer<S>>) -> Self {
         let num_channels = writer.num_channels();
         let sample_buffer = vec![AudioBuffer::new(DEFAULT_SAMPLE_RATE as usize); num_channels];
@@ -27,6 +29,7 @@ impl<S: Sample> FileOutputBlock<S> {
         }
     }
 
+    /// Tell the writer to begin storing audio sample data.
     pub fn start_recording(&mut self) {
         self.is_recording = true;
         for channel in &mut self.sample_buffer {
@@ -35,12 +38,14 @@ impl<S: Sample> FileOutputBlock<S> {
         self.buffer_position = 0;
     }
 
+    /// Tell the writer to stop storing audio sample data.
     pub fn stop_recording(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.is_recording = false;
         self.flush_buffers()?;
         self.writer.finalize()
     }
 
+    /// Check whether the writer is actively storing audio sample data.
     pub fn is_recording(&self) -> bool {
         self.is_recording
     }

@@ -10,26 +10,42 @@ use crate::{
     sample::Sample,
 };
 
+/// Default input count for `Effector`s.
 pub(crate) const DEFAULT_EFFECTOR_INPUT_COUNT: usize = 1;
+/// Default output count for `Effector`s.
 pub(crate) const DEFAULT_EFFECTOR_OUTPUT_COUNT: usize = 1;
 
+/// Default input count for `Generator`s.
 pub(crate) const DEFAULT_GENERATOR_INPUT_COUNT: usize = 0;
+/// Default output count for `Generator`s.
 pub(crate) const DEFAULT_GENERATOR_OUTPUT_COUNT: usize = 1;
 
+/// Default input count for `Modulator`s.
 pub(crate) const DEFAULT_MODULATOR_INPUT_COUNT: usize = 0;
+/// Default output count for `Modulator`s.
 pub(crate) const DEFAULT_MODULATOR_OUTPUT_COUNT: usize = 1;
 
+/// Used to identify and find blocks within a DSP `Graph`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockId(pub usize);
 
+/// Describes a structure for a particular DSP operation.
 pub trait Block<S: Sample> {
+    /// Perform the calculation of a particular `Block`.
     fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext);
 
+    /// Get the input count of a `Block`.
     fn input_count(&self) -> usize;
+
+    /// Get the output count of a `Block`.
     fn output_count(&self) -> usize;
+
+    /// Get the modulation outputs (if any) of a `Block`.
     fn modulation_outputs(&self) -> &[ModulationOutput];
 }
 
+/// Supported types of blocks i.e. DSP operations
+/// that can be used within a `Graph`.
 pub enum BlockType<S: Sample> {
     // I/O
     FileInput(FileInputBlock<S>),
@@ -47,6 +63,7 @@ pub enum BlockType<S: Sample> {
 }
 
 impl<S: Sample> BlockType<S> {
+    /// Perform the calculation of the underlying `Block`.
     pub fn process(
         &mut self,
         inputs: &[&[S]],
@@ -71,6 +88,7 @@ impl<S: Sample> BlockType<S> {
         }
     }
 
+    /// Get the input count of the underlying `Block`.
     pub fn input_count(&self) -> usize {
         match self {
             // I/O
@@ -89,6 +107,7 @@ impl<S: Sample> BlockType<S> {
         }
     }
 
+    /// Get the output count of the underlying `Block`.
     pub fn output_count(&self) -> usize {
         match self {
             // I/O
@@ -107,6 +126,7 @@ impl<S: Sample> BlockType<S> {
         }
     }
 
+    /// Get the modulation outputs (if any) of the underlying `Block`.
     pub fn modulation_outputs(&self) -> &[ModulationOutput] {
         match self {
             // I/O
@@ -125,6 +145,7 @@ impl<S: Sample> BlockType<S> {
         }
     }
 
+    /// Set a given `Parameter` of the underlying `Block`.
     pub fn set_parameter(&mut self, parameter_name: &str, parameter: Parameter<S>) -> Result<(), String> {
         match self {
             // I/O

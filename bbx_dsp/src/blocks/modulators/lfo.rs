@@ -8,6 +8,8 @@ use crate::{
     waveform::{DEFAULT_DUTY_CYCLE, Waveform, generate_waveform_sample},
 };
 
+// TODO: Make sure modulation can be applied to more than one destination.
+/// Used for applying waveform modulation to one or more `Parameter`s of one or more blocks.
 pub struct LfoBlock<S: Sample> {
     pub frequency: Parameter<S>,
     pub depth: Parameter<S>,
@@ -24,6 +26,7 @@ impl<S: Sample> LfoBlock<S> {
         max_value: 1.0,
     }];
 
+    /// Create an `LfoBlock` with a given frequency, depth, waveform, and optional seed (used for noise waveforms).
     pub fn new(frequency: S, depth: S, waveform: Waveform, seed: Option<u64>) -> Self {
         Self {
             frequency: Parameter::Constant(frequency),
@@ -32,10 +35,6 @@ impl<S: Sample> LfoBlock<S> {
             waveform,
             rng: XorShiftRng::new(seed.unwrap_or_default()),
         }
-    }
-
-    pub fn frequency(&self) -> &Parameter<S> {
-        &self.frequency
     }
 }
 

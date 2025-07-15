@@ -8,6 +8,7 @@ use crate::{
     waveform::{DEFAULT_DUTY_CYCLE, Waveform, generate_waveform_sample},
 };
 
+/// Used for generating the sound of a simple waveform.
 pub struct OscillatorBlock<S: Sample> {
     pub frequency: Parameter<S>,
 

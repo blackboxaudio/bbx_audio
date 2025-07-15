@@ -2,15 +2,17 @@ use std::marker::PhantomData;
 
 use crate::{block::Block, context::DspContext, parameter::ModulationOutput, sample::Sample};
 
+/// Used for collecting audio output from all the relevant blocks within a DSP `Graph`.
 pub struct OutputBlock<S: Sample> {
-    channels: usize,
+    num_channels: usize,
     _phantom: PhantomData<S>,
 }
 
 impl<S: Sample> OutputBlock<S> {
-    pub fn new(channels: usize) -> Self {
+    /// Create an `OutputBlock` with a given number of channels.
+    pub fn new(num_channels: usize) -> Self {
         Self {
-            channels,
+            num_channels,
             _phantom: PhantomData,
         }
     }
@@ -24,10 +26,10 @@ impl<S: Sample> Block<S> for OutputBlock<S> {
     }
 
     fn input_count(&self) -> usize {
-        self.channels
+        self.num_channels
     }
     fn output_count(&self) -> usize {
-        self.channels
+        self.num_channels
     }
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]

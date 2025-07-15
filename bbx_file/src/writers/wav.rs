@@ -10,6 +10,8 @@ use hound::{SampleFormat, WavSpec, WavWriter};
 
 const BIT_DEPTH: u16 = 32;
 
+/// Used for writing audio files via the
+/// `FileOutputBlock` component within the `bbx_dsp` crate.
 pub struct WavFileWriter<S: Sample> {
     writer: Option<WavWriter<BufWriter<File>>>,
     sample_rate: f64,
@@ -19,6 +21,8 @@ pub struct WavFileWriter<S: Sample> {
 }
 
 impl<S: Sample> WavFileWriter<S> {
+    /// Create a `WavFileWriter` with the specified sample rate and
+    /// number of audio channels.
     pub fn new(file_path: &str, sample_rate: f64, num_channels: usize) -> Result<Self, Box<dyn Error>> {
         let spec = WavSpec {
             channels: num_channels as u16,
@@ -59,6 +63,7 @@ impl<S: Sample> Writer<S> for WavFileWriter<S> {
         }
 
         self.channel_buffers[channel_index].extend_from_slice(samples);
+        // TODO: Should this be called?
         self.write_available_samples()?;
 
         Ok(())
@@ -76,6 +81,7 @@ impl<S: Sample> Writer<S> for WavFileWriter<S> {
 }
 
 impl<S: Sample> WavFileWriter<S> {
+    /// Write the available samples of each channel to the audio file.
     fn write_available_samples(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ref mut writer) = self.writer {
             let min_len = self.channel_buffers.iter().map(|buf| buf.len()).min().unwrap_or(0);

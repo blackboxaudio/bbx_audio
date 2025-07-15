@@ -3,6 +3,8 @@ use std::{
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
 };
 
+/// Describes the underlying data type used in audio-related
+/// calculations within the DSP graph.
 pub trait Sample:
     Debug
     + Copy
@@ -24,7 +26,10 @@ pub trait Sample:
     const ZERO: Self;
     const ONE: Self;
 
+    /// Convert from an `f64` value.
     fn from_f64(value: f64) -> Self;
+
+    /// Convert to an `f64` value.
     fn to_f64(self) -> f64;
 }
 
