@@ -14,11 +14,6 @@ fn create_graph() -> Graph<f32> {
     let lfo = builder.add_lfo(22.5, 100.0, None);
     builder.modulate(lfo, oscillator, "Frequency");
 
-    let output = builder.add_output(2);
-
-    builder.connect(oscillator, 0, output, 0);
-    builder.connect(oscillator, 0, output, 1);
-
     let mut file_path = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
     file_path.push_str("/bbx_sandbox/examples/05_output_wav_file.wav");
 

@@ -1,5 +1,6 @@
 use crate::{
     blocks::{
+        effectors::overdrive::OverdriveBlock,
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
         modulators::lfo::LfoBlock,
@@ -30,6 +31,7 @@ pub enum BlockType<S: Sample> {
     Oscillator(OscillatorBlock<S>),
 
     // EFFECTORS
+    Overdrive(OverdriveBlock<S>),
 
     // MODULATORS
     Lfo(LfoBlock<S>),
@@ -53,6 +55,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.process(inputs, outputs, modulation_values, context),
 
             // EFFECTORS
+            BlockType::Overdrive(block) => block.process(inputs, outputs, modulation_values, context),
 
             // MODULATORS
             BlockType::Lfo(block) => block.process(inputs, outputs, modulation_values, context),
@@ -70,6 +73,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.input_count(),
 
             // EFFECTORS
+            BlockType::Overdrive(block) => block.input_count(),
 
             // MODULATORS
             BlockType::Lfo(block) => block.input_count(),
@@ -87,6 +91,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.output_count(),
 
             // EFFECTORS
+            BlockType::Overdrive(block) => block.output_count(),
 
             // MODULATORS
             BlockType::Lfo(block) => block.output_count(),
@@ -104,6 +109,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.modulation_outputs(),
 
             // EFFECTORS
+            BlockType::Overdrive(block) => block.modulation_outputs(),
 
             // MODULATORS
             BlockType::Lfo(block) => block.modulation_outputs(),
@@ -127,6 +133,7 @@ impl<S: Sample> BlockType<S> {
             },
 
             // EFFECTORS
+            BlockType::Overdrive(_) => Err("Overdrive blocks have no parameters".to_string()),
 
             // MODULATORS
             BlockType::Lfo(block) => match parameter_name.to_lowercase().as_str() {

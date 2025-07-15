@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{
     block::{BlockId, BlockType},
     blocks::{
+        effectors::overdrive::OverdriveBlock,
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
         modulators::lfo::LfoBlock,
@@ -28,7 +29,7 @@ pub struct Graph<S: Sample> {
     blocks: Vec<BlockType<S>>,
     connections: Vec<Connection>,
     execution_order: Vec<BlockId>,
-    output_blocks: Vec<BlockId>,
+    output_block: Option<BlockId>,
 
     // Pre-allocated buffers
     audio_buffers: Vec<AudioBuffer<S>>,
@@ -37,7 +38,6 @@ pub struct Graph<S: Sample> {
     // Buffer management
     block_buffer_start: Vec<usize>,
     buffer_size: usize,
-    channels: usize,
     context: DspContext,
 }
 
@@ -54,12 +54,11 @@ impl<S: Sample> Graph<S> {
             blocks: Vec::new(),
             connections: Vec::new(),
             execution_order: Vec::new(),
-            output_blocks: Vec::new(),
+            output_block: None,
             audio_buffers: Vec::new(),
             modulation_values: Vec::new(),
             block_buffer_start: Vec::new(),
             buffer_size,
-            channels,
             context,
         }
     }
@@ -77,16 +76,16 @@ impl<S: Sample> Graph<S> {
         let output_count = self.blocks[block_id.0].output_count();
         for _ in 0..output_count {
             self.audio_buffers
-                .push(AudioBuffer::new(self.buffer_size * self.channels));
+                .push(AudioBuffer::new(self.buffer_size * self.context.num_channels));
         }
 
         block_id
     }
 
-    pub fn add_output_block(&mut self, channels: usize) -> BlockId {
-        let block = BlockType::Output(OutputBlock::<S>::new(channels));
+    pub fn add_output_block(&mut self) -> BlockId {
+        let block = BlockType::Output(OutputBlock::<S>::new(self.context.num_channels));
         let block_id = self.add_block(block);
-        self.output_blocks.push(block_id);
+        self.output_block = Some(block_id);
         block_id
     }
 
@@ -217,7 +216,7 @@ impl<S: Sample> Graph<S> {
 
     fn copy_to_output_buffer(&self, output_buffer: &mut [&mut [S]]) {
         // In a more complex system, there could be multiple output blocks...
-        if let Some(&output_block_id) = self.output_blocks.first() {
+        if let Some(output_block_id) = self.output_block {
             let output_count = self.blocks[output_block_id.0].output_count();
             for channel in 0..output_count.min(output_buffer.len()) {
                 let internal_buffer_index = self.get_buffer_index(output_block_id, channel);
@@ -259,10 +258,6 @@ impl<S: Sample> GraphBuilder<S> {
         self.graph.add_block(block)
     }
 
-    pub fn add_output(&mut self, channels: usize) -> BlockId {
-        self.graph.add_output_block(channels)
-    }
-
     // GENERATORS
 
     pub fn add_oscillator(&mut self, frequency: f64, waveform: Waveform, seed: Option<u64>) -> BlockId {
@@ -271,6 +266,11 @@ impl<S: Sample> GraphBuilder<S> {
     }
 
     // EFFECTORS
+
+    pub fn add_overdrive(&mut self, drive: f64, level: f64, tone: f64, sample_rate: f64) -> BlockId {
+        let block = BlockType::Overdrive(OverdriveBlock::new(drive, level, tone, sample_rate));
+        self.graph.add_block(block)
+    }
 
     // MODULATORS
 
@@ -306,6 +306,13 @@ impl<S: Sample> GraphBuilder<S> {
     }
 
     pub fn build(mut self) -> Graph<S> {
+        if let Some(last_block) = self.graph.topological_sort().last() {
+            let output = self.graph.add_output_block();
+            for channel_index in 0..self.graph.context.num_channels {
+                self.connect(*last_block, 0, output, channel_index);
+            }
+        }
+
         self.graph.prepare_for_playback();
         self.graph
     }

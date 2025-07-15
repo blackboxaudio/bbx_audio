@@ -20,11 +20,6 @@ fn create_graph() -> Graph<f32> {
     builder.modulate(lfo2, lfo1, "Depth");
     builder.modulate(lfo3, lfo2, "Frequency");
 
-    let output = builder.add_output(2);
-
-    builder.connect(oscillator, 0, output, 0);
-    builder.connect(oscillator, 0, output, 1);
-
     builder.build()
 }
 
