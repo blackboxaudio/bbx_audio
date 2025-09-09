@@ -1,24 +1,40 @@
+use std::time::Duration;
+
+use bbx_dsp::{graph::Graph, sample::Sample};
 use rodio::{OutputStream, Source};
 
-use crate::{constants::PLAYTIME_DURATION_SECONDS, signal::Signal};
+use crate::signal::Signal;
 
-pub struct Player {
-    signal: Signal,
+const DEFAULT_PLAYTIME_DURATION_SECONDS: usize = usize::MAX;
+
+/// Responsible for outputting the sound of a `Signal`.
+pub struct Player<S: Sample> {
+    signal: Signal<S>,
 }
 
-impl Player {
-    pub fn new(signal: Signal) -> Player {
-        Player { signal }
+impl<S: Sample> Player<S> {
+    /// Create a `Player` for playing a particular `Signal`.
+    pub fn new(signal: Signal<S>) -> Self {
+        Self { signal }
+    }
+
+    /// Create a `Player` from a DSP `Graph`, automatically
+    /// creating a `Signal` for the `Player`.
+    pub fn from_graph(graph: Graph<S>) -> Self {
+        let signal = Signal::new(graph);
+        Self { signal }
     }
 }
 
-impl Player {
+impl Player<f32> {
+    /// Start the `Player`, which begins sounding its
+    /// underlying `Signal`.
     pub fn play(self, duration: Option<usize>) {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let _result = stream_handle.play_raw(self.signal.convert_samples());
 
-        std::thread::sleep(std::time::Duration::from_secs(
-            duration.unwrap_or(PLAYTIME_DURATION_SECONDS) as u64,
-        ));
+        std::thread::sleep(Duration::from_secs(
+            duration.unwrap_or(DEFAULT_PLAYTIME_DURATION_SECONDS) as u64,
+        ))
     }
 }

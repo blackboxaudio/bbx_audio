@@ -1,16 +1,15 @@
-#![feature(test)]
-extern crate test;
+//! # BBX DSP
+//!
+//! This crate contains the core DSP components and operations
+//! used when assembling DSP chains.
 
-pub mod effectors;
-pub mod generators;
-
-pub mod constants;
+pub mod block;
+pub mod blocks;
+pub mod buffer;
 pub mod context;
-pub mod effector;
-pub mod error;
-pub mod generator;
 pub mod graph;
-pub mod node;
-pub mod operation;
-pub mod process;
-pub mod utils;
+pub mod parameter;
+pub mod reader;
+pub mod sample;
+pub mod waveform;
+pub mod writer;

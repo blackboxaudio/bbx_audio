@@ -1,12 +1,7 @@
 [package]
 name = "bbx_dsp"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-bbx_buffer = { path = "../bbx_buffer" }
-bbx_file = { path = "../bbx_file" }
-bbx_sample = { path = "../bbx_sample" }
-
-rand = "0.8.5"
-thiserror = "1.0.61"
+bbx_core = { path = "../bbx_core" }

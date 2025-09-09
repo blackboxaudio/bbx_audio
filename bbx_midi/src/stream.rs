@@ -1,6 +1,6 @@
 use std::{
     error::Error,
-    io::{stdin, stdout, Write},
+    io::{Write, stdin, stdout},
     sync::{mpsc, mpsc::Sender},
     thread,
     thread::JoinHandle,
@@ -18,8 +18,10 @@ pub struct MidiInputStream {
 impl MidiInputStream {
     pub fn new(filters: Vec<MidiMessageStatus>, message_handler: fn(MidiMessage) -> ()) -> Self {
         let (tx, rx) = mpsc::channel::<MidiMessage>();
-        thread::spawn(move || loop {
-            message_handler(rx.recv().unwrap());
+        thread::spawn(move || {
+            loop {
+                message_handler(rx.recv().unwrap());
+            }
         });
         MidiInputStream { tx, filters }
     }
@@ -62,7 +64,7 @@ impl MidiInputStream {
         };
         thread::spawn(move || match self.create_midi_input_stream(midi_in, in_port.unwrap()) {
             Ok(_) => (),
-            Err(err) => println!("Error : {}", err),
+            Err(err) => println!("Error : {err}"),
         })
     }
 
@@ -87,10 +89,7 @@ impl MidiInputStream {
             (),
         )?;
 
-        println!(
-            "Connection open, reading MIDI input from '{}' (press enter to exit) ...",
-            in_port_name
-        );
+        println!("Connection open, reading MIDI input from '{in_port_name}' (press enter to exit) ...");
 
         let mut input = String::new();
         input.clear();

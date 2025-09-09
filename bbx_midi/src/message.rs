@@ -88,7 +88,7 @@ impl MidiMessage {
         let octave = (note_number / 12) as i8 - 1;
 
         // Return the formatted string (e.g., "C4", "D#3")
-        Some(format!("{}{}", note_name, octave))
+        Some(format!("{note_name}{octave}"))
     }
 
     pub fn get_note_frequency(&self) -> Option<f32> {

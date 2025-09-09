@@ -1,8 +1,7 @@
 [package]
 name = "bbx_midi"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 midir = "0.10.0"
-thiserror = "1.0.63"
