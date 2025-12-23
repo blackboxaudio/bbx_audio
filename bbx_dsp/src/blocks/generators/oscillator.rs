@@ -32,9 +32,20 @@ impl<S: Sample> OscillatorBlock<S> {
 
 impl<S: Sample> Block<S> for OscillatorBlock<S> {
     fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
+        // Get frequency value based on parameter type:
+        // - Constant: uses the constant value
+        // - Modulated: base_frequency + modulation value (additive modulation)
+        // - External: reads from external atomic (e.g., JUCE parameter)
         let freq = match &self.frequency {
             Parameter::Constant(freq) => *freq,
             Parameter::Modulated(block_id) => self.base_frequency + modulation_values[block_id.0],
+            Parameter::External(ptr) => {
+                if ptr.is_null() {
+                    self.base_frequency
+                } else {
+                    unsafe { S::from_f64((*(*ptr)).load() as f64) }
+                }
+            }
         };
 
         let phase_increment = freq.to_f64() / context.sample_rate * 2.0 * std::f64::consts::PI;

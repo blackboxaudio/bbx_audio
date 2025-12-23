@@ -244,6 +244,94 @@ impl<S: Sample> Graph<S> {
     fn get_buffer_index(&self, block_id: BlockId, output_index: usize) -> usize {
         self.block_buffer_start[block_id.0] + output_index
     }
+
+    // =========================================================================
+    // Configuration and FFI support methods
+    // =========================================================================
+
+    /// Create a graph from a JSON configuration string.
+    pub fn from_config(
+        config_json: &str,
+        sample_rate: f64,
+        buffer_size: usize,
+        num_channels: usize,
+    ) -> Result<Self, crate::config::ConfigError> {
+        let config = crate::config::GraphConfig::from_json(config_json)?;
+        config.build_graph(sample_rate, buffer_size, num_channels)
+    }
+
+    /// Set a modulation connection between a modulator block and a target parameter.
+    pub fn set_modulation(
+        &mut self,
+        source_id: BlockId,
+        target_id: BlockId,
+        param_name: &str,
+        _depth: S,
+    ) -> Result<(), crate::config::ConfigError> {
+        if target_id.0 >= self.blocks.len() {
+            return Err(crate::config::ConfigError::InvalidConnection(
+                format!("Target block {} does not exist", target_id.0),
+            ));
+        }
+
+        self.blocks[target_id.0]
+            .set_parameter(param_name, Parameter::Modulated(source_id))
+            .map_err(|e| crate::config::ConfigError::InvalidParameter(e))
+    }
+
+    /// Set a parameter value on a block.
+    pub fn set_parameter(&mut self, block_id: BlockId, param_name: &str, value: S) {
+        if block_id.0 < self.blocks.len() {
+            let _ = self.blocks[block_id.0].set_parameter(param_name, Parameter::Constant(value));
+        }
+    }
+
+    /// Bind a parameter to an external atomic source (for JUCE integration).
+    ///
+    /// # Safety
+    /// The provided pointer must remain valid for the lifetime of the binding.
+    pub fn bind_external_parameter(
+        &mut self,
+        block_id: BlockId,
+        param_name: &str,
+        atomic_ptr: *const crate::parameter::AtomicF32,
+    ) {
+        if block_id.0 < self.blocks.len() {
+            let _ = self.blocks[block_id.0].set_parameter(param_name, Parameter::External(atomic_ptr));
+        }
+    }
+
+    /// Reset all DSP state in the graph.
+    pub fn reset(&mut self) {
+        // Reset all block states
+        for block in &mut self.blocks {
+            match block {
+                BlockType::Filter(f) => f.reset(),
+                BlockType::DcBlocker(d) => d.reset(),
+                _ => {}
+            }
+        }
+
+        // Clear all buffers
+        for buffer in &mut self.audio_buffers {
+            buffer.zeroize();
+        }
+
+        // Reset modulation values
+        for value in &mut self.modulation_values {
+            *value = S::ZERO;
+        }
+    }
+
+    /// Get the number of blocks in the graph.
+    pub fn block_count(&self) -> usize {
+        self.blocks.len()
+    }
+
+    /// Get mutable access to a block by ID.
+    pub fn get_block_mut(&mut self, block_id: BlockId) -> Option<&mut BlockType<S>> {
+        self.blocks.get_mut(block_id.0)
+    }
 }
 
 /// Used for easily constructing a DSP `Graph`.

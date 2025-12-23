@@ -1,6 +1,12 @@
 use crate::{
     blocks::{
-        effectors::overdrive::OverdriveBlock,
+        effectors::{
+            dc_blocker::DcBlockerBlock,
+            filter::FilterBlock,
+            gain::GainBlock,
+            overdrive::OverdriveBlock,
+            panner::PannerBlock,
+        },
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
         modulators::lfo::LfoBlock,
@@ -56,7 +62,11 @@ pub enum BlockType<S: Sample> {
     Oscillator(OscillatorBlock<S>),
 
     // EFFECTORS
+    DcBlocker(DcBlockerBlock<S>),
+    Filter(FilterBlock<S>),
+    Gain(GainBlock<S>),
     Overdrive(OverdriveBlock<S>),
+    Panner(PannerBlock<S>),
 
     // MODULATORS
     Lfo(LfoBlock<S>),
@@ -81,7 +91,11 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.process(inputs, outputs, modulation_values, context),
 
             // EFFECTORS
+            BlockType::DcBlocker(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::Filter(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::Gain(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Overdrive(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::Panner(block) => block.process(inputs, outputs, modulation_values, context),
 
             // MODULATORS
             BlockType::Lfo(block) => block.process(inputs, outputs, modulation_values, context),
@@ -100,7 +114,11 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.input_count(),
 
             // EFFECTORS
+            BlockType::DcBlocker(block) => block.input_count(),
+            BlockType::Filter(block) => block.input_count(),
+            BlockType::Gain(block) => block.input_count(),
             BlockType::Overdrive(block) => block.input_count(),
+            BlockType::Panner(block) => block.input_count(),
 
             // MODULATORS
             BlockType::Lfo(block) => block.input_count(),
@@ -119,7 +137,11 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.output_count(),
 
             // EFFECTORS
+            BlockType::DcBlocker(block) => block.output_count(),
+            BlockType::Filter(block) => block.output_count(),
+            BlockType::Gain(block) => block.output_count(),
             BlockType::Overdrive(block) => block.output_count(),
+            BlockType::Panner(block) => block.output_count(),
 
             // MODULATORS
             BlockType::Lfo(block) => block.output_count(),
@@ -138,7 +160,11 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.modulation_outputs(),
 
             // EFFECTORS
+            BlockType::DcBlocker(block) => block.modulation_outputs(),
+            BlockType::Filter(block) => block.modulation_outputs(),
+            BlockType::Gain(block) => block.modulation_outputs(),
             BlockType::Overdrive(block) => block.modulation_outputs(),
+            BlockType::Panner(block) => block.modulation_outputs(),
 
             // MODULATORS
             BlockType::Lfo(block) => block.modulation_outputs(),
@@ -163,6 +189,28 @@ impl<S: Sample> BlockType<S> {
             },
 
             // EFFECTORS
+            BlockType::DcBlocker(_) => Err("DC blocker has no modulatable parameters".to_string()),
+
+            BlockType::Filter(block) => match parameter_name.to_lowercase().as_str() {
+                "cutoff" | "frequency" => {
+                    Self::apply_to_modulatable(&mut block.cutoff, parameter);
+                    Ok(())
+                }
+                "resonance" | "q" => {
+                    Self::apply_to_modulatable(&mut block.resonance, parameter);
+                    Ok(())
+                }
+                _ => Err(format!("Unknown filter parameter: {parameter_name}")),
+            },
+
+            BlockType::Gain(block) => match parameter_name.to_lowercase().as_str() {
+                "level" | "gain" => {
+                    Self::apply_to_modulatable(&mut block.level, parameter);
+                    Ok(())
+                }
+                _ => Err(format!("Unknown gain parameter: {parameter_name}")),
+            },
+
             BlockType::Overdrive(block) => match parameter_name.to_lowercase().as_str() {
                 "drive" => {
                     block.drive = parameter;
@@ -173,6 +221,14 @@ impl<S: Sample> BlockType<S> {
                     Ok(())
                 }
                 _ => Err(format!("Unknown overdrive parameter: {parameter_name}")),
+            },
+
+            BlockType::Panner(block) => match parameter_name.to_lowercase().as_str() {
+                "position" | "pan" => {
+                    Self::apply_to_modulatable(&mut block.position, parameter);
+                    Ok(())
+                }
+                _ => Err(format!("Unknown panner parameter: {parameter_name}")),
             },
 
             // MODULATORS
@@ -187,6 +243,20 @@ impl<S: Sample> BlockType<S> {
                 }
                 _ => Err(format!("Unknown LFO parameter: {parameter_name}")),
             },
+        }
+    }
+
+    /// Apply a Parameter to a ModulatableParam.
+    fn apply_to_modulatable<const N: usize>(
+        target: &mut crate::parameter::ModulatableParam<S, N>,
+        parameter: Parameter<S>,
+    ) {
+        match parameter {
+            Parameter::Constant(value) => target.set(value),
+            Parameter::Modulated(source_id) => {
+                target.add_modulation(source_id, S::ONE);
+            }
+            Parameter::External(ptr) => target.bind_external(ptr),
         }
     }
 }

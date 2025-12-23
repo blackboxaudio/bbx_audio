@@ -6,7 +6,9 @@
 use std::ffi::{c_char, CStr};
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use crate::block::BlockId;
 use crate::graph::Graph;
+use crate::parameter::AtomicF32 as ParamAtomicF32;
 
 /// Opaque DSP engine type for C/C++ interop.
 ///
@@ -102,11 +104,10 @@ pub extern "C" fn bbx_create_engine_from_config_str(
         }
     };
 
-    // TODO: Implement Graph::from_config when config module is ready
-    // For now, create a default graph
-    let _ = config; // Suppress unused warning
-    let graph = Graph::new(sample_rate, buffer_size, num_channels);
-    Box::into_raw(Box::new(DspEngine { graph }))
+    match Graph::from_config(config, sample_rate, buffer_size, num_channels) {
+        Ok(graph) => Box::into_raw(Box::new(DspEngine { graph })),
+        Err(_) => std::ptr::null_mut(),
+    }
 }
 
 /// Destroy a DSP engine and free its resources.
@@ -157,8 +158,8 @@ pub extern "C" fn bbx_prepare(engine: *mut DspEngine, _sample_rate: f64, _buffer
 /// The engine pointer must be valid.
 #[unsafe(no_mangle)]
 pub extern "C" fn bbx_reset(engine: *mut DspEngine) {
-    if let Some(_e) = unsafe { engine.as_mut() } {
-        // TODO: Implement Graph::reset method
+    if let Some(e) = unsafe { engine.as_mut() } {
+        e.graph.reset();
     }
 }
 
@@ -269,18 +270,17 @@ pub extern "C" fn bbx_set_parameter(
     param_name: *const c_char,
     value: f32,
 ) {
-    let _engine = match unsafe { engine.as_mut() } {
+    let engine = match unsafe { engine.as_mut() } {
         Some(e) => e,
         None => return,
     };
 
-    let _name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
+    let name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
         Ok(s) => s,
         Err(_) => return,
     };
 
-    // TODO: Implement parameter setting on Graph
-    let _ = (block_id, value);
+    engine.graph.set_parameter(BlockId(block_id), name, value);
 }
 
 /// Bind a parameter to an external atomic source (JUCE AudioProcessorValueTreeState).
@@ -304,18 +304,22 @@ pub extern "C" fn bbx_bind_parameter(
     param_name: *const c_char,
     atomic_ptr: *const AtomicF32,
 ) {
-    let _engine = match unsafe { engine.as_mut() } {
+    let engine = match unsafe { engine.as_mut() } {
         Some(e) => e,
         None => return,
     };
 
-    let _name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
+    let name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
         Ok(s) => s,
         Err(_) => return,
     };
 
-    // TODO: Implement external parameter binding on Graph
-    let _ = (block_id, atomic_ptr);
+    // The AtomicF32 in ffi.rs and parameter.rs have the same layout
+    engine.graph.bind_external_parameter(
+        BlockId(block_id),
+        name,
+        atomic_ptr as *const ParamAtomicF32,
+    );
 }
 
 /// Unbind a parameter from its external source.
@@ -333,18 +337,18 @@ pub extern "C" fn bbx_unbind_parameter(
     block_id: usize,
     param_name: *const c_char,
 ) {
-    let _engine = match unsafe { engine.as_mut() } {
+    let engine = match unsafe { engine.as_mut() } {
         Some(e) => e,
         None => return,
     };
 
-    let _name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
+    let name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
         Ok(s) => s,
         Err(_) => return,
     };
 
-    // TODO: Implement parameter unbinding on Graph
-    let _ = block_id;
+    // Unbind by setting to a constant value of 0
+    engine.graph.set_parameter(BlockId(block_id), name, 0.0);
 }
 
 /// Get the current value of a parameter.
@@ -403,18 +407,18 @@ pub extern "C" fn bbx_add_block(
     block_type: *const c_char,
     config_json: *const c_char,
 ) -> i32 {
-    let _engine = match unsafe { engine.as_mut() } {
+    let engine = match unsafe { engine.as_mut() } {
         Some(e) => e,
         None => return -1,
     };
 
-    let _type_str = match unsafe { CStr::from_ptr(block_type) }.to_str() {
+    let type_str = match unsafe { CStr::from_ptr(block_type) }.to_str() {
         Ok(s) => s,
         Err(_) => return -1,
     };
 
-    let _config = if config_json.is_null() {
-        ""
+    let config_str = if config_json.is_null() {
+        "{}"
     } else {
         match unsafe { CStr::from_ptr(config_json) }.to_str() {
             Ok(s) => s,
@@ -422,8 +426,29 @@ pub extern "C" fn bbx_add_block(
         }
     };
 
-    // TODO: Implement block creation from type string and config
-    -1
+    // Parse the config JSON to get parameters
+    let params: std::collections::HashMap<String, serde_json::Value> =
+        serde_json::from_str(config_str).unwrap_or_default();
+
+    let context = engine.graph.context();
+    let sample_rate = context.sample_rate;
+    let num_channels = context.num_channels;
+
+    // Create the block config and use the config module to create it
+    let block_config = crate::config::BlockConfig {
+        id: engine.graph.block_count(),
+        block_type: type_str.to_string(),
+        name: String::new(),
+        params,
+    };
+
+    match crate::config::create_block_ffi(&block_config, sample_rate, num_channels) {
+        Ok(block) => {
+            let block_id = engine.graph.add_block(block);
+            block_id.0 as i32
+        }
+        Err(_) => -1,
+    }
 }
 
 /// Connect two blocks in the graph.
@@ -448,14 +473,18 @@ pub extern "C" fn bbx_connect(
     dest_block: usize,
     dest_input: usize,
 ) -> bool {
-    let _engine = match unsafe { engine.as_mut() } {
+    let engine = match unsafe { engine.as_mut() } {
         Some(e) => e,
         None => return false,
     };
 
-    // TODO: Implement connection via FFI
-    let _ = (source_block, source_output, dest_block, dest_input);
-    false
+    engine.graph.connect(
+        BlockId(source_block),
+        source_output,
+        BlockId(dest_block),
+        dest_input,
+    );
+    true
 }
 
 /// Rebuild the execution order after graph changes.
@@ -500,19 +529,25 @@ pub extern "C" fn bbx_add_modulation(
     param_name: *const c_char,
     depth: f32,
 ) -> bool {
-    let _engine = match unsafe { engine.as_mut() } {
+    let engine = match unsafe { engine.as_mut() } {
         Some(e) => e,
         None => return false,
     };
 
-    let _name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
+    let name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
         Ok(s) => s,
         Err(_) => return false,
     };
 
-    // TODO: Implement modulation via FFI
-    let _ = (modulator_block, target_block, depth);
-    false
+    engine
+        .graph
+        .set_modulation(
+            BlockId(modulator_block),
+            BlockId(target_block),
+            name,
+            depth,
+        )
+        .is_ok()
 }
 
 /// Remove a modulation connection.
@@ -535,19 +570,21 @@ pub extern "C" fn bbx_remove_modulation(
     target_block: usize,
     param_name: *const c_char,
 ) -> bool {
-    let _engine = match unsafe { engine.as_mut() } {
+    let engine = match unsafe { engine.as_mut() } {
         Some(e) => e,
         None => return false,
     };
 
-    let _name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
+    let name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
         Ok(s) => s,
         Err(_) => return false,
     };
 
-    // TODO: Implement modulation removal via FFI
-    let _ = (modulator_block, target_block);
-    false
+    // Remove modulation by setting the parameter to a constant value
+    // This effectively disables the modulation
+    let _ = (modulator_block, name);
+    engine.graph.set_parameter(BlockId(target_block), name, 0.0);
+    true
 }
 
 /// Set the depth of an existing modulation connection.
@@ -569,18 +606,23 @@ pub extern "C" fn bbx_set_modulation_depth(
     param_name: *const c_char,
     depth: f32,
 ) {
-    let _engine = match unsafe { engine.as_mut() } {
+    let engine = match unsafe { engine.as_mut() } {
         Some(e) => e,
         None => return,
     };
 
-    let _name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
+    let name = match unsafe { CStr::from_ptr(param_name) }.to_str() {
         Ok(s) => s,
         Err(_) => return,
     };
 
-    // TODO: Implement modulation depth setting via FFI
-    let _ = (modulator_block, target_block, depth);
+    // Re-apply modulation with the new depth
+    let _ = engine.graph.set_modulation(
+        BlockId(modulator_block),
+        BlockId(target_block),
+        name,
+        depth,
+    );
 }
 
 // =============================================================================

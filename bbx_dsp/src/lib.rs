@@ -11,6 +11,7 @@
 pub mod block;
 pub mod blocks;
 pub mod buffer;
+pub mod config;
 pub mod context;
 pub mod ffi;
 pub mod graph;
