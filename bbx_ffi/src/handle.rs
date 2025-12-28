@@ -3,7 +3,7 @@
 //! This module provides the opaque `BbxGraph` type that C code uses
 //! to reference the Rust Graph, along with internal wrapper types.
 
-use bbx_dsp::{graph::Graph, VoiceState};
+use bbx_dsp::{VoiceState, graph::Graph};
 use bbx_midi::MidiMessageBuffer;
 
 /// Opaque handle representing a DSP graph.

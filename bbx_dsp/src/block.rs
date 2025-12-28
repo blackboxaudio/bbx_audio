@@ -3,7 +3,7 @@ use crate::{
         effectors::overdrive::OverdriveBlock,
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
-        modulators::lfo::LfoBlock,
+        modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
     },
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
@@ -59,6 +59,7 @@ pub enum BlockType<S: Sample> {
     Overdrive(OverdriveBlock<S>),
 
     // MODULATORS
+    Envelope(EnvelopeBlock<S>),
     Lfo(LfoBlock<S>),
 }
 
@@ -84,6 +85,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Overdrive(block) => block.process(inputs, outputs, modulation_values, context),
 
             // MODULATORS
+            BlockType::Envelope(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Lfo(block) => block.process(inputs, outputs, modulation_values, context),
         }
     }
@@ -103,6 +105,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Overdrive(block) => block.input_count(),
 
             // MODULATORS
+            BlockType::Envelope(block) => block.input_count(),
             BlockType::Lfo(block) => block.input_count(),
         }
     }
@@ -122,6 +125,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Overdrive(block) => block.output_count(),
 
             // MODULATORS
+            BlockType::Envelope(block) => block.output_count(),
             BlockType::Lfo(block) => block.output_count(),
         }
     }
@@ -141,6 +145,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Overdrive(block) => block.modulation_outputs(),
 
             // MODULATORS
+            BlockType::Envelope(block) => block.modulation_outputs(),
             BlockType::Lfo(block) => block.modulation_outputs(),
         }
     }
@@ -157,6 +162,10 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => match parameter_name.to_lowercase().as_str() {
                 "frequency" => {
                     block.frequency = parameter;
+                    Ok(())
+                }
+                "pitch_offset" => {
+                    block.pitch_offset = parameter;
                     Ok(())
                 }
                 _ => Err(format!("Unknown oscillator parameter: {parameter_name}")),
@@ -176,6 +185,25 @@ impl<S: Sample> BlockType<S> {
             },
 
             // MODULATORS
+            BlockType::Envelope(block) => match parameter_name.to_lowercase().as_str() {
+                "attack" => {
+                    block.attack = parameter;
+                    Ok(())
+                }
+                "decay" => {
+                    block.decay = parameter;
+                    Ok(())
+                }
+                "sustain" => {
+                    block.sustain = parameter;
+                    Ok(())
+                }
+                "release" => {
+                    block.release = parameter;
+                    Ok(())
+                }
+                _ => Err(format!("Unknown envelope parameter: {parameter_name}")),
+            },
             BlockType::Lfo(block) => match parameter_name.to_lowercase().as_str() {
                 "frequency" => {
                     block.frequency = parameter;

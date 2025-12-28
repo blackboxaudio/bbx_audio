@@ -6,7 +6,7 @@ use crate::{
         effectors::overdrive::OverdriveBlock,
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
-        modulators::lfo::LfoBlock,
+        modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
     },
     buffer::{AudioBuffer, Buffer},
     context::DspContext,
@@ -298,6 +298,18 @@ impl<S: Sample> GraphBuilder<S> {
     }
 
     // MODULATORS
+
+    /// Add an `EnvelopeBlock` to the `Graph`, which is useful for ADSR-style
+    /// amplitude or parameter modulation.
+    pub fn add_envelope(&mut self, attack: f64, decay: f64, sustain: f64, release: f64) -> BlockId {
+        let block = BlockType::Envelope(EnvelopeBlock::new(
+            S::from_f64(attack),
+            S::from_f64(decay),
+            S::from_f64(sustain.clamp(0.0, 1.0)),
+            S::from_f64(release),
+        ));
+        self.graph.add_block(block)
+    }
 
     /// Add an `LfoBlock` to the `Graph`, which is useful when wanting to
     /// modulate one or more `Parameter`s of one or more blocks.

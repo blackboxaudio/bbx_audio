@@ -10,15 +10,13 @@ mod handle;
 mod params;
 
 pub use audio::bbx_graph_process;
-pub use handle::BbxGraph;
-pub use params::*;
-
 use bbx_core::BbxError;
-use bbx_midi::MidiMessage;
-use handle::{graph_from_handle, handle_from_graph, GraphInner};
-
 // Re-export types needed by C code
 pub use bbx_core::BbxError as BbxErrorCode;
+use bbx_midi::MidiMessage;
+pub use handle::BbxGraph;
+use handle::{GraphInner, graph_from_handle, handle_from_graph};
+pub use params::*;
 
 // ============================================================================
 // Lifecycle Functions
@@ -61,8 +59,12 @@ pub extern "C" fn bbx_graph_destroy(handle: *mut BbxGraph) {
 /// # Returns
 ///
 /// `BbxError::Ok` on success, or an error code on failure.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer from `bbx_graph_create`, or null.
 #[unsafe(no_mangle)]
-pub extern "C" fn bbx_graph_prepare(
+pub unsafe extern "C" fn bbx_graph_prepare(
     handle: *mut BbxGraph,
     sample_rate: f64,
     buffer_size: u32,
@@ -90,8 +92,12 @@ pub extern "C" fn bbx_graph_prepare(
 ///
 /// Clears all voice state, MIDI buffers, and resets DSP blocks
 /// (e.g., clears delay lines, resets oscillator phases).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer from `bbx_graph_create`, or null.
 #[unsafe(no_mangle)]
-pub extern "C" fn bbx_graph_reset(handle: *mut BbxGraph) -> BbxError {
+pub unsafe extern "C" fn bbx_graph_reset(handle: *mut BbxGraph) -> BbxError {
     if handle.is_null() {
         return BbxError::NullPointer;
     }
@@ -153,8 +159,12 @@ pub unsafe extern "C" fn bbx_graph_add_midi_events(
 /// Clear accumulated MIDI events.
 ///
 /// Call this after processing to clear the MIDI buffer for the next block.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer from `bbx_graph_create`, or null.
 #[unsafe(no_mangle)]
-pub extern "C" fn bbx_graph_clear_midi(handle: *mut BbxGraph) {
+pub unsafe extern "C" fn bbx_graph_clear_midi(handle: *mut BbxGraph) {
     if !handle.is_null() {
         unsafe {
             let inner = graph_from_handle(handle);

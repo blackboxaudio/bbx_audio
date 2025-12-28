@@ -3,7 +3,7 @@
 //! This module provides the main audio processing function that bridges
 //! JUCE's processBlock to the Rust DSP graph.
 
-use crate::handle::{graph_from_handle, BbxGraph, GraphInner};
+use crate::handle::{BbxGraph, GraphInner, graph_from_handle};
 
 /// Process a block of audio.
 ///
@@ -68,10 +68,10 @@ pub unsafe extern "C" fn bbx_graph_process(
         const MAX_CHANNELS: usize = 8;
         let mut output_slices: [Option<&mut [f32]>; MAX_CHANNELS] = Default::default();
 
-        for i in 0..num_channels.min(MAX_CHANNELS) {
+        for (i, slot) in output_slices.iter_mut().enumerate().take(num_channels.min(MAX_CHANNELS)) {
             let ptr = *outputs.add(i);
             if !ptr.is_null() {
-                output_slices[i] = Some(std::slice::from_raw_parts_mut(ptr, num_samples));
+                *slot = Some(std::slice::from_raw_parts_mut(ptr, num_samples));
             }
         }
 
