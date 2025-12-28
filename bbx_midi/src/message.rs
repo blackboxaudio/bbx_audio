@@ -5,6 +5,11 @@ use std::{
 
 const NOTES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
+/// Represents a parsed MIDI message.
+///
+/// Uses `#[repr(C)]` for C-compatible memory layout, enabling FFI usage.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
 pub struct MidiMessage {
     channel: u8,
     status: MidiMessageStatus,
@@ -12,16 +17,20 @@ pub struct MidiMessage {
     data_2: u8,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+/// MIDI message status byte types.
+///
+/// Uses `#[repr(C)]` for C-compatible memory layout, enabling FFI usage.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum MidiMessageStatus {
-    Unknown,
-    NoteOff,
-    NoteOn,
-    PolyphonicAftertouch,
-    ControlChange,
-    ProgramChange,
-    ChannelAftertouch,
-    PitchWheel,
+    Unknown = 0,
+    NoteOff = 1,
+    NoteOn = 2,
+    PolyphonicAftertouch = 3,
+    ControlChange = 4,
+    ProgramChange = 5,
+    ChannelAftertouch = 6,
+    PitchWheel = 7,
 }
 
 impl From<u8> for MidiMessageStatus {

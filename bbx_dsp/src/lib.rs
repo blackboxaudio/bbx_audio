@@ -11,5 +11,8 @@ pub mod graph;
 pub mod parameter;
 pub mod reader;
 pub mod sample;
+pub mod voice;
 pub mod waveform;
 pub mod writer;
+
+pub use voice::VoiceState;

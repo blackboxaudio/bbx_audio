@@ -1,0 +1,17 @@
+[package]
+name = "bbx_ffi"
+version = "0.1.0"
+edition = "2024"
+description = "C FFI bindings for bbx_audio DSP library"
+license = "MIT"
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+bbx_core = { path = "../bbx_core" }
+bbx_dsp = { path = "../bbx_dsp" }
+bbx_midi = { path = "../bbx_midi" }
+
+# cbindgen is not used as a build dependency because it doesn't fully
+# support Rust 2024's #[unsafe(no_mangle)]. The C header is maintained manually.

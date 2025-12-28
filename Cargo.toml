@@ -1,7 +1,9 @@
 [workspace]
+resolver = "3"
 members = [
     "bbx_core",
     "bbx_dsp",
+    "bbx_ffi",
     "bbx_file",
     "bbx_midi",
     "bbx_sandbox",
