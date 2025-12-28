@@ -1,6 +1,12 @@
 use crate::{
     blocks::{
-        effectors::overdrive::OverdriveBlock,
+        effectors::{
+            channel_router::ChannelRouterBlock,
+            dc_blocker::DcBlockerBlock,
+            gain::GainBlock,
+            overdrive::OverdriveBlock,
+            panner::PannerBlock,
+        },
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
         modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
@@ -56,7 +62,11 @@ pub enum BlockType<S: Sample> {
     Oscillator(OscillatorBlock<S>),
 
     // EFFECTORS
+    ChannelRouter(ChannelRouterBlock<S>),
+    DcBlocker(DcBlockerBlock<S>),
+    Gain(GainBlock<S>),
     Overdrive(OverdriveBlock<S>),
+    Panner(PannerBlock<S>),
 
     // MODULATORS
     Envelope(EnvelopeBlock<S>),
@@ -82,7 +92,11 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.process(inputs, outputs, modulation_values, context),
 
             // EFFECTORS
+            BlockType::ChannelRouter(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::DcBlocker(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::Gain(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Overdrive(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::Panner(block) => block.process(inputs, outputs, modulation_values, context),
 
             // MODULATORS
             BlockType::Envelope(block) => block.process(inputs, outputs, modulation_values, context),
@@ -102,7 +116,11 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.input_count(),
 
             // EFFECTORS
+            BlockType::ChannelRouter(block) => block.input_count(),
+            BlockType::DcBlocker(block) => block.input_count(),
+            BlockType::Gain(block) => block.input_count(),
             BlockType::Overdrive(block) => block.input_count(),
+            BlockType::Panner(block) => block.input_count(),
 
             // MODULATORS
             BlockType::Envelope(block) => block.input_count(),
@@ -122,7 +140,11 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.output_count(),
 
             // EFFECTORS
+            BlockType::ChannelRouter(block) => block.output_count(),
+            BlockType::DcBlocker(block) => block.output_count(),
+            BlockType::Gain(block) => block.output_count(),
             BlockType::Overdrive(block) => block.output_count(),
+            BlockType::Panner(block) => block.output_count(),
 
             // MODULATORS
             BlockType::Envelope(block) => block.output_count(),
@@ -142,7 +164,11 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.modulation_outputs(),
 
             // EFFECTORS
+            BlockType::ChannelRouter(block) => block.modulation_outputs(),
+            BlockType::DcBlocker(block) => block.modulation_outputs(),
+            BlockType::Gain(block) => block.modulation_outputs(),
             BlockType::Overdrive(block) => block.modulation_outputs(),
+            BlockType::Panner(block) => block.modulation_outputs(),
 
             // MODULATORS
             BlockType::Envelope(block) => block.modulation_outputs(),
@@ -172,6 +198,15 @@ impl<S: Sample> BlockType<S> {
             },
 
             // EFFECTORS
+            BlockType::ChannelRouter(_) => Err("Channel router uses direct field access, not Parameter<S>".to_string()),
+            BlockType::DcBlocker(_) => Err("DC blocker uses direct field access, not Parameter<S>".to_string()),
+            BlockType::Gain(block) => match parameter_name.to_lowercase().as_str() {
+                "level" | "level_db" => {
+                    block.level_db = parameter;
+                    Ok(())
+                }
+                _ => Err(format!("Unknown gain parameter: {parameter_name}")),
+            },
             BlockType::Overdrive(block) => match parameter_name.to_lowercase().as_str() {
                 "drive" => {
                     block.drive = parameter;
@@ -182,6 +217,13 @@ impl<S: Sample> BlockType<S> {
                     Ok(())
                 }
                 _ => Err(format!("Unknown overdrive parameter: {parameter_name}")),
+            },
+            BlockType::Panner(block) => match parameter_name.to_lowercase().as_str() {
+                "position" | "pan" => {
+                    block.position = parameter;
+                    Ok(())
+                }
+                _ => Err(format!("Unknown panner parameter: {parameter_name}")),
             },
 
             // MODULATORS

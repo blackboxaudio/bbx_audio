@@ -2,36 +2,48 @@
 //!
 //! These constants define the indices into the flat parameter array
 //! passed from C++ to Rust during audio processing.
+//!
+//! Parameters match those defined in `template-plugin/parameters.json`.
 
-/// Oscillator base frequency in Hz.
-pub const PARAM_OSC_FREQUENCY: usize = 0;
+/// Invert left channel phase (0.0 = off, 1.0 = on).
+pub const PARAM_INVERT_LEFT: usize = 0;
 
-/// Oscillator pitch offset in semitones.
-pub const PARAM_OSC_PITCH_OFFSET: usize = 1;
+/// Invert right channel phase (0.0 = off, 1.0 = on).
+pub const PARAM_INVERT_RIGHT: usize = 1;
 
-/// Envelope attack time in seconds.
-pub const PARAM_ENV_ATTACK: usize = 2;
+/// Channel routing mode (0 = Stereo, 1 = Left, 2 = Right, 3 = Swap).
+pub const PARAM_CHANNEL_MODE: usize = 2;
 
-/// Envelope decay time in seconds.
-pub const PARAM_ENV_DECAY: usize = 3;
+/// Sum to mono (0.0 = off, 1.0 = on).
+pub const PARAM_MONO: usize = 3;
 
-/// Envelope sustain level (0.0 to 1.0).
-pub const PARAM_ENV_SUSTAIN: usize = 4;
+/// Gain level in dB (-60 to +30).
+pub const PARAM_GAIN: usize = 4;
 
-/// Envelope release time in seconds.
-pub const PARAM_ENV_RELEASE: usize = 5;
+/// Pan position (-100 to +100).
+pub const PARAM_PAN: usize = 5;
 
-/// LFO frequency in Hz.
-pub const PARAM_LFO_FREQUENCY: usize = 6;
-
-/// LFO depth (0.0 to 1.0).
-pub const PARAM_LFO_DEPTH: usize = 7;
-
-/// Overdrive drive amount.
-pub const PARAM_DRIVE: usize = 8;
-
-/// Output level (0.0 to 1.0).
-pub const PARAM_LEVEL: usize = 9;
+/// DC offset removal enabled (0.0 = off, 1.0 = on).
+pub const PARAM_DC_OFFSET: usize = 6;
 
 /// Total number of parameters.
-pub const PARAM_COUNT: usize = 10;
+pub const PARAM_COUNT: usize = 7;
+
+/// Default parameter values loaded from parameters.json at build time.
+#[derive(Debug, Clone)]
+pub struct ParamDefaults {
+    pub invert_left: bool,
+    pub invert_right: bool,
+    pub channel_mode: i32,
+    pub mono: bool,
+    pub gain_db: f32,
+    pub pan: f32,
+    pub dc_offset: bool,
+}
+
+/// Get the default parameter values.
+///
+/// These are generated at build time from `template-plugin/parameters.json`.
+pub fn default_params() -> ParamDefaults {
+    include!(concat!(env!("OUT_DIR"), "/param_defaults.rs"))
+}

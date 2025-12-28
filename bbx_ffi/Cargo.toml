@@ -13,5 +13,9 @@ bbx_core = { path = "../bbx_core" }
 bbx_dsp = { path = "../bbx_dsp" }
 bbx_midi = { path = "../bbx_midi" }
 
+[build-dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
 # cbindgen is not used as a build dependency because it doesn't fully
 # support Rust 2024's #[unsafe(no_mangle)]. The C header is maintained manually.
