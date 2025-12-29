@@ -6,6 +6,8 @@
 
 A Rust workspace for audio DSP with C FFI bindings for JUCE plugin integration.
 
+> :warning: These crates are still in early development. Expect breaking changes in some releases.
+
 ## Crates
 
 | Crate | Description |

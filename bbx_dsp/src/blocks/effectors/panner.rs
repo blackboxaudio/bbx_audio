@@ -7,7 +7,7 @@ use crate::{
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
-    smoothing::SmoothedValue,
+    smoothing::LinearSmoothedValue,
 };
 
 /// A stereo panner block with constant power pan law.
@@ -18,7 +18,7 @@ pub struct PannerBlock<S: Sample> {
     pub position: Parameter<S>,
 
     /// Smoothed position value for click-free panning.
-    position_smoother: SmoothedValue,
+    position_smoother: LinearSmoothedValue,
 
     _phantom: PhantomData<S>,
 }
@@ -28,7 +28,7 @@ impl<S: Sample> PannerBlock<S> {
     pub fn new(position: S) -> Self {
         Self {
             position: Parameter::Constant(position),
-            position_smoother: SmoothedValue::new(position.to_f64()),
+            position_smoother: LinearSmoothedValue::new(position.to_f64() as f32),
             _phantom: PhantomData,
         }
     }
@@ -55,15 +55,15 @@ impl<S: Sample> PannerBlock<S> {
 }
 
 impl<S: Sample> Block<S> for PannerBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
+    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], _context: &DspContext) {
         if inputs.is_empty() || outputs.is_empty() {
             return;
         }
 
         // Get target position and set up smoothing
-        let target_position = self.position.get_value(modulation_values).to_f64();
-        if (target_position - self.position_smoother.target()).abs() > 1e-10 {
-            self.position_smoother.set_target(target_position, context.buffer_size);
+        let target_position = self.position.get_value(modulation_values).to_f64() as f32;
+        if (target_position - self.position_smoother.target()).abs() > 1e-6 {
+            self.position_smoother.set_target_value(target_position);
         }
 
         let left_in = inputs[0];
@@ -72,7 +72,7 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
         let num_samples = left_in.len().min(outputs.first().map(|o| o.len()).unwrap_or(0));
 
         for i in 0..num_samples {
-            let position = self.position_smoother.next_value();
+            let position = self.position_smoother.get_next_value() as f64;
             let (left_gain, right_gain) = self.calculate_gains(position);
 
             let l = left_in[i].to_f64();

@@ -7,7 +7,7 @@ use crate::{
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
-    smoothing::SmoothedValue,
+    smoothing::LinearSmoothedValue,
 };
 
 /// A gain control block that applies amplitude scaling.
@@ -18,7 +18,7 @@ pub struct GainBlock<S: Sample> {
     pub level_db: Parameter<S>,
 
     /// Smoothed linear gain value for click-free parameter changes.
-    gain_smoother: SmoothedValue,
+    gain_smoother: LinearSmoothedValue,
 
     _phantom: PhantomData<S>,
 }
@@ -36,7 +36,7 @@ impl<S: Sample> GainBlock<S> {
 
         Self {
             level_db: Parameter::Constant(level_db),
-            gain_smoother: SmoothedValue::new(initial_gain),
+            gain_smoother: LinearSmoothedValue::new(initial_gain as f32),
             _phantom: PhantomData,
         }
     }
@@ -58,11 +58,11 @@ impl<S: Sample> Block<S> for GainBlock<S> {
     fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
         // Get target gain and set up smoothing
         let level_db = self.level_db.get_value(modulation_values).to_f64();
-        let target_gain = Self::db_to_linear(level_db);
+        let target_gain = Self::db_to_linear(level_db) as f32;
 
         // Only update smoother if target changed
-        if (target_gain - self.gain_smoother.target()).abs() > 1e-10 {
-            self.gain_smoother.set_target(target_gain, context.buffer_size);
+        if (target_gain - self.gain_smoother.target()).abs() > 1e-6 {
+            self.gain_smoother.set_target_value(target_gain);
         }
 
         for (ch, input) in inputs.iter().enumerate() {
@@ -77,15 +77,13 @@ impl<S: Sample> Block<S> for GainBlock<S> {
                 if i >= outputs[ch].len() {
                     break;
                 }
-                let gain = channel_smoother.next_value();
-                outputs[ch][i] = S::from_f64(sample.to_f64() * gain);
+                let gain = channel_smoother.get_next_value();
+                outputs[ch][i] = S::from_f64(sample.to_f64() * gain as f64);
             }
         }
 
         // Advance the main smoother by buffer_size samples
-        for _ in 0..context.buffer_size {
-            self.gain_smoother.next_value();
-        }
+        self.gain_smoother.skip(context.buffer_size as i32);
     }
 
     #[inline]

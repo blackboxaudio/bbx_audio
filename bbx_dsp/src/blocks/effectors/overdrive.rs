@@ -7,7 +7,7 @@ use crate::{
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
-    smoothing::SmoothedValue,
+    smoothing::LinearSmoothedValue,
 };
 
 /// Used for applying an overdrive effect from another source block.
@@ -20,9 +20,9 @@ pub struct OverdriveBlock<S: Sample> {
     filter_coefficient: f64,
 
     /// Smoothed drive value for click-free changes.
-    drive_smoother: SmoothedValue,
+    drive_smoother: LinearSmoothedValue,
     /// Smoothed level value for click-free changes.
-    level_smoother: SmoothedValue,
+    level_smoother: LinearSmoothedValue,
 
     _phantom_data: PhantomData<S>,
 }
@@ -39,8 +39,8 @@ impl<S: Sample> OverdriveBlock<S> {
             tone,
             filter_state: 0.0,
             filter_coefficient: 0.0,
-            drive_smoother: SmoothedValue::new(drive_val),
-            level_smoother: SmoothedValue::new(level_val),
+            drive_smoother: LinearSmoothedValue::new(drive_val as f32),
+            level_smoother: LinearSmoothedValue::new(level_val as f32),
             _phantom_data: PhantomData,
         };
         overdrive.update_filter(sample_rate);
@@ -75,14 +75,14 @@ impl<S: Sample> OverdriveBlock<S> {
 impl<S: Sample> Block<S> for OverdriveBlock<S> {
     fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
         // Get target values and set up smoothing
-        let target_drive = self.drive.get_value(modulation_values).to_f64();
-        let target_level = self.level.get_value(modulation_values).to_f64().clamp(0.0, 1.0);
+        let target_drive = self.drive.get_value(modulation_values).to_f64() as f32;
+        let target_level = self.level.get_value(modulation_values).to_f64().clamp(0.0, 1.0) as f32;
 
-        if (target_drive - self.drive_smoother.target()).abs() > 1e-10 {
-            self.drive_smoother.set_target(target_drive, context.buffer_size);
+        if (target_drive - self.drive_smoother.target()).abs() > 1e-6 {
+            self.drive_smoother.set_target_value(target_drive);
         }
-        if (target_level - self.level_smoother.target()).abs() > 1e-10 {
-            self.level_smoother.set_target(target_level, context.buffer_size);
+        if (target_level - self.level_smoother.target()).abs() > 1e-6 {
+            self.level_smoother.set_target_value(target_level);
         }
 
         for (input_index, input_buffer) in inputs.iter().enumerate() {
@@ -91,8 +91,8 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
             let mut level_sm = self.level_smoother.clone();
 
             for (sample_index, sample_value) in input_buffer.iter().enumerate() {
-                let drive = drive_sm.next_value();
-                let level = level_sm.next_value();
+                let drive = drive_sm.get_next_value() as f64;
+                let level = level_sm.get_next_value() as f64;
 
                 let driven = sample_value.to_f64() * drive;
                 let clipped = self.asymmetric_saturation(driven);
@@ -105,10 +105,8 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
         }
 
         // Advance main smoothers
-        for _ in 0..context.buffer_size {
-            self.drive_smoother.next_value();
-            self.level_smoother.next_value();
-        }
+        self.drive_smoother.skip(context.buffer_size as i32);
+        self.level_smoother.skip(context.buffer_size as i32);
     }
 
     #[inline]
