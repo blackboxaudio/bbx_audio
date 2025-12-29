@@ -6,6 +6,10 @@
 pub mod denormal;
 pub mod error;
 pub mod random;
+pub mod spsc;
+pub mod stack_vec;
 
 pub use denormal::{flush_denormal_f32, flush_denormal_f64};
 pub use error::{BbxError, Result};
+pub use spsc::{Consumer, Producer, SpscRingBuffer};
+pub use stack_vec::StackVec;

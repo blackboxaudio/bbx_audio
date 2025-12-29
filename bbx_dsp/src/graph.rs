@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use bbx_core::StackVec;
+
 use crate::{
     block::{BlockId, BlockType},
     blocks::{
@@ -16,6 +18,11 @@ use crate::{
     waveform::Waveform,
     writer::Writer,
 };
+
+/// Maximum number of inputs a block can have (realtime-safe stack allocation).
+const MAX_BLOCK_INPUTS: usize = 8;
+/// Maximum number of outputs a block can have (realtime-safe stack allocation).
+const MAX_BLOCK_OUTPUTS: usize = 8;
 
 /// Used for storing information about which blocks are connected
 /// and in what way.
@@ -183,11 +190,16 @@ impl<S: Sample> Graph<S> {
         // Use pre-computed input buffer indices (O(1) lookup instead of O(n) scan)
         let input_indices = &self.block_input_buffers[block_id.0];
 
-        let mut output_indices = Vec::new();
+        // Build output indices using stack allocation (no heap allocation)
+        let mut output_indices: StackVec<usize, MAX_BLOCK_OUTPUTS> = StackVec::new();
         let output_count = self.blocks[block_id.0].output_count();
+        debug_assert!(
+            output_count <= MAX_BLOCK_OUTPUTS,
+            "Block output count {output_count} exceeds MAX_BLOCK_OUTPUTS {MAX_BLOCK_OUTPUTS}"
+        );
         for output_index in 0..output_count {
             let buffer_index = self.get_buffer_index(block_id, output_index);
-            output_indices.push(buffer_index);
+            output_indices.push_unchecked(buffer_index);
         }
 
         // SAFETY: Our buffer indexing guarantees that:
@@ -198,24 +210,32 @@ impl<S: Sample> Graph<S> {
         unsafe {
             let buffers_ptr = self.audio_buffers.as_mut_ptr();
 
-            let input_slices: Vec<&[S]> = input_indices
-                .iter()
-                .map(|&index| {
-                    let buffer_ptr = buffers_ptr.add(index);
-                    std::slice::from_raw_parts((&*buffer_ptr).as_ptr(), (&*buffer_ptr).len())
-                })
-                .collect();
-            let mut output_slices: Vec<&mut [S]> = output_indices
-                .into_iter()
-                .map(|index| {
-                    let buffer_ptr = buffers_ptr.add(index);
-                    std::slice::from_raw_parts_mut((&mut *buffer_ptr).as_mut_ptr(), (&*buffer_ptr).len())
-                })
-                .collect();
+            // Build input slices using stack allocation (no heap allocation)
+            let mut input_slices: StackVec<&[S], MAX_BLOCK_INPUTS> = StackVec::new();
+            let input_count = input_indices.len();
+            debug_assert!(
+                input_count <= MAX_BLOCK_INPUTS,
+                "Block input count {input_count} exceeds MAX_BLOCK_INPUTS {MAX_BLOCK_INPUTS}"
+            );
+            for &index in input_indices {
+                let buffer_ptr = buffers_ptr.add(index);
+                let slice = std::slice::from_raw_parts((*buffer_ptr).as_ptr(), (*buffer_ptr).len());
+                // SAFETY: We verified input_indices.len() <= MAX_BLOCK_INPUTS via debug_assert
+                input_slices.push_unchecked(slice);
+            }
+
+            // Build output slices using stack allocation (no heap allocation)
+            let mut output_slices: StackVec<&mut [S], MAX_BLOCK_OUTPUTS> = StackVec::new();
+            for &index in output_indices.as_slice() {
+                let buffer_ptr = buffers_ptr.add(index);
+                let slice = std::slice::from_raw_parts_mut((*buffer_ptr).as_mut_ptr(), (*buffer_ptr).len());
+                // SAFETY: output_indices.len() <= MAX_BLOCK_OUTPUTS (already verified above)
+                output_slices.push_unchecked(slice);
+            }
 
             self.blocks[block_id.0].process(
-                &input_slices,
-                &mut output_slices,
+                input_slices.as_slice(),
+                output_slices.as_mut_slice(),
                 &self.modulation_values,
                 &self.context,
             );
@@ -362,6 +382,11 @@ impl<S: Sample> GraphBuilder<S> {
     }
 
     /// Prepare the final DSP `Graph`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any block has more inputs or outputs than the realtime-safe
+    /// limits (`MAX_BLOCK_INPUTS` or `MAX_BLOCK_OUTPUTS`).
     pub fn build(mut self) -> Graph<S> {
         // TODO: Fix this logic to work with ALL last blocks that do not yet have an output
         // Currently this logic would make so that if multiple oscillators are used, only
@@ -374,6 +399,23 @@ impl<S: Sample> GraphBuilder<S> {
         }
 
         self.graph.prepare_for_playback();
+
+        // Validate that all blocks are within realtime-safe I/O limits
+        // This must run after prepare_for_playback() to check actual connection counts
+        for (idx, block) in self.graph.blocks.iter().enumerate() {
+            let connected_inputs = self.graph.block_input_buffers[idx].len();
+            let output_count = block.output_count();
+
+            assert!(
+                connected_inputs <= MAX_BLOCK_INPUTS,
+                "Block {idx} has {connected_inputs} connected inputs, exceeding MAX_BLOCK_INPUTS ({MAX_BLOCK_INPUTS})"
+            );
+            assert!(
+                output_count <= MAX_BLOCK_OUTPUTS,
+                "Block {idx} has {output_count} outputs, exceeding MAX_BLOCK_OUTPUTS ({MAX_BLOCK_OUTPUTS})"
+            );
+        }
+
         self.graph
     }
 }
