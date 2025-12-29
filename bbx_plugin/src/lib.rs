@@ -35,14 +35,19 @@ mod handle;
 mod macros;
 pub mod params;
 
-// Re-export the entire bbx_dsp crate so plugin projects only need bbx_plugin
-pub use bbx_dsp;
-pub use bbx_dsp::context::DspContext;
-pub use bbx_dsp::PluginDsp;
+// Re-export the entire `bbx_*` crates as `*` so plugin projects only need bbx_plugin
+pub mod core {
+    pub use bbx_core::*;
+}
+pub mod dsp {
+    pub use bbx_dsp::*;
+}
 
 // Re-export types needed by the macro
+pub use core::BbxError;
+
 pub use audio::process_audio;
-pub use bbx_core::BbxError;
+pub use dsp::{PluginDsp, context::DspContext};
 pub use handle::{BbxGraph, GraphInner, graph_from_handle, handle_from_graph};
 // Re-export parameter utilities
 pub use params::{
