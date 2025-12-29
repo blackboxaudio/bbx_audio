@@ -1,3 +1,8 @@
+//! DSP block system.
+//!
+//! This module defines the [`Block`] trait for DSP processing units and
+//! [`BlockType`] for type-erased block storage in the graph.
+
 use crate::{
     blocks::{
         effectors::{
@@ -28,45 +33,75 @@ pub(crate) const DEFAULT_MODULATOR_INPUT_COUNT: usize = 0;
 /// Default output count for `Modulator`s.
 pub(crate) const DEFAULT_MODULATOR_OUTPUT_COUNT: usize = 1;
 
-/// Used to identify and find blocks within a DSP `Graph`.
+/// A unique identifier for a block within a DSP graph.
+///
+/// Used to reference blocks when creating connections or setting up modulation.
+/// The inner `usize` is the block's index in the graph's block list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockId(pub usize);
 
-/// Describes a structure for a particular DSP operation.
+/// The core trait for DSP processing units.
+///
+/// A block represents a single DSP operation (oscillator, filter, gain, etc.)
+/// that processes audio buffers. Blocks are connected together in a [`Graph`](crate::graph::Graph)
+/// to form a complete signal processing chain.
 pub trait Block<S: Sample> {
-    /// Perform the calculation of a particular `Block`.
+    /// Process audio through this block.
+    ///
+    /// # Arguments
+    ///
+    /// * `inputs` - Slice of input buffer references, one per input port
+    /// * `outputs` - Slice of mutable output buffer references, one per output port
+    /// * `modulation_values` - Values from connected modulator blocks, indexed by [`BlockId`]
+    /// * `context` - The DSP context with sample rate and timing info
     fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext);
 
-    /// Get the input count of a `Block`.
+    /// Returns the number of input ports this block accepts.
     fn input_count(&self) -> usize;
 
-    /// Get the output count of a `Block`.
+    /// Returns the number of output ports this block produces.
     fn output_count(&self) -> usize;
 
-    /// Get the modulation outputs (if any) of a `Block`.
+    /// Returns the modulation outputs this block provides.
+    ///
+    /// Only modulator blocks (LFOs, envelopes) return non-empty slices.
+    /// Generator and effector blocks return an empty slice.
     fn modulation_outputs(&self) -> &[ModulationOutput];
 }
 
-/// Supported types of blocks i.e. DSP operations
-/// that can be used within a `Graph`.
+/// Type-erased container for all block implementations.
+///
+/// Wraps concrete block types so they can be stored uniformly in a graph.
+/// Each variant corresponds to a specific DSP block type.
 pub enum BlockType<S: Sample> {
     // I/O
+    /// Reads audio from a file via a [`Reader`](crate::reader::Reader).
     FileInput(FileInputBlock<S>),
+    /// Writes audio to a file via a [`Writer`](crate::writer::Writer).
     FileOutput(FileOutputBlock<S>),
+    /// Terminal output block that collects final audio.
     Output(OutputBlock<S>),
 
     // GENERATORS
+    /// Waveform oscillator (sine, saw, square, triangle).
     Oscillator(OscillatorBlock<S>),
 
     // EFFECTORS
+    /// Routes channels (mono to stereo, stereo to mono, etc.).
     ChannelRouter(ChannelRouterBlock<S>),
+    /// Removes DC offset from the signal.
     DcBlocker(DcBlockerBlock<S>),
+    /// Adjusts signal level in decibels.
     Gain(GainBlock<S>),
+    /// Asymmetric soft-clipping distortion.
     Overdrive(OverdriveBlock<S>),
+    /// Stereo panning with equal-power law.
     Panner(PannerBlock<S>),
 
     // MODULATORS
+    /// ADSR envelope generator.
     Envelope(EnvelopeBlock<S>),
+    /// Low-frequency oscillator for modulation.
     Lfo(LfoBlock<S>),
 }
 

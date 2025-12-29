@@ -1,3 +1,5 @@
+//! Overdrive distortion effect block.
+
 use std::marker::PhantomData;
 
 use bbx_core::flush_denormal_f64;
@@ -10,9 +12,16 @@ use crate::{
     smoothing::LinearSmoothedValue,
 };
 
-/// Used for applying an overdrive effect from another source block.
+/// An overdrive distortion effect with asymmetric soft clipping.
+///
+/// Uses hyperbolic tangent saturation with different curves for positive
+/// and negative signal halves, creating a warm, tube-like distortion character.
+/// Includes a one-pole lowpass filter for tone control.
 pub struct OverdriveBlock<S: Sample> {
+    /// Drive amount (gain before clipping, typically 1.0-10.0).
     pub drive: Parameter<S>,
+
+    /// Output level (0.0-1.0).
     pub level: Parameter<S>,
 
     tone: f64,

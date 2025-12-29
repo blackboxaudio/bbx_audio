@@ -1,3 +1,5 @@
+//! ADSR envelope generator block.
+
 use crate::{
     block::{Block, DEFAULT_MODULATOR_INPUT_COUNT, DEFAULT_MODULATOR_OUTPUT_COUNT},
     context::DspContext,
@@ -6,6 +8,8 @@ use crate::{
 };
 
 /// ADSR envelope stages.
+///
+/// The envelope progresses through: Idle -> Attack -> Decay -> Sustain -> Release -> Idle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnvelopeStage {
     Idle,

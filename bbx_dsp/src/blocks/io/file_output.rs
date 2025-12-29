@@ -1,3 +1,5 @@
+//! Audio file output block with non-blocking I/O.
+
 use std::{
     sync::{
         Arc,
@@ -13,7 +15,7 @@ use crate::{block::Block, context::DspContext, parameter::ModulationOutput, samp
 /// Default ring buffer capacity in samples (~1 second at 44.1kHz stereo).
 const DEFAULT_RING_BUFFER_CAPACITY: usize = 44100 * 2;
 
-/// Used for writing i.e. rendering audio files from a DSP `Graph`.
+/// Writes audio from the DSP graph to a file.
 ///
 /// This block uses a separate I/O thread to perform disk writes,
 /// avoiding blocking the audio thread. Samples are passed through

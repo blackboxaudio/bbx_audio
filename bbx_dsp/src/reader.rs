@@ -1,6 +1,14 @@
+//! Audio file reader trait.
+//!
+//! This module defines the [`Reader`] trait for reading audio file data.
+//! Implementations are provided by the `bbx_file` crate (e.g., WAV reader).
+
 use crate::sample::Sample;
 
-/// Describes a component that can read audio files.
+/// Trait for reading audio data from files.
+///
+/// Implementations should load audio data on construction and provide
+/// access to the decoded samples via [`read_channel`](Self::read_channel).
 pub trait Reader<S: Sample>: Send + Sync {
     /// Get the sample rate of the audio file being read.
     fn sample_rate(&self) -> f64;

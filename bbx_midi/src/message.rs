@@ -1,3 +1,5 @@
+//! MIDI message types and parsing.
+
 use std::{
     fmt::{Display, Formatter},
     time::SystemTime,
@@ -5,7 +7,7 @@ use std::{
 
 const NOTES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
-/// Represents a parsed MIDI message.
+/// A parsed MIDI message with channel, status, and data bytes.
 ///
 /// Uses `#[repr(C)]` for C-compatible memory layout, enabling FFI usage.
 #[repr(C)]
@@ -23,13 +25,21 @@ pub struct MidiMessage {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum MidiMessageStatus {
+    /// Unrecognized or system message.
     Unknown = 0,
+    /// Note released (0x80-0x8F).
     NoteOff = 1,
+    /// Note pressed (0x90-0x9F).
     NoteOn = 2,
+    /// Per-note pressure change (0xA0-0xAF).
     PolyphonicAftertouch = 3,
+    /// Controller value change (0xB0-0xBF).
     ControlChange = 4,
+    /// Instrument/patch change (0xC0-0xCF).
     ProgramChange = 5,
+    /// Channel-wide pressure (0xD0-0xDF).
     ChannelAftertouch = 6,
+    /// Pitch bend wheel (0xE0-0xEF).
     PitchWheel = 7,
 }
 
@@ -56,6 +66,7 @@ impl From<u8> for MidiMessageStatus {
 }
 
 impl MidiMessage {
+    /// Create a new MIDI message from raw bytes.
     pub fn new(bytes: [u8; 3]) -> Self {
         MidiMessage {
             channel: (bytes[0] & 0x0F) + 1,
@@ -67,10 +78,12 @@ impl MidiMessage {
 }
 
 impl MidiMessage {
+    /// Get the message status type.
     pub fn get_status(&self) -> MidiMessageStatus {
         self.status
     }
 
+    /// Get the MIDI channel (1-16).
     pub fn get_channel(&self) -> u8 {
         self.channel
     }
@@ -87,6 +100,7 @@ impl MidiMessage {
         }
     }
 
+    /// Get the note name (e.g., "C4", "F#3") for note messages.
     pub fn get_note(&self) -> Option<String> {
         let note_number = self.get_note_number()?;
         // Determine the note name (C, C#, D, etc.)
@@ -100,27 +114,33 @@ impl MidiMessage {
         Some(format!("{note_name}{octave}"))
     }
 
+    /// Get the note frequency in Hz (A4 = 440 Hz) for note messages.
     pub fn get_note_frequency(&self) -> Option<f32> {
         let note_number = self.get_note_number()?;
         Some(440.0 * 2.0f32.powf((note_number as f32 - 69.0) / 12.0))
     }
 
+    /// Get the MIDI note number (0-127) for note messages.
     pub fn get_note_number(&self) -> Option<u8> {
         self.get_data(1, &[MidiMessageStatus::NoteOn, MidiMessageStatus::NoteOff])
     }
 
+    /// Get the velocity (0-127) for note messages.
     pub fn get_velocity(&self) -> Option<u8> {
         self.get_data(2, &[MidiMessageStatus::NoteOn, MidiMessageStatus::NoteOff])
     }
 
+    /// Get the pressure value (0-127) for polyphonic aftertouch.
     pub fn get_pressure(&self) -> Option<u8> {
         self.get_data(2, &[MidiMessageStatus::PolyphonicAftertouch])
     }
 
+    /// Get the control value (0-127) for control change messages.
     pub fn get_control_change_data(&self) -> Option<u8> {
         self.get_data(2, &[MidiMessageStatus::ControlChange])
     }
 
+    /// Get the pitch wheel data (LSB, MSB) for pitch bend messages.
     pub fn get_pitch_wheel_data(&self) -> Option<(u8, u8)> {
         let least_significant_byte = self.get_data(1, &[MidiMessageStatus::PitchWheel])?;
         let most_significant_byte = self.get_data(2, &[MidiMessageStatus::PitchWheel])?;

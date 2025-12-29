@@ -1,3 +1,5 @@
+//! WAV file writer via hound.
+
 use std::{error::Error, fs::File, io::BufWriter, path::Path};
 
 use bbx_dsp::{
@@ -10,8 +12,10 @@ use hound::{SampleFormat, WavSpec, WavWriter};
 
 const BIT_DEPTH: u16 = 32;
 
-/// Used for writing audio files via the
-/// `FileOutputBlock` component within the `bbx_dsp` crate.
+/// A WAV file writer implementing [`Writer`].
+///
+/// Writes 32-bit floating point WAV files. Call [`finalize`](Writer::finalize)
+/// when done to ensure proper file closure.
 pub struct WavFileWriter<S: Sample> {
     writer: Option<WavWriter<BufWriter<File>>>,
     sample_rate: f64,

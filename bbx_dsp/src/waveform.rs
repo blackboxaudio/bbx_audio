@@ -1,14 +1,23 @@
+//! Waveform types and generation.
+//!
+//! This module defines standard waveform shapes used by oscillators and LFOs.
+
 use bbx_core::random::XorShiftRng;
 
-/// Supported types of waveforms, which is useful for components
-/// like oscillators and LFOs.
+/// Standard waveform shapes for oscillators and LFOs.
 #[derive(Debug, Clone, Copy)]
 pub enum Waveform {
+    /// Pure tone with no harmonics.
     Sine,
+    /// Rich in odd harmonics, bright and buzzy.
     Square,
+    /// Contains all harmonics, bright and cutting.
     Sawtooth,
+    /// Soft, flute-like tone with odd harmonics.
     Triangle,
+    /// Variable duty cycle square wave.
     Pulse,
+    /// Random values for each sample.
     Noise,
 }
 

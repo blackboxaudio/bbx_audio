@@ -1,4 +1,8 @@
 //! Parameter smoothing utilities for click-free parameter changes.
+//!
+//! Provides [`SmoothedValue`] for interpolating between parameter values over time,
+//! avoiding audible clicks when parameters change abruptly. Supports both
+//! [`Linear`] and [`Multiplicative`] (exponential) smoothing strategies.
 
 use std::marker::PhantomData;
 
@@ -12,10 +16,16 @@ fn is_approximately_equal(a: f32, b: f32) -> bool {
 }
 
 /// Marker type for linear smoothing.
+///
+/// Uses additive interpolation: `current + increment`.
+/// Best for parameters with linear perception (e.g., pan position).
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Linear;
 
 /// Marker type for multiplicative (exponential) smoothing.
+///
+/// Uses exponential interpolation: `current * e^increment`.
+/// Best for parameters with logarithmic perception (e.g., gain, frequency).
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Multiplicative;
 

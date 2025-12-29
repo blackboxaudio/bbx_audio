@@ -1,3 +1,12 @@
+//! DSP graph system.
+//!
+//! This module provides [`Graph`] for managing connected DSP blocks and
+//! [`GraphBuilder`] for fluent graph construction.
+//!
+//! Blocks are connected to form a signal processing chain. The graph handles
+//! buffer allocation, execution ordering via topological sort, and modulation
+//! value collection.
+
 use std::collections::HashMap;
 
 use bbx_core::StackVec;
@@ -24,19 +33,26 @@ const MAX_BLOCK_INPUTS: usize = 8;
 /// Maximum number of outputs a block can have (realtime-safe stack allocation).
 const MAX_BLOCK_OUTPUTS: usize = 8;
 
-/// Used for storing information about which blocks are connected
-/// and in what way.
+/// Describes an audio connection between two blocks.
+///
+/// Connects a specific output port of one block to an input port of another.
 #[derive(Debug, Clone)]
 pub struct Connection {
+    /// Source block providing audio.
     pub from: BlockId,
+    /// Output port index on the source block.
     pub from_output: usize,
+    /// Destination block receiving audio.
     pub to: BlockId,
+    /// Input port index on the destination block.
     pub to_input: usize,
 }
 
-/// Used for storing all relevant data about a DSP `Graph`,
-/// including its blocks, `AudioBuffer`s and modulation values for each block,
-/// what order to execute calculations in, and so forth.
+/// A directed acyclic graph of connected DSP blocks.
+///
+/// The graph manages block storage, buffer allocation, and execution ordering.
+/// Blocks are processed in topologically sorted order to ensure dependencies
+/// are satisfied.
 pub struct Graph<S: Sample> {
     blocks: Vec<BlockType<S>>,
     connections: Vec<Connection>,
@@ -120,7 +136,11 @@ impl<S: Sample> Graph<S> {
         })
     }
 
-    /// Prepares the `Graph` to be processed.
+    /// Prepares the graph for audio processing.
+    ///
+    /// Must be called after all blocks are added and connected, but before
+    /// [`process_buffers`](Self::process_buffers). Computes execution order
+    /// and pre-allocates buffers.
     pub fn prepare_for_playback(&mut self) {
         self.execution_order = self.topological_sort();
         self.modulation_values.resize(self.blocks.len(), S::ZERO);
@@ -168,7 +188,10 @@ impl<S: Sample> Graph<S> {
         result
     }
 
-    /// Process the buffers for each of the `Graph`'s blocks.
+    /// Process one buffer's worth of audio through all blocks.
+    ///
+    /// Executes blocks in topologically sorted order, copying final output
+    /// to the provided buffers (one per channel).
     pub fn process_buffers(&mut self, output_buffers: &mut [&mut [S]]) {
         // Clear all buffers
         for buffer in &mut self.audio_buffers {
@@ -281,7 +304,10 @@ impl<S: Sample> Graph<S> {
     }
 }
 
-/// Used for easily constructing a DSP `Graph`.
+/// Fluent builder for constructing DSP graphs.
+///
+/// Provides methods to add blocks, create connections, and set up modulation.
+/// Call [`build`](Self::build) to finalize and prepare the graph.
 pub struct GraphBuilder<S: Sample> {
     graph: Graph<S>,
 }

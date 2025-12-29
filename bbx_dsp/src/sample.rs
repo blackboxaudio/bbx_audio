@@ -1,10 +1,19 @@
+//! Audio sample type abstraction.
+//!
+//! This module defines the [`Sample`] trait, which abstracts over floating-point
+//! types used for audio processing. This allows blocks and graphs to be generic
+//! over sample precision (`f32` or `f64`).
+
 use std::{
     fmt::Debug,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
 };
 
-/// Describes the underlying data type used in audio-related
-/// calculations within the DSP graph.
+/// A floating-point type suitable for audio sample data.
+///
+/// This trait abstracts over `f32` and `f64`, allowing DSP blocks and graphs
+/// to be generic over sample precision. Use `f32` for performance-critical
+/// real-time processing, or `f64` when higher precision is required.
 pub trait Sample:
     Debug
     + Copy
@@ -23,7 +32,10 @@ pub trait Sample:
     + PartialEq
     + 'static
 {
+    /// The zero value for this sample type (silence).
     const ZERO: Self;
+
+    /// The unit value for this sample type (full scale).
     const ONE: Self;
 
     /// Convert from an `f64` value.

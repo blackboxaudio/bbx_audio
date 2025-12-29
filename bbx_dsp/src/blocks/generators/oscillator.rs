@@ -1,3 +1,5 @@
+//! Waveform oscillator block.
+
 use bbx_core::random::XorShiftRng;
 
 use crate::{
@@ -8,9 +10,15 @@ use crate::{
     waveform::{DEFAULT_DUTY_CYCLE, Waveform, generate_waveform_sample},
 };
 
-/// Used for generating the sound of a simple waveform.
+/// A waveform oscillator for generating audio signals.
+///
+/// Supports standard waveforms (sine, square, sawtooth, triangle, pulse, noise).
+/// Frequency can be controlled via parameter modulation or MIDI note messages.
 pub struct OscillatorBlock<S: Sample> {
+    /// Base frequency in Hz (can be modulated).
     pub frequency: Parameter<S>,
+
+    /// Pitch offset in semitones (for pitch bend/modulation).
     pub pitch_offset: Parameter<S>,
 
     base_frequency: S,
@@ -21,6 +29,13 @@ pub struct OscillatorBlock<S: Sample> {
 }
 
 impl<S: Sample> OscillatorBlock<S> {
+    /// Create a new oscillator with the given frequency and waveform.
+    ///
+    /// # Arguments
+    ///
+    /// * `frequency` - Base frequency in Hz
+    /// * `waveform` - The waveform shape to generate
+    /// * `seed` - Optional RNG seed for noise waveform
     pub fn new(frequency: S, waveform: Waveform, seed: Option<u64>) -> Self {
         Self {
             frequency: Parameter::Constant(frequency),

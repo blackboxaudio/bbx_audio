@@ -1,3 +1,5 @@
+//! Low-frequency oscillator (LFO) block for parameter modulation.
+
 use bbx_core::random::XorShiftRng;
 
 use crate::{
@@ -8,10 +10,15 @@ use crate::{
     waveform::{DEFAULT_DUTY_CYCLE, Waveform, generate_waveform_sample},
 };
 
-// TODO: Make sure modulation can be applied to more than one destination.
-/// Used for applying waveform modulation to one or more `Parameter`s of one or more blocks.
+/// A low-frequency oscillator for modulating block parameters.
+///
+/// Generates control signals (typically < 20 Hz) using standard waveforms.
+/// Output range is -depth to +depth, centered at zero.
 pub struct LfoBlock<S: Sample> {
+    /// LFO frequency in Hz (typically 0.01-20 Hz).
     pub frequency: Parameter<S>,
+
+    /// Modulation depth (output amplitude).
     pub depth: Parameter<S>,
 
     phase: f64,
