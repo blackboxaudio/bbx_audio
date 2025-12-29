@@ -32,6 +32,87 @@ Install the following packages:
 sudo apt install alsa libasound2-dev libssl-dev pkg-config
 ```
 
+## JUCE Plugin Integration
+
+`bbx_ffi` provides C FFI bindings for integrating Rust DSP into JUCE audio plugins.
+
+### Quick Start
+
+1. **Create a `dsp/` crate in your JUCE project:**
+
+   ```toml
+   # dsp/Cargo.toml
+   [package]
+   name = "dsp"
+   version = "0.1.0"
+   edition = "2024"
+
+   [lib]
+   crate-type = ["staticlib", "cdylib"]
+
+   [dependencies]
+   bbx_dsp = { git = "https://github.com/blackboxaudio/bbx_audio" }
+   bbx_ffi = { git = "https://github.com/blackboxaudio/bbx_audio" }
+
+   [build-dependencies]
+   serde = { version = "1.0", features = ["derive"] }
+   serde_json = "1.0"
+   ```
+
+2. **Implement `PluginDsp` trait and invoke the macro:**
+
+   ```rust
+   // dsp/src/lib.rs
+   use bbx_dsp::{PluginDsp, context::DspContext};
+   use bbx_ffi::bbx_plugin_ffi;
+
+   pub struct PluginGraph { /* your DSP blocks */ }
+
+   impl Default for PluginGraph {
+       fn default() -> Self { Self::new() }
+   }
+
+   impl PluginDsp for PluginGraph {
+       fn new() -> Self { /* ... */ }
+       fn prepare(&mut self, ctx: &DspContext) { /* ... */ }
+       fn reset(&mut self) { /* ... */ }
+       fn apply_parameters(&mut self, params: &[f32]) { /* ... */ }
+       fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], ctx: &DspContext) { /* ... */ }
+   }
+
+   // Generate all FFI exports
+   bbx_plugin_ffi!(PluginGraph);
+   ```
+
+3. **Add to CMakeLists.txt:**
+
+   ```cmake
+   add_subdirectory(vendor/corrosion)
+   corrosion_import_crate(MANIFEST_PATH dsp/Cargo.toml)
+
+   target_include_directories(${PLUGIN_TARGET} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dsp/include)
+   target_link_libraries(${PLUGIN_TARGET} PRIVATE dsp)
+   ```
+
+4. **Include headers in C++:**
+
+   ```cpp
+   #include <bbx_ffi.h>    // FFI types and functions
+   #include <bbx_params.h> // Generated parameter constants
+   ```
+
+### Local Development
+
+For local development, create `.cargo/config.toml` (gitignored) to override git dependencies with local paths:
+
+```toml
+[patch."https://github.com/blackboxaudio/bbx_audio"]
+bbx_core = { path = "/path/to/bbx_audio/bbx_core" }
+bbx_dsp = { path = "/path/to/bbx_audio/bbx_dsp" }
+bbx_ffi = { path = "/path/to/bbx_audio/bbx_ffi" }
+bbx_midi = { path = "/path/to/bbx_audio/bbx_midi" }
+```
+
 ## Using the Sandbox
 
 To run an example in the sandbox, use the following command:

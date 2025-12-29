@@ -9,10 +9,12 @@ pub mod buffer;
 pub mod context;
 pub mod graph;
 pub mod parameter;
+pub mod plugin;
 pub mod reader;
 pub mod sample;
 pub mod voice;
 pub mod waveform;
 pub mod writer;
 
+pub use plugin::PluginDsp;
 pub use voice::VoiceState;

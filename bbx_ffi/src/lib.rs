@@ -2,106 +2,43 @@
 //!
 //! C FFI bindings for the bbx_audio DSP library.
 //!
-//! This crate provides a C-compatible API for using the Rust effects chain
-//! from C++ code, specifically designed for integration with JUCE audio plugins.
+//! This crate provides a macro-based API for generating C-compatible FFI
+//! functions from any `PluginDsp` implementation. Consumers invoke the
+//! `bbx_plugin_ffi!` macro with their DSP type to generate all exports.
+//!
+//! # Example
+//!
+//! ```ignore
+//! use bbx_dsp::{PluginDsp, context::DspContext};
+//! use bbx_ffi::bbx_plugin_ffi;
+//!
+//! pub struct PluginGraph { /* DSP blocks */ }
+//!
+//! impl PluginDsp for PluginGraph {
+//!     fn new() -> Self { /* ... */ }
+//!     fn prepare(&mut self, context: &DspContext) { /* ... */ }
+//!     fn reset(&mut self) { /* ... */ }
+//!     fn apply_parameters(&mut self, params: &[f32]) { /* ... */ }
+//!     fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], context: &DspContext) { /* ... */ }
+//! }
+//!
+//! impl Default for PluginGraph {
+//!     fn default() -> Self { Self::new() }
+//! }
+//!
+//! // Generate all FFI exports
+//! bbx_plugin_ffi!(PluginGraph);
+//! ```
 
 mod audio;
 mod handle;
-mod params;
+mod macros;
 
-pub use audio::bbx_graph_process;
-use bbx_core::BbxError;
-pub use handle::BbxGraph;
-use handle::{GraphInner, graph_from_handle, handle_from_graph};
-pub use params::*;
+// Re-export types needed by the macro
+pub use audio::process_audio;
+pub use bbx_core::BbxError;
+pub use bbx_dsp::PluginDsp;
+pub use handle::{graph_from_handle, handle_from_graph, BbxGraph, GraphInner};
 
-// ============================================================================
-// Lifecycle Functions
-// ============================================================================
-
-/// Create a new DSP effects chain.
-///
-/// Returns a handle to the effects chain, or null if allocation fails.
-/// The handle must be destroyed with `bbx_graph_destroy` when no longer needed.
-#[unsafe(no_mangle)]
-pub extern "C" fn bbx_graph_create() -> *mut BbxGraph {
-    let inner = Box::new(GraphInner::new());
-    handle_from_graph(inner)
-}
-
-/// Destroy a DSP effects chain and free all associated resources.
-///
-/// Safe to call with a null pointer.
-#[unsafe(no_mangle)]
-pub extern "C" fn bbx_graph_destroy(handle: *mut BbxGraph) {
-    if !handle.is_null() {
-        unsafe {
-            drop(Box::from_raw(handle as *mut GraphInner));
-        }
-    }
-}
-
-/// Prepare the effects chain for playback with the given audio specifications.
-///
-/// This must be called before processing audio, and whenever the
-/// sample rate, buffer size, or channel count changes.
-///
-/// # Parameters
-///
-/// - `handle`: Valid effects chain handle.
-/// - `sample_rate`: Sample rate in Hz (e.g., 44100.0, 48000.0).
-/// - `buffer_size`: Number of samples per buffer.
-/// - `num_channels`: Number of audio channels.
-///
-/// # Returns
-///
-/// `BbxError::Ok` on success, or an error code on failure.
-///
-/// # Safety
-///
-/// `handle` must be a valid pointer from `bbx_graph_create`, or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn bbx_graph_prepare(
-    handle: *mut BbxGraph,
-    sample_rate: f64,
-    buffer_size: u32,
-    num_channels: u32,
-) -> BbxError {
-    if handle.is_null() {
-        return BbxError::NullPointer;
-    }
-    if buffer_size == 0 {
-        return BbxError::InvalidBufferSize;
-    }
-    if num_channels == 0 {
-        return BbxError::InvalidParameter;
-    }
-
-    unsafe {
-        let inner = graph_from_handle(handle);
-        inner.prepare(sample_rate, buffer_size as usize, num_channels as usize);
-    }
-
-    BbxError::Ok
-}
-
-/// Reset the effects chain state.
-///
-/// Clears all filter states and resets DSP blocks.
-///
-/// # Safety
-///
-/// `handle` must be a valid pointer from `bbx_graph_create`, or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn bbx_graph_reset(handle: *mut BbxGraph) -> BbxError {
-    if handle.is_null() {
-        return BbxError::NullPointer;
-    }
-
-    unsafe {
-        let inner = graph_from_handle(handle);
-        inner.reset();
-    }
-
-    BbxError::Ok
-}
+// Re-export commonly used types from bbx_dsp for convenience
+pub use bbx_dsp::context::DspContext;

@@ -1,19 +1,10 @@
 //! Opaque handle wrapper for the DSP graph.
 //!
 //! This module provides the opaque `BbxGraph` type that C code uses
-//! to reference the Rust effects chain, along with internal wrapper types.
+//! to reference the Rust effects chain, along with the generic
+//! `GraphInner` wrapper that holds any `PluginDsp` implementation.
 
-use bbx_dsp::{
-    blocks::effectors::{
-        channel_router::{ChannelMode, ChannelRouterBlock},
-        dc_blocker::DcBlockerBlock,
-        gain::GainBlock,
-        panner::PannerBlock,
-    },
-    context::DspContext,
-};
-
-use crate::params::default_params;
+use bbx_dsp::{context::DspContext, PluginDsp};
 
 /// Opaque handle representing a DSP effects chain.
 ///
@@ -25,32 +16,23 @@ pub struct BbxGraph {
     _private: [u8; 0],
 }
 
-/// Internal wrapper holding the effect blocks and DSP context.
-pub(crate) struct GraphInner {
+/// Internal wrapper holding the plugin DSP and context.
+///
+/// Generic over any type implementing `PluginDsp`.
+pub struct GraphInner<D: PluginDsp> {
     /// DSP context with sample rate, buffer size, etc.
     pub context: DspContext,
 
-    /// DC blocker block (removes DC offset).
-    pub dc_blocker: DcBlockerBlock<f32>,
-
-    /// Channel router block (stereo routing, mono, invert).
-    pub channel_router: ChannelRouterBlock<f32>,
-
-    /// Panner block (stereo pan).
-    pub panner: PannerBlock<f32>,
-
-    /// Gain block (amplitude control).
-    pub gain: GainBlock<f32>,
+    /// The plugin's DSP graph implementation.
+    pub dsp: D,
 
     /// Whether the graph has been prepared for playback.
     pub prepared: bool,
 }
 
-impl GraphInner {
-    /// Create a new GraphInner with default configuration from parameters.json.
+impl<D: PluginDsp> GraphInner<D> {
+    /// Create a new GraphInner with default configuration.
     pub fn new() -> Self {
-        let defaults = default_params();
-
         Self {
             context: DspContext {
                 sample_rate: 44100.0,
@@ -58,15 +40,7 @@ impl GraphInner {
                 num_channels: 2,
                 current_sample: 0,
             },
-            dc_blocker: DcBlockerBlock::new(defaults.dc_offset),
-            channel_router: ChannelRouterBlock::new(
-                ChannelMode::from(defaults.channel_mode),
-                defaults.mono,
-                defaults.invert_left,
-                defaults.invert_right,
-            ),
-            panner: PannerBlock::new(defaults.pan),
-            gain: GainBlock::new(defaults.gain_db),
+            dsp: D::new(),
             prepared: false,
         }
     }
@@ -80,19 +54,17 @@ impl GraphInner {
             current_sample: 0,
         };
 
-        // Update DC blocker filter coefficient for new sample rate
-        self.dc_blocker.set_sample_rate(sample_rate);
-
+        self.dsp.prepare(&self.context);
         self.prepared = true;
     }
 
     /// Reset the effects chain state.
     pub fn reset(&mut self) {
-        self.dc_blocker.reset();
+        self.dsp.reset();
     }
 }
 
-impl Default for GraphInner {
+impl<D: PluginDsp> Default for GraphInner<D> {
     fn default() -> Self {
         Self::new()
     }
@@ -103,14 +75,14 @@ impl Default for GraphInner {
 /// # Safety
 ///
 /// The caller must ensure the pointer is valid and was created by
-/// `handle_from_graph`.
+/// `handle_from_graph` with the same DSP type.
 #[inline]
-pub(crate) unsafe fn graph_from_handle(handle: *mut BbxGraph) -> &'static mut GraphInner {
-    unsafe { &mut *(handle as *mut GraphInner) }
+pub unsafe fn graph_from_handle<D: PluginDsp>(handle: *mut BbxGraph) -> &'static mut GraphInner<D> {
+    unsafe { &mut *(handle as *mut GraphInner<D>) }
 }
 
 /// Convert a GraphInner to an opaque handle.
 #[inline]
-pub(crate) fn handle_from_graph(inner: Box<GraphInner>) -> *mut BbxGraph {
+pub fn handle_from_graph<D: PluginDsp>(inner: Box<GraphInner<D>>) -> *mut BbxGraph {
     Box::into_raw(inner) as *mut BbxGraph
 }
