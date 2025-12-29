@@ -1,16 +1,16 @@
-//! # BBX FFI
+//! # BBX Plugin
 //!
-//! C FFI bindings for the bbx_audio DSP library.
+//! Plugin integration crate for the bbx_audio DSP library with C FFI bindings.
 //!
-//! This crate provides a macro-based API for generating C-compatible FFI
-//! functions from any `PluginDsp` implementation. Consumers invoke the
-//! `bbx_plugin_ffi!` macro with their DSP type to generate all exports.
+//! This crate re-exports the `bbx_dsp` crate and provides a macro-based API for
+//! generating C-compatible FFI functions from any `PluginDsp` implementation.
+//! Consumers only need to add `bbx_plugin` as a dependency to access both DSP
+//! functionality and FFI generation.
 //!
 //! # Example
 //!
 //! ```ignore
-//! use bbx_dsp::{PluginDsp, context::DspContext};
-//! use bbx_ffi::bbx_plugin_ffi;
+//! use bbx_plugin::{PluginDsp, DspContext, bbx_plugin_ffi};
 //!
 //! pub struct PluginGraph { /* DSP blocks */ }
 //!
@@ -35,12 +35,14 @@ mod handle;
 mod macros;
 pub mod params;
 
+// Re-export the entire bbx_dsp crate so plugin projects only need bbx_plugin
+pub use bbx_dsp;
+pub use bbx_dsp::context::DspContext;
+pub use bbx_dsp::PluginDsp;
+
 // Re-export types needed by the macro
 pub use audio::process_audio;
 pub use bbx_core::BbxError;
-pub use bbx_dsp::PluginDsp;
-// Re-export commonly used types from bbx_dsp for convenience
-pub use bbx_dsp::context::DspContext;
 pub use handle::{BbxGraph, GraphInner, graph_from_handle, handle_from_graph};
 // Re-export parameter utilities
 pub use params::{

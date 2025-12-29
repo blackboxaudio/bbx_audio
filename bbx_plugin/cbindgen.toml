@@ -1,7 +1,7 @@
-# cbindgen configuration for bbx_ffi
+# cbindgen configuration for bbx_plugin
 
 language = "C"
-header = "/* bbx_ffi - C FFI bindings for bbx_audio DSP library */"
+header = "/* bbx_plugin - C FFI bindings for bbx_audio DSP library */"
 include_guard = "BBX_FFI_H"
 sys_includes = ["stdint.h", "stdbool.h", "stddef.h"]
 no_includes = true
@@ -35,4 +35,4 @@ parse_deps = true
 include = ["bbx_core", "bbx_midi"]
 
 [parse.expand]
-crates = ["bbx_ffi"]
+crates = ["bbx_plugin"]

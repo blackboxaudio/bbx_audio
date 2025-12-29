@@ -1,10 +1,10 @@
 [package]
-name = "bbx_ffi"
+name = "bbx_plugin"
 version = "0.1.0"
 edition = "2024"
-description = "C FFI bindings for bbx_audio DSP library"
+description = "Plugin integration crate for bbx_audio DSP library with C FFI bindings"
 license = "MIT"
-links = "bbx_ffi"
+links = "bbx_plugin"
 
 [lib]
 crate-type = ["rlib"]

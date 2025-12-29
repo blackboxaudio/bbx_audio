@@ -1,4 +1,4 @@
-/* bbx_ffi - C++ RAII wrapper for bbx_audio DSP library */
+/* bbx_graph - C++ RAII wrapper for bbx_audio DSP library */
 
 #pragma once
 
@@ -7,7 +7,7 @@
 namespace bbx {
 
 /**
- * RAII wrapper for the bbx_ffi C API.
+ * RAII wrapper for the bbx_plugin C API.
  *
  * Manages the lifecycle of a BbxGraph handle and provides
  * a C++ interface for audio processing.
@@ -118,6 +118,3 @@ private:
 };
 
 } // namespace bbx
-
-// Backwards compatibility alias
-using BbxWrapper = bbx::Graph;
