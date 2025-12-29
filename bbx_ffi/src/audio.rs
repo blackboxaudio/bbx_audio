@@ -64,11 +64,15 @@ pub unsafe fn process_audio<D: PluginDsp>(
         // Build input slices
         let mut input_buffers: [[f32; MAX_SAMPLES]; MAX_CHANNELS] = [[0.0; MAX_SAMPLES]; MAX_CHANNELS];
         if !inputs.is_null() {
-            for ch in 0..num_channels.min(MAX_CHANNELS) {
+            for (ch, input_buffer) in input_buffers
+                .iter_mut()
+                .enumerate()
+                .take(num_channels.min(MAX_CHANNELS))
+            {
                 let input_ptr = *inputs.add(ch);
                 if !input_ptr.is_null() {
                     let src = std::slice::from_raw_parts(input_ptr, samples_to_process);
-                    input_buffers[ch][..samples_to_process].copy_from_slice(src);
+                    input_buffer[..samples_to_process].copy_from_slice(src);
                 }
             }
         }
@@ -98,11 +102,15 @@ pub unsafe fn process_audio<D: PluginDsp>(
         );
 
         // Copy results back to output buffers
-        for ch in 0..num_channels.min(MAX_CHANNELS) {
+        for (ch, output_buffer) in output_buffers
+            .iter()
+            .enumerate()
+            .take(num_channels.min(MAX_CHANNELS))
+        {
             let output_ptr = *outputs.add(ch);
             if !output_ptr.is_null() {
                 let dest = std::slice::from_raw_parts_mut(output_ptr, samples_to_process);
-                dest.copy_from_slice(&output_buffers[ch][..samples_to_process]);
+                dest.copy_from_slice(&output_buffer[..samples_to_process]);
             }
         }
     }

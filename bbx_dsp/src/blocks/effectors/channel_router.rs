@@ -78,7 +78,7 @@ impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
             return;
         }
 
-        let left_in = inputs.first().map(|b| *b);
+        let left_in = inputs.first().copied();
         let right_in = inputs.get(1).copied().or(left_in);
 
         let (left_in, right_in) = match (left_in, right_in) {
