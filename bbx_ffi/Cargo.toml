@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "C FFI bindings for bbx_audio DSP library"
 license = "MIT"
+links = "bbx_ffi"
 
 [lib]
 crate-type = ["rlib"]
@@ -12,3 +13,6 @@ crate-type = ["rlib"]
 bbx_core = { path = "../bbx_core" }
 bbx_dsp = { path = "../bbx_dsp" }
 bbx_midi = { path = "../bbx_midi" }
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

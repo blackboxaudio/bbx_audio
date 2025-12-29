@@ -33,6 +33,7 @@
 mod audio;
 mod handle;
 mod macros;
+pub mod params;
 
 // Re-export types needed by the macro
 pub use audio::process_audio;
@@ -41,3 +42,7 @@ pub use bbx_dsp::PluginDsp;
 // Re-export commonly used types from bbx_dsp for convenience
 pub use bbx_dsp::context::DspContext;
 pub use handle::{BbxGraph, GraphInner, graph_from_handle, handle_from_graph};
+// Re-export parameter utilities
+pub use params::{
+    JsonParamDef, ParamDef, ParamType, ParamsFile, generate_c_header_from_defs, generate_rust_indices_from_defs,
+};
