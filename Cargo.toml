@@ -8,3 +8,29 @@ members = [
     "bbx_plugin",
     "bbx_sandbox",
 ]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Black Box Audio, LLC"]
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/blackboxaudio/bbx_audio"
+rust-version = "1.85"
+
+[workspace.dependencies]
+# Internal crates (version + path for publishing)
+bbx_core = { version = "0.1.0", path = "bbx_core" }
+bbx_dsp = { version = "0.1.0", path = "bbx_dsp" }
+bbx_file = { version = "0.1.0", path = "bbx_file" }
+bbx_midi = { version = "0.1.0", path = "bbx_midi" }
+bbx_plugin = { version = "0.1.0", path = "bbx_plugin" }
+
+# External dependencies
+hound = "3.5.1"
+loom = "0.7"
+midir = "0.10.0"
+rand = "0.8.5"
+rodio = "0.20.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+wavers = "1.5.1"

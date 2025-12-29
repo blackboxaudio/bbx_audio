@@ -1,18 +1,23 @@
 [package]
 name = "bbx_plugin"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 description = "Plugin integration crate for bbx_audio DSP library with C FFI bindings"
-license = "MIT"
+readme = "README.md"
+keywords = ["audio", "plugin", "ffi", "vst", "juce"]
+categories = ["multimedia::audio", "external-ffi-bindings"]
 links = "bbx_plugin"
 
 [lib]
 crate-type = ["rlib"]
 
 [dependencies]
-bbx_core = { path = "../bbx_core" }
-bbx_dsp = { path = "../bbx_dsp" }
-bbx_midi = { path = "../bbx_midi" }
-
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+bbx_core.workspace = true
+bbx_dsp.workspace = true
+bbx_midi.workspace = true
+serde.workspace = true
+serde_json.workspace = true
