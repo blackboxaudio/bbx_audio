@@ -1,0 +1,22 @@
+[book]
+title = "bbx_audio Documentation"
+authors = ["BlackBox Audio"]
+description = "Documentation for the bbx_audio Rust audio DSP workspace"
+src = "src"
+language = "en"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "coal"
+git-repository-url = "https://github.com/blackboxaudio/bbx_audio"
+edit-url-template = "https://github.com/blackboxaudio/bbx_audio/edit/develop/docs/{path}"
+
+[output.html.fold]
+enable = true
+level = 1
+
+[output.html.playground]
+editable = true

@@ -40,6 +40,7 @@ pub mod context;
 pub mod graph;
 pub mod parameter;
 pub mod plugin;
+pub mod prelude;
 pub mod reader;
 pub mod sample;
 pub mod smoothing;

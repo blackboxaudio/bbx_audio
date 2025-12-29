@@ -18,7 +18,7 @@ pub struct PannerBlock<S: Sample> {
     pub position: Parameter<S>,
 
     /// Smoothed position value for click-free panning.
-    position_smoother: LinearSmoothedValue,
+    position_smoother: LinearSmoothedValue<S>,
 
     _phantom: PhantomData<S>,
 }
@@ -28,7 +28,7 @@ impl<S: Sample> PannerBlock<S> {
     pub fn new(position: S) -> Self {
         Self {
             position: Parameter::Constant(position),
-            position_smoother: LinearSmoothedValue::new(position.to_f64() as f32),
+            position_smoother: LinearSmoothedValue::new(position),
             _phantom: PhantomData,
         }
     }
@@ -61,8 +61,8 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
         }
 
         // Get target position and set up smoothing
-        let target_position = self.position.get_value(modulation_values).to_f64() as f32;
-        if (target_position - self.position_smoother.target()).abs() > 1e-6 {
+        let target_position = self.position.get_value(modulation_values);
+        if (target_position.to_f64() - self.position_smoother.target().to_f64()).abs() > 1e-9 {
             self.position_smoother.set_target_value(target_position);
         }
 
@@ -72,7 +72,7 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
         let num_samples = left_in.len().min(outputs.first().map(|o| o.len()).unwrap_or(0));
 
         for i in 0..num_samples {
-            let position = self.position_smoother.get_next_value() as f64;
+            let position = self.position_smoother.get_next_value().to_f64();
             let (left_gain, right_gain) = self.calculate_gains(position);
 
             let l = left_in[i].to_f64();

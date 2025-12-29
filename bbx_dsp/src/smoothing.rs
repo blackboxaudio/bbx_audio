@@ -6,13 +6,17 @@
 
 use std::marker::PhantomData;
 
-const INV_1000: f32 = 1.0 / 1000.0;
+use crate::sample::Sample;
 
-/// Check if two f32 values are approximately equal.
+const INV_1000: f64 = 1.0 / 1000.0;
+
+/// Check if two Sample values are approximately equal.
 #[inline]
-fn is_approximately_equal(a: f32, b: f32) -> bool {
-    let epsilon = f32::EPSILON * a.abs().max(b.abs()).max(1.0);
-    (a - b).abs() < epsilon
+fn is_approximately_equal<S: Sample>(a: S, b: S) -> bool {
+    let a_f64 = a.to_f64();
+    let b_f64 = b.to_f64();
+    let epsilon = f64::EPSILON * a_f64.abs().max(b_f64.abs()).max(1.0);
+    (a_f64 - b_f64).abs() < epsilon
 }
 
 /// Marker type for linear smoothing.
@@ -32,63 +36,66 @@ pub struct Multiplicative;
 /// Trait defining smoothing behavior for different interpolation strategies.
 pub trait SmoothingStrategy: Clone + Default {
     /// Calculate the increment value for smoothing.
-    fn update_increment(current: f32, target: f32, num_samples: f32) -> f32;
+    /// Returns f64 for precision in smoothing calculations.
+    fn update_increment<S: Sample>(current: S, target: S, num_samples: f64) -> f64;
 
     /// Apply the increment to the current value.
-    fn apply_increment(current: f32, increment: f32) -> f32;
+    fn apply_increment<S: Sample>(current: S, increment: f64) -> S;
 
     /// Apply the increment multiple times (for skip).
-    fn apply_increment_n(current: f32, increment: f32, n: i32) -> f32;
+    fn apply_increment_n<S: Sample>(current: S, increment: f64, n: i32) -> S;
 
     /// Default initial value for this smoothing type.
-    fn default_value() -> f32;
+    fn default_value<S: Sample>() -> S;
 }
 
 impl SmoothingStrategy for Linear {
     #[inline]
-    fn update_increment(current: f32, target: f32, num_samples: f32) -> f32 {
-        (target - current) / num_samples
+    fn update_increment<S: Sample>(current: S, target: S, num_samples: f64) -> f64 {
+        (target.to_f64() - current.to_f64()) / num_samples
     }
 
     #[inline]
-    fn apply_increment(current: f32, increment: f32) -> f32 {
-        current + increment
+    fn apply_increment<S: Sample>(current: S, increment: f64) -> S {
+        S::from_f64(current.to_f64() + increment)
     }
 
     #[inline]
-    fn apply_increment_n(current: f32, increment: f32, n: i32) -> f32 {
-        current + increment * n as f32
+    fn apply_increment_n<S: Sample>(current: S, increment: f64, n: i32) -> S {
+        S::from_f64(current.to_f64() + increment * n as f64)
     }
 
     #[inline]
-    fn default_value() -> f32 {
-        0.0
+    fn default_value<S: Sample>() -> S {
+        S::ZERO
     }
 }
 
 impl SmoothingStrategy for Multiplicative {
     #[inline]
-    fn update_increment(current: f32, target: f32, num_samples: f32) -> f32 {
-        if current > 0.0 && target > 0.0 {
-            (target / current).ln() / num_samples
+    fn update_increment<S: Sample>(current: S, target: S, num_samples: f64) -> f64 {
+        let current_f64 = current.to_f64();
+        let target_f64 = target.to_f64();
+        if current_f64 > 0.0 && target_f64 > 0.0 {
+            (target_f64 / current_f64).ln() / num_samples
         } else {
             0.0
         }
     }
 
     #[inline]
-    fn apply_increment(current: f32, increment: f32) -> f32 {
-        current * increment.exp()
+    fn apply_increment<S: Sample>(current: S, increment: f64) -> S {
+        S::from_f64(current.to_f64() * increment.exp())
     }
 
     #[inline]
-    fn apply_increment_n(current: f32, increment: f32, n: i32) -> f32 {
-        current * (increment * n as f32).exp()
+    fn apply_increment_n<S: Sample>(current: S, increment: f64, n: i32) -> S {
+        S::from_f64(current.to_f64() * (increment * n as f64).exp())
     }
 
     #[inline]
-    fn default_value() -> f32 {
-        1.0
+    fn default_value<S: Sample>() -> S {
+        S::ONE
     }
 }
 
@@ -96,21 +103,24 @@ impl SmoothingStrategy for Multiplicative {
 ///
 /// Uses the specified `SmoothingStrategy` to interpolate between values,
 /// avoiding clicks and pops when parameters change.
+///
+/// Generic over `S: Sample` for the value type and `T: SmoothingStrategy`
+/// for the interpolation method.
 #[derive(Debug, Clone)]
-pub struct SmoothedValue<T: SmoothingStrategy> {
+pub struct SmoothedValue<S: Sample, T: SmoothingStrategy> {
     sample_rate: f64,
     ramp_length_millis: f64,
-    current_value: f32,
-    target_value: f32,
-    increment: f32,
+    current_value: S,
+    target_value: S,
+    increment: f64, // Keep as f64 for precision
     _marker: PhantomData<T>,
 }
 
-impl<T: SmoothingStrategy> SmoothedValue<T> {
+impl<S: Sample, T: SmoothingStrategy> SmoothedValue<S, T> {
     /// Create a new `SmoothedValue` with the given initial value.
     ///
     /// Uses default sample rate (44100.0) and ramp length (50ms).
-    pub fn new(initial_value: f32) -> Self {
+    pub fn new(initial_value: S) -> Self {
         Self {
             sample_rate: 44100.0,
             ramp_length_millis: 50.0,
@@ -134,25 +144,25 @@ impl<T: SmoothingStrategy> SmoothedValue<T> {
 
     /// Set a new target value to smooth towards.
     #[inline]
-    pub fn set_target_value(&mut self, value: f32) {
+    pub fn set_target_value(&mut self, value: S) {
         self.target_value = value;
         self.update_increment();
     }
 
     /// Get the next smoothed value (call once per sample).
     #[inline]
-    pub fn get_next_value(&mut self) -> f32 {
+    pub fn get_next_value(&mut self) -> S {
         if is_approximately_equal(self.current_value, self.target_value) {
             self.current_value = self.target_value;
             return self.current_value;
         }
 
-        self.current_value = T::apply_increment(self.current_value, self.increment);
+        self.current_value = T::apply_increment::<S>(self.current_value, self.increment);
 
         // Prevent overshoot
-        if (self.increment > 0.0 && self.current_value > self.target_value)
-            || (self.increment < 0.0 && self.current_value < self.target_value)
-        {
+        let current_f64 = self.current_value.to_f64();
+        let target_f64 = self.target_value.to_f64();
+        if (self.increment > 0.0 && current_f64 > target_f64) || (self.increment < 0.0 && current_f64 < target_f64) {
             self.current_value = self.target_value;
         }
 
@@ -167,12 +177,12 @@ impl<T: SmoothingStrategy> SmoothedValue<T> {
             return;
         }
 
-        let new_value = T::apply_increment_n(self.current_value, self.increment, num_samples);
+        let new_value = T::apply_increment_n::<S>(self.current_value, self.increment, num_samples);
 
         // Prevent overshoot
-        if (self.increment > 0.0 && new_value > self.target_value)
-            || (self.increment < 0.0 && new_value < self.target_value)
-        {
+        let new_f64 = new_value.to_f64();
+        let target_f64 = self.target_value.to_f64();
+        if (self.increment > 0.0 && new_f64 > target_f64) || (self.increment < 0.0 && new_f64 < target_f64) {
             self.current_value = self.target_value;
         } else {
             self.current_value = new_value;
@@ -181,13 +191,13 @@ impl<T: SmoothingStrategy> SmoothedValue<T> {
 
     /// Get the current value without advancing.
     #[inline]
-    pub fn current(&self) -> f32 {
+    pub fn current(&self) -> S {
         self.current_value
     }
 
     /// Get the target value.
     #[inline]
-    pub fn target(&self) -> f32 {
+    pub fn target(&self) -> S {
         self.target_value
     }
 
@@ -199,7 +209,7 @@ impl<T: SmoothingStrategy> SmoothedValue<T> {
 
     /// Immediately set both current and target to a value (no smoothing).
     #[inline]
-    pub fn set_immediate(&mut self, value: f32) {
+    pub fn set_immediate(&mut self, value: S) {
         self.current_value = value;
         self.target_value = value;
         self.increment = 0.0;
@@ -214,23 +224,23 @@ impl<T: SmoothingStrategy> SmoothedValue<T> {
             return;
         }
 
-        let num_samples = (self.ramp_length_millis * self.sample_rate) as f32 * INV_1000;
-        self.increment = T::update_increment(self.current_value, self.target_value, num_samples);
+        let num_samples = self.ramp_length_millis * self.sample_rate * INV_1000;
+        self.increment = T::update_increment::<S>(self.current_value, self.target_value, num_samples);
     }
 }
 
-impl<T: SmoothingStrategy> Default for SmoothedValue<T> {
+impl<S: Sample, T: SmoothingStrategy> Default for SmoothedValue<S, T> {
     fn default() -> Self {
-        Self::new(T::default_value())
+        Self::new(T::default_value::<S>())
     }
 }
 
 /// Linear smoothed value - uses additive interpolation.
-pub type LinearSmoothedValue = SmoothedValue<Linear>;
+pub type LinearSmoothedValue<S> = SmoothedValue<S, Linear>;
 
 /// Multiplicative smoothed value - uses exponential interpolation.
 /// Better for parameters like gain where equal ratios should feel equal.
-pub type MultiplicativeSmoothedValue = SmoothedValue<Multiplicative>;
+pub type MultiplicativeSmoothedValue<S> = SmoothedValue<S, Multiplicative>;
 
 #[cfg(test)]
 mod tests {
@@ -238,15 +248,15 @@ mod tests {
 
     #[test]
     fn test_linear_immediate_value() {
-        let mut sv = LinearSmoothedValue::new(1.0);
+        let mut sv = LinearSmoothedValue::<f32>::new(1.0);
         assert_eq!(sv.current(), 1.0);
         assert_eq!(sv.get_next_value(), 1.0);
         assert!(!sv.is_smoothing());
     }
 
     #[test]
-    fn test_linear_smoothing() {
-        let mut sv = LinearSmoothedValue::new(0.0);
+    fn test_linear_smoothing_f32() {
+        let mut sv = LinearSmoothedValue::<f32>::new(0.0);
         // Set up for exactly 4 samples of smoothing
         sv.reset(1000.0, 4.0); // 1000 Hz, 4ms = 4 samples
         sv.set_target_value(1.0);
@@ -267,8 +277,28 @@ mod tests {
     }
 
     #[test]
+    fn test_linear_smoothing_f64() {
+        let mut sv = LinearSmoothedValue::<f64>::new(0.0);
+        sv.reset(1000.0, 4.0);
+        sv.set_target_value(1.0);
+
+        assert!(sv.is_smoothing());
+        let v1 = sv.get_next_value();
+        assert!((v1 - 0.25).abs() < 0.01, "Expected ~0.25, got {}", v1);
+
+        let v2 = sv.get_next_value();
+        assert!((v2 - 0.5).abs() < 0.01, "Expected ~0.5, got {}", v2);
+
+        let v3 = sv.get_next_value();
+        assert!((v3 - 0.75).abs() < 0.01, "Expected ~0.75, got {}", v3);
+
+        let v4 = sv.get_next_value();
+        assert!((v4 - 1.0).abs() < 0.01, "Expected ~1.0, got {}", v4);
+    }
+
+    #[test]
     fn test_zero_ramp_length() {
-        let mut sv = LinearSmoothedValue::new(0.0);
+        let mut sv = LinearSmoothedValue::<f32>::new(0.0);
         sv.reset(44100.0, 0.0); // Zero ramp = immediate
         sv.set_target_value(1.0);
         assert_eq!(sv.current(), 1.0);
@@ -277,7 +307,7 @@ mod tests {
 
     #[test]
     fn test_skip() {
-        let mut sv = LinearSmoothedValue::new(0.0);
+        let mut sv = LinearSmoothedValue::<f32>::new(0.0);
         sv.reset(1000.0, 10.0); // 10 samples
         sv.set_target_value(1.0);
 
@@ -290,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_retarget_during_smoothing() {
-        let mut sv = LinearSmoothedValue::new(0.0);
+        let mut sv = LinearSmoothedValue::<f32>::new(0.0);
         sv.reset(1000.0, 4.0);
         sv.set_target_value(1.0);
 
@@ -305,13 +335,13 @@ mod tests {
 
     #[test]
     fn test_multiplicative_default() {
-        let sv = MultiplicativeSmoothedValue::default();
+        let sv = MultiplicativeSmoothedValue::<f32>::default();
         assert_eq!(sv.current(), 1.0);
     }
 
     #[test]
     fn test_multiplicative_smoothing() {
-        let mut sv = MultiplicativeSmoothedValue::new(1.0);
+        let mut sv = MultiplicativeSmoothedValue::<f32>::new(1.0);
         sv.reset(1000.0, 10.0);
         sv.set_target_value(2.0);
 
@@ -328,7 +358,7 @@ mod tests {
 
     #[test]
     fn test_set_immediate() {
-        let mut sv = LinearSmoothedValue::new(0.0);
+        let mut sv = LinearSmoothedValue::<f32>::new(0.0);
         sv.reset(44100.0, 50.0);
         sv.set_target_value(1.0);
         assert!(sv.is_smoothing());
