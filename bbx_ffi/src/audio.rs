@@ -102,11 +102,7 @@ pub unsafe fn process_audio<D: PluginDsp>(
         );
 
         // Copy results back to output buffers
-        for (ch, output_buffer) in output_buffers
-            .iter()
-            .enumerate()
-            .take(num_channels.min(MAX_CHANNELS))
-        {
+        for (ch, output_buffer) in output_buffers.iter().enumerate().take(num_channels.min(MAX_CHANNELS)) {
             let output_ptr = *outputs.add(ch);
             if !output_ptr.is_null() {
                 let dest = std::slice::from_raw_parts_mut(output_ptr, samples_to_process);
