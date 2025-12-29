@@ -43,6 +43,8 @@ impl<S: Sample> EnvelopeBlock<S> {
     const MIN_TIME: f64 = 0.001;
     /// Maximum envelope time in seconds.
     const MAX_TIME: f64 = 10.0;
+    /// Envelope floor threshold (~-120dB) for reliable release termination.
+    const ENVELOPE_FLOOR: f64 = 1e-6;
 
     /// Create an `EnvelopeBlock` with given ADSR parameters.
     /// Times are in seconds, sustain is a level from 0.0 to 1.0.
@@ -125,7 +127,9 @@ impl<S: Sample> Block<S> for EnvelopeBlock<S> {
                 EnvelopeStage::Release => {
                     let release_progress = self.stage_time / release_time;
                     self.level = self.release_level * (1.0 - release_progress);
-                    if self.level <= 0.0 {
+                    // Use threshold comparison for reliable termination
+                    // (avoids floating-point precision issues with exact zero comparison)
+                    if self.level <= Self::ENVELOPE_FLOOR {
                         self.level = 0.0;
                         self.stage = EnvelopeStage::Idle;
                         self.stage_time = 0.0;

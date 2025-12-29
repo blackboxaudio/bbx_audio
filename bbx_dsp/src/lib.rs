@@ -12,6 +12,7 @@ pub mod parameter;
 pub mod plugin;
 pub mod reader;
 pub mod sample;
+pub mod smoothing;
 pub mod voice;
 pub mod waveform;
 pub mod writer;

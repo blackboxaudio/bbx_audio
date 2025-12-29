@@ -7,6 +7,7 @@ use crate::{
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
+    smoothing::SmoothedValue,
 };
 
 /// A stereo panner block with constant power pan law.
@@ -16,6 +17,9 @@ pub struct PannerBlock<S: Sample> {
     /// Pan position: -100 (left) to +100 (right).
     pub position: Parameter<S>,
 
+    /// Smoothed position value for click-free panning.
+    position_smoother: SmoothedValue,
+
     _phantom: PhantomData<S>,
 }
 
@@ -24,6 +28,7 @@ impl<S: Sample> PannerBlock<S> {
     pub fn new(position: S) -> Self {
         Self {
             position: Parameter::Constant(position),
+            position_smoother: SmoothedValue::new(position.to_f64()),
             _phantom: PhantomData,
         }
     }
@@ -50,34 +55,28 @@ impl<S: Sample> PannerBlock<S> {
 }
 
 impl<S: Sample> Block<S> for PannerBlock<S> {
-    fn process(
-        &mut self,
-        inputs: &[&[S]],
-        outputs: &mut [&mut [S]],
-        modulation_values: &[S],
-        _context: &DspContext,
-    ) {
+    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
         if inputs.is_empty() || outputs.is_empty() {
             return;
         }
 
-        let position = self.position.get_value(modulation_values).to_f64();
-        let (left_gain, right_gain) = self.calculate_gains(position);
+        // Get target position and set up smoothing
+        let target_position = self.position.get_value(modulation_values).to_f64();
+        if (target_position - self.position_smoother.target()).abs() > 1e-10 {
+            self.position_smoother.set_target(target_position, context.buffer_size);
+        }
 
         let left_in = inputs[0];
         let right_in = inputs.get(1).copied().unwrap_or(left_in);
 
-        let num_samples = left_in
-            .len()
-            .min(outputs.first().map(|o| o.len()).unwrap_or(0));
+        let num_samples = left_in.len().min(outputs.first().map(|o| o.len()).unwrap_or(0));
 
         for i in 0..num_samples {
+            let position = self.position_smoother.next_value();
+            let (left_gain, right_gain) = self.calculate_gains(position);
+
             let l = left_in[i].to_f64();
-            let r = if inputs.len() > 1 {
-                right_in[i].to_f64()
-            } else {
-                l
-            };
+            let r = if inputs.len() > 1 { right_in[i].to_f64() } else { l };
 
             // Apply pan gains
             let l_out = l * left_gain;

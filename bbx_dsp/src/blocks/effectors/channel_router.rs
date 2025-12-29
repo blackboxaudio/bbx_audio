@@ -2,12 +2,7 @@
 
 use std::marker::PhantomData;
 
-use crate::{
-    block::Block,
-    context::DspContext,
-    parameter::ModulationOutput,
-    sample::Sample,
-};
+use crate::{block::Block, context::DspContext, parameter::ModulationOutput, sample::Sample};
 
 /// Channel routing mode for stereo signals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -77,13 +72,7 @@ impl<S: Sample> ChannelRouterBlock<S> {
 }
 
 impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
-    fn process(
-        &mut self,
-        inputs: &[&[S]],
-        outputs: &mut [&mut [S]],
-        _modulation_values: &[S],
-        _context: &DspContext,
-    ) {
+    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
         // Handle mono input
         if inputs.is_empty() {
             return;
@@ -97,12 +86,7 @@ impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
             _ => return,
         };
 
-        let num_samples = left_in.len().min(
-            outputs
-                .first()
-                .map(|o| o.len())
-                .unwrap_or(0),
-        );
+        let num_samples = left_in.len().min(outputs.first().map(|o| o.len()).unwrap_or(0));
 
         if num_samples == 0 {
             return;

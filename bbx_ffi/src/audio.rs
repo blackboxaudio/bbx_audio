@@ -5,7 +5,7 @@
 
 use bbx_dsp::PluginDsp;
 
-use crate::handle::{graph_from_handle, BbxGraph};
+use crate::handle::{BbxGraph, graph_from_handle};
 
 /// Maximum samples per buffer (stack allocation limit).
 const MAX_SAMPLES: usize = 4096;

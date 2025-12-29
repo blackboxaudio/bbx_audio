@@ -38,7 +38,6 @@ mod macros;
 pub use audio::process_audio;
 pub use bbx_core::BbxError;
 pub use bbx_dsp::PluginDsp;
-pub use handle::{graph_from_handle, handle_from_graph, BbxGraph, GraphInner};
-
 // Re-export commonly used types from bbx_dsp for convenience
 pub use bbx_dsp::context::DspContext;
+pub use handle::{BbxGraph, GraphInner, graph_from_handle, handle_from_graph};

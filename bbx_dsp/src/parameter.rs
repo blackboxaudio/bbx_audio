@@ -11,11 +11,17 @@ pub enum Parameter<S: Sample> {
 
 impl<S: Sample> Parameter<S> {
     /// Get the appropriate value for a `Parameter`.
+    ///
+    /// For modulated parameters, safely looks up the modulation value
+    /// and returns zero if the BlockId is out of bounds.
     #[inline]
     pub fn get_value(&self, modulation_values: &[S]) -> S {
         match self {
             Parameter::Constant(value) => *value,
-            Parameter::Modulated(block_id) => modulation_values[block_id.0],
+            Parameter::Modulated(block_id) => {
+                // Safe lookup to prevent panic in audio thread
+                modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO)
+            }
         }
     }
 }

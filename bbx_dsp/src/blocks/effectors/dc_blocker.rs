@@ -2,6 +2,8 @@
 
 use std::marker::PhantomData;
 
+use bbx_core::flush_denormal_f64;
+
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
@@ -56,13 +58,7 @@ impl<S: Sample> DcBlockerBlock<S> {
 }
 
 impl<S: Sample> Block<S> for DcBlockerBlock<S> {
-    fn process(
-        &mut self,
-        inputs: &[&[S]],
-        outputs: &mut [&mut [S]],
-        _modulation_values: &[S],
-        _context: &DspContext,
-    ) {
+    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
         if !self.enabled {
             // Pass through unchanged
             for (ch, input) in inputs.iter().enumerate() {
@@ -86,7 +82,8 @@ impl<S: Sample> Block<S> for DcBlockerBlock<S> {
                 let y = x - self.x_prev[ch] + self.coeff * self.y_prev[ch];
 
                 self.x_prev[ch] = x;
-                self.y_prev[ch] = y;
+                // Flush denormals to prevent CPU slowdown during quiet passages
+                self.y_prev[ch] = flush_denormal_f64(y);
 
                 outputs[ch][i] = S::from_f64(y);
             }

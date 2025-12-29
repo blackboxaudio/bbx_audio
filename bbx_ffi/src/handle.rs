@@ -4,7 +4,7 @@
 //! to reference the Rust effects chain, along with the generic
 //! `GraphInner` wrapper that holds any `PluginDsp` implementation.
 
-use bbx_dsp::{context::DspContext, PluginDsp};
+use bbx_dsp::{PluginDsp, context::DspContext};
 
 /// Opaque handle representing a DSP effects chain.
 ///

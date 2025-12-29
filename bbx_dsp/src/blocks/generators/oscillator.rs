@@ -57,14 +57,19 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
             }
             Parameter::Modulated(block_id) => {
                 // Add modulation to base (allows vibrato on top of MIDI note)
-                base + modulation_values[block_id.0]
+                // Safe lookup to prevent panic in audio thread
+                let mod_value = modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO);
+                base + mod_value
             }
         };
 
         // Apply pitch offset (semitones) - for pitch bend
         let pitch_offset_semitones = match &self.pitch_offset {
             Parameter::Constant(offset) => *offset,
-            Parameter::Modulated(block_id) => modulation_values[block_id.0],
+            Parameter::Modulated(block_id) => {
+                // Safe lookup to prevent panic in audio thread
+                modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO)
+            }
         };
 
         // Convert semitones to frequency multiplier: 2^(semitones/12)
@@ -75,18 +80,16 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
             freq_hz
         };
 
-        let phase_increment = freq.to_f64() / context.sample_rate * 2.0 * std::f64::consts::PI;
+        let phase_increment = freq.to_f64() / context.sample_rate * std::f64::consts::TAU;
 
         for sample_index in 0..context.buffer_size {
             let sample_value = generate_waveform_sample(self.waveform, self.phase, DEFAULT_DUTY_CYCLE, &mut self.rng);
-            let sample = S::from_f64(sample_value);
-            outputs[0][sample_index] = sample;
+            outputs[0][sample_index] = S::from_f64(sample_value);
             self.phase += phase_increment;
         }
 
-        while self.phase >= 2.0 * std::f64::consts::PI {
-            self.phase -= 2.0 * std::f64::consts::PI;
-        }
+        // Wrap phase using modulo for efficiency (avoids while loop with extreme frequencies)
+        self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
     }
 
     #[inline]

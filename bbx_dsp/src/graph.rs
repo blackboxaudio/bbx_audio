@@ -44,6 +44,10 @@ pub struct Graph<S: Sample> {
     block_buffer_start: Vec<usize>,
     buffer_size: usize,
     context: DspContext,
+
+    // Pre-computed connection lookups: block_id -> [input buffer indices]
+    // Computed once in prepare_for_playback() for O(1) lookup during processing
+    block_input_buffers: Vec<Vec<usize>>,
 }
 
 impl<S: Sample> Graph<S> {
@@ -66,6 +70,7 @@ impl<S: Sample> Graph<S> {
             block_buffer_start: Vec::new(),
             buffer_size,
             context,
+            block_input_buffers: Vec::new(),
         }
     }
 
@@ -112,6 +117,13 @@ impl<S: Sample> Graph<S> {
     pub fn prepare_for_playback(&mut self) {
         self.execution_order = self.topological_sort();
         self.modulation_values.resize(self.blocks.len(), S::ZERO);
+
+        // Pre-compute input buffer indices for each block (O(1) lookup during processing)
+        self.block_input_buffers = vec![Vec::new(); self.blocks.len()];
+        for conn in &self.connections {
+            let buffer_idx = self.get_buffer_index(conn.from, conn.from_output);
+            self.block_input_buffers[conn.to.0].push(buffer_idx);
+        }
     }
 
     fn topological_sort(&self) -> Vec<BlockId> {
@@ -168,16 +180,10 @@ impl<S: Sample> Graph<S> {
     }
 
     fn process_block_unsafe(&mut self, block_id: BlockId) {
-        let mut input_indices = Vec::new();
+        // Use pre-computed input buffer indices (O(1) lookup instead of O(n) scan)
+        let input_indices = &self.block_input_buffers[block_id.0];
+
         let mut output_indices = Vec::new();
-
-        for connection in &self.connections {
-            if connection.to == block_id {
-                let buffer_index = self.get_buffer_index(connection.from, connection.from_output);
-                input_indices.push(buffer_index);
-            }
-        }
-
         let output_count = self.blocks[block_id.0].output_count();
         for output_index in 0..output_count {
             let buffer_index = self.get_buffer_index(block_id, output_index);
@@ -193,8 +199,8 @@ impl<S: Sample> Graph<S> {
             let buffers_ptr = self.audio_buffers.as_mut_ptr();
 
             let input_slices: Vec<&[S]> = input_indices
-                .into_iter()
-                .map(|index| {
+                .iter()
+                .map(|&index| {
                     let buffer_ptr = buffers_ptr.add(index);
                     std::slice::from_raw_parts((&*buffer_ptr).as_ptr(), (&*buffer_ptr).len())
                 })
@@ -217,11 +223,20 @@ impl<S: Sample> Graph<S> {
     }
 
     fn collect_modulation_values(&mut self, block_id: BlockId) {
+        // Bounds check to prevent panic in audio thread
+        if block_id.0 >= self.blocks.len() {
+            return;
+        }
+
         let has_modulation = !self.blocks[block_id.0].modulation_outputs().is_empty();
         if has_modulation {
             let buffer_index = self.get_buffer_index(block_id, 0);
-            if !self.audio_buffers[buffer_index].is_empty() {
-                self.modulation_values[block_id.0] = self.audio_buffers[buffer_index][0];
+            // Safe lookup chain to prevent panic in audio thread
+            if let (Some(&first_sample), Some(mod_val)) = (
+                self.audio_buffers.get(buffer_index).and_then(|b| b.as_slice().first()),
+                self.modulation_values.get_mut(block_id.0),
+            ) {
+                *mod_val = first_sample;
             }
         }
     }

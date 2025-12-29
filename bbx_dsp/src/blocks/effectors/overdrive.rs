@@ -1,10 +1,13 @@
 use std::marker::PhantomData;
 
+use bbx_core::flush_denormal_f64;
+
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
+    smoothing::SmoothedValue,
 };
 
 /// Used for applying an overdrive effect from another source block.
@@ -15,18 +18,29 @@ pub struct OverdriveBlock<S: Sample> {
     tone: f64,
     filter_state: f64,
     filter_coefficient: f64,
+
+    /// Smoothed drive value for click-free changes.
+    drive_smoother: SmoothedValue,
+    /// Smoothed level value for click-free changes.
+    level_smoother: SmoothedValue,
+
     _phantom_data: PhantomData<S>,
 }
 
 impl<S: Sample> OverdriveBlock<S> {
     /// Create an `OverdriveBlock` with a given drive multiplier, level, tone (brightness), and sample rate.
     pub fn new(drive: S, level: S, tone: f64, sample_rate: f64) -> Self {
+        let drive_val = drive.to_f64();
+        let level_val = level.to_f64().clamp(0.0, 1.0);
+
         let mut overdrive = Self {
             drive: Parameter::Constant(drive),
             level: Parameter::Constant(level),
             tone,
             filter_state: 0.0,
             filter_coefficient: 0.0,
+            drive_smoother: SmoothedValue::new(drive_val),
+            level_smoother: SmoothedValue::new(level_val),
             _phantom_data: PhantomData,
         };
         overdrive.update_filter(sample_rate);
@@ -59,20 +73,41 @@ impl<S: Sample> OverdriveBlock<S> {
 }
 
 impl<S: Sample> Block<S> for OverdriveBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], _context: &DspContext) {
+    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
+        // Get target values and set up smoothing
+        let target_drive = self.drive.get_value(modulation_values).to_f64();
+        let target_level = self.level.get_value(modulation_values).to_f64().clamp(0.0, 1.0);
+
+        if (target_drive - self.drive_smoother.target()).abs() > 1e-10 {
+            self.drive_smoother.set_target(target_drive, context.buffer_size);
+        }
+        if (target_level - self.level_smoother.target()).abs() > 1e-10 {
+            self.level_smoother.set_target(target_level, context.buffer_size);
+        }
+
         for (input_index, input_buffer) in inputs.iter().enumerate() {
+            // Clone smoothers for each channel to get same curve
+            let mut drive_sm = self.drive_smoother.clone();
+            let mut level_sm = self.level_smoother.clone();
+
             for (sample_index, sample_value) in input_buffer.iter().enumerate() {
-                let drive = self.drive.get_value(modulation_values);
-                let driven = (*sample_value).to_f64() * drive.to_f64();
+                let drive = drive_sm.next_value();
+                let level = level_sm.next_value();
+
+                let driven = sample_value.to_f64() * drive;
                 let clipped = self.asymmetric_saturation(driven);
 
                 self.filter_state += self.filter_coefficient * (clipped - self.filter_state);
-                let level = self.level.get_value(modulation_values);
-                let clamped_level = level.to_f64().clamp(0.0, 1.0);
-                // TODO: Should level be a dry/wet or a gain control?
-                // Emulate whatever is in Ableton
-                outputs[input_index][sample_index] = S::from_f64(self.filter_state * clamped_level);
+                // Flush denormals to prevent CPU slowdown during quiet passages
+                self.filter_state = flush_denormal_f64(self.filter_state);
+                outputs[input_index][sample_index] = S::from_f64(self.filter_state * level);
             }
+        }
+
+        // Advance main smoothers
+        for _ in 0..context.buffer_size {
+            self.drive_smoother.next_value();
+            self.level_smoother.next_value();
         }
     }
 

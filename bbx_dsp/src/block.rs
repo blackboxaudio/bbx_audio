@@ -1,10 +1,7 @@
 use crate::{
     blocks::{
         effectors::{
-            channel_router::ChannelRouterBlock,
-            dc_blocker::DcBlockerBlock,
-            gain::GainBlock,
-            overdrive::OverdriveBlock,
+            channel_router::ChannelRouterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock, overdrive::OverdriveBlock,
             panner::PannerBlock,
         },
         generators::oscillator::OscillatorBlock,

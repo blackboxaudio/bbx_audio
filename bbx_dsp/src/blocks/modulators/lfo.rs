@@ -41,22 +41,19 @@ impl<S: Sample> LfoBlock<S> {
 impl<S: Sample> Block<S> for LfoBlock<S> {
     fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
         let frequency = self.frequency.get_value(modulation_values);
-        let depth = self.depth.get_value(modulation_values);
-        let phase_increment = frequency.to_f64() / context.sample_rate * 2.0 * std::f64::consts::PI;
+        let depth = self.depth.get_value(modulation_values).to_f64();
+        let phase_increment = frequency.to_f64() / context.sample_rate * std::f64::consts::TAU;
 
-        let lfo_value = generate_waveform_sample(self.waveform, self.phase, DEFAULT_DUTY_CYCLE, &mut self.rng);
-        let sample_value = lfo_value * depth.to_f64();
-        let sample = S::from_f64(sample_value);
-
+        // Process per-sample for smooth modulation (same pattern as oscillator)
         for sample_index in 0..context.buffer_size {
-            outputs[0][sample_index] = sample;
+            let lfo_value = generate_waveform_sample(self.waveform, self.phase, DEFAULT_DUTY_CYCLE, &mut self.rng);
+            outputs[0][sample_index] = S::from_f64(lfo_value * depth);
+
+            self.phase += phase_increment;
         }
 
-        self.phase += phase_increment * context.buffer_size as f64;
-
-        while self.phase >= 2.0 * std::f64::consts::PI {
-            self.phase -= 2.0 * std::f64::consts::PI;
-        }
+        // Wrap phase using modulo for efficiency (avoids while loop with extreme frequencies)
+        self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
     }
 
     #[inline]
