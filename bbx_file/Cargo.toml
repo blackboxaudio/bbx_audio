@@ -1,0 +1,17 @@
+[package]
+name = "bbx_file"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Audio file I/O for WAV format, integrating with bbx_dsp graph system"
+readme = "README.md"
+keywords = ["audio", "wav", "file", "io", "dsp"]
+categories = ["multimedia::audio", "filesystem"]
+
+[dependencies]
+bbx_dsp.workspace = true
+hound.workspace = true
+wavers.workspace = true

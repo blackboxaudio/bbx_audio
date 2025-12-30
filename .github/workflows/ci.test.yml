@@ -1,0 +1,27 @@
+name: Test
+
+on:
+    pull_request:
+    push:
+        branches: [main, develop]
+
+jobs:
+    test:
+        name: Cargo Test
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v3
+
+            - name: Setup Linux Dependencies
+              run: sudo apt install alsa libasound2-dev libssl-dev pkg-config
+
+            - name: Setup Rust
+              uses: actions-rs/toolchain@v1
+              with:
+                  profile: minimal
+                  toolchain: nightly
+                  override: true
+
+            - name: Run Test
+              run: cargo test --workspace --release

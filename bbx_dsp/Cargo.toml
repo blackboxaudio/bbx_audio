@@ -1,7 +1,15 @@
 [package]
 name = "bbx_dsp"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Block-based audio DSP graph system with oscillators, effects, modulators, and realtime-safe processing"
+readme = "README.md"
+keywords = ["audio", "dsp", "synthesis", "effects", "graph"]
+categories = ["multimedia::audio", "science"]
 
 [dependencies]
-rodio = "0.18.1"
+bbx_core.workspace = true

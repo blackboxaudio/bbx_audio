@@ -1,0 +1,30 @@
+name: Format
+
+on:
+    pull_request:
+    push:
+        branches: [main, develop]
+
+jobs:
+    format:
+        name: Cargo Format
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v3
+
+            - name: Setup Linux Dependencies
+              run: sudo apt install alsa libasound2-dev libssl-dev pkg-config
+
+            - name: Setup Rust
+              uses: actions-rs/toolchain@v1
+              with:
+                  profile: minimal
+                  toolchain: nightly
+                  override: true
+
+            - name: Install `fmt` Component
+              run: rustup component add --toolchain nightly rustfmt
+
+            - name: Run Format
+              run: cargo +nightly fmt

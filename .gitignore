@@ -1,4 +1,12 @@
 #### #### #### ####
+#### Misc
+#### #### #### ####
+**/.DS_Store
+
+**/05_output_wav_file.wav
+
+
+#### #### #### ####
 #### IDEs
 #### #### #### ####
 **/.vs/
@@ -31,3 +39,12 @@ Cargo.lock
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# Flamegraph output
+**/perf.data
+**/perf.data.old
+
+**/flamegraph.svg
+
+## Test coverage output
+**/tarpaulin-report.html

@@ -1,0 +1,15 @@
+[package]
+name = "bbx_midi"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "MIDI message parsing, streaming, and real-time input handling for audio applications"
+readme = "README.md"
+keywords = ["midi", "audio", "music", "realtime", "streaming"]
+categories = ["multimedia::audio", "parser-implementations"]
+
+[dependencies]
+midir.workspace = true

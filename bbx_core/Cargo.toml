@@ -1,0 +1,18 @@
+[package]
+name = "bbx_core"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Foundational utilities for audio DSP: lock-free SPSC, denormal handling, stack-allocated collections"
+readme = "README.md"
+keywords = ["audio", "dsp", "lock-free", "realtime", "spsc"]
+categories = ["multimedia::audio", "data-structures", "no-std"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }
+
+[dev-dependencies]
+loom.workspace = true
