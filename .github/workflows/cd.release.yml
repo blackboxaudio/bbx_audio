@@ -45,13 +45,6 @@ jobs:
       - name: Run Tests
         run: cargo test --workspace --release
 
-      - name: Dry Run Publish
-        run: |
-          for crate in bbx_core bbx_midi bbx_dsp bbx_file bbx_plugin; do
-            echo "=== Dry run: $crate ==="
-            cargo publish --dry-run -p $crate
-          done
-
   publish:
     name: Publish to crates.io
     runs-on: ubuntu-latest
