@@ -1,3 +1,5 @@
+//! Real-time MIDI input streaming via midir.
+
 use std::{
     error::Error,
     io::{Write, stdin, stdout},
@@ -10,12 +12,22 @@ use midir::{Ignore, MidiInput, MidiInputPort};
 
 use crate::message::{MidiMessage, MidiMessageStatus};
 
+/// A real-time MIDI input stream with message filtering.
+///
+/// Connects to a MIDI input port and forwards matching messages
+/// to a callback function via a channel.
 pub struct MidiInputStream {
     tx: Sender<MidiMessage>,
     filters: Vec<MidiMessageStatus>,
 }
 
 impl MidiInputStream {
+    /// Create a new MIDI input stream with optional status filters.
+    ///
+    /// # Arguments
+    ///
+    /// * `filters` - Message types to accept (empty = all messages)
+    /// * `message_handler` - Callback invoked for each matching message
     pub fn new(filters: Vec<MidiMessageStatus>, message_handler: fn(MidiMessage) -> ()) -> Self {
         let (tx, rx) = mpsc::channel::<MidiMessage>();
         thread::spawn(move || {
@@ -28,6 +40,10 @@ impl MidiInputStream {
 }
 
 impl MidiInputStream {
+    /// Initialize and start the MIDI input stream.
+    ///
+    /// Prompts the user to select a MIDI port if multiple are available.
+    /// Returns a handle to the spawned thread.
     pub fn init(self) -> JoinHandle<()> {
         println!("Creating new MIDI input stream");
         let mut midi_in = MidiInput::new("Reading MIDI input").unwrap();

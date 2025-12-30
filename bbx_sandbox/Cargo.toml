@@ -1,12 +1,12 @@
 [package]
 name = "bbx_sandbox"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+publish = false
 
 [dependencies]
-bbx_dsp = { path = "../bbx_dsp" }
-bbx_file = { path = "../bbx_file" }
-bbx_midi = { path = "../bbx_midi" }
-
-rand = "0.8.5"
-rodio = "0.20.1"
+bbx_dsp.workspace = true
+bbx_file.workspace = true
+bbx_midi.workspace = true
+rand.workspace = true
+rodio.workspace = true

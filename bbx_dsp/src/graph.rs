@@ -1,4 +1,15 @@
+//! DSP graph system.
+//!
+//! This module provides [`Graph`] for managing connected DSP blocks and
+//! [`GraphBuilder`] for fluent graph construction.
+//!
+//! Blocks are connected to form a signal processing chain. The graph handles
+//! buffer allocation, execution ordering via topological sort, and modulation
+//! value collection.
+
 use std::collections::HashMap;
+
+use bbx_core::StackVec;
 
 use crate::{
     block::{BlockId, BlockType},
@@ -6,7 +17,7 @@ use crate::{
         effectors::overdrive::OverdriveBlock,
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
-        modulators::lfo::LfoBlock,
+        modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
     },
     buffer::{AudioBuffer, Buffer},
     context::DspContext,
@@ -17,19 +28,31 @@ use crate::{
     writer::Writer,
 };
 
-/// Used for storing information about which blocks are connected
-/// and in what way.
+/// Maximum number of inputs a block can have (realtime-safe stack allocation).
+const MAX_BLOCK_INPUTS: usize = 8;
+/// Maximum number of outputs a block can have (realtime-safe stack allocation).
+const MAX_BLOCK_OUTPUTS: usize = 8;
+
+/// Describes an audio connection between two blocks.
+///
+/// Connects a specific output port of one block to an input port of another.
 #[derive(Debug, Clone)]
 pub struct Connection {
+    /// Source block providing audio.
     pub from: BlockId,
+    /// Output port index on the source block.
     pub from_output: usize,
+    /// Destination block receiving audio.
     pub to: BlockId,
+    /// Input port index on the destination block.
     pub to_input: usize,
 }
 
-/// Used for storing all relevant data about a DSP `Graph`,
-/// including its blocks, `AudioBuffer`s and modulation values for each block,
-/// what order to execute calculations in, and so forth.
+/// A directed acyclic graph of connected DSP blocks.
+///
+/// The graph manages block storage, buffer allocation, and execution ordering.
+/// Blocks are processed in topologically sorted order to ensure dependencies
+/// are satisfied.
 pub struct Graph<S: Sample> {
     blocks: Vec<BlockType<S>>,
     connections: Vec<Connection>,
@@ -44,6 +67,10 @@ pub struct Graph<S: Sample> {
     block_buffer_start: Vec<usize>,
     buffer_size: usize,
     context: DspContext,
+
+    // Pre-computed connection lookups: block_id -> [input buffer indices]
+    // Computed once in prepare_for_playback() for O(1) lookup during processing
+    block_input_buffers: Vec<Vec<usize>>,
 }
 
 impl<S: Sample> Graph<S> {
@@ -66,6 +93,7 @@ impl<S: Sample> Graph<S> {
             block_buffer_start: Vec::new(),
             buffer_size,
             context,
+            block_input_buffers: Vec::new(),
         }
     }
 
@@ -108,10 +136,21 @@ impl<S: Sample> Graph<S> {
         })
     }
 
-    /// Prepares the `Graph` to be processed.
+    /// Prepares the graph for audio processing.
+    ///
+    /// Must be called after all blocks are added and connected, but before
+    /// [`process_buffers`](Self::process_buffers). Computes execution order
+    /// and pre-allocates buffers.
     pub fn prepare_for_playback(&mut self) {
         self.execution_order = self.topological_sort();
         self.modulation_values.resize(self.blocks.len(), S::ZERO);
+
+        // Pre-compute input buffer indices for each block (O(1) lookup during processing)
+        self.block_input_buffers = vec![Vec::new(); self.blocks.len()];
+        for conn in &self.connections {
+            let buffer_idx = self.get_buffer_index(conn.from, conn.from_output);
+            self.block_input_buffers[conn.to.0].push(buffer_idx);
+        }
     }
 
     fn topological_sort(&self) -> Vec<BlockId> {
@@ -149,7 +188,10 @@ impl<S: Sample> Graph<S> {
         result
     }
 
-    /// Process the buffers for each of the `Graph`'s blocks.
+    /// Process one buffer's worth of audio through all blocks.
+    ///
+    /// Executes blocks in topologically sorted order, copying final output
+    /// to the provided buffers (one per channel).
     pub fn process_buffers(&mut self, output_buffers: &mut [&mut [S]]) {
         // Clear all buffers
         for buffer in &mut self.audio_buffers {
@@ -168,20 +210,19 @@ impl<S: Sample> Graph<S> {
     }
 
     fn process_block_unsafe(&mut self, block_id: BlockId) {
-        let mut input_indices = Vec::new();
-        let mut output_indices = Vec::new();
+        // Use pre-computed input buffer indices (O(1) lookup instead of O(n) scan)
+        let input_indices = &self.block_input_buffers[block_id.0];
 
-        for connection in &self.connections {
-            if connection.to == block_id {
-                let buffer_index = self.get_buffer_index(connection.from, connection.from_output);
-                input_indices.push(buffer_index);
-            }
-        }
-
+        // Build output indices using stack allocation (no heap allocation)
+        let mut output_indices: StackVec<usize, MAX_BLOCK_OUTPUTS> = StackVec::new();
         let output_count = self.blocks[block_id.0].output_count();
+        debug_assert!(
+            output_count <= MAX_BLOCK_OUTPUTS,
+            "Block output count {output_count} exceeds MAX_BLOCK_OUTPUTS {MAX_BLOCK_OUTPUTS}"
+        );
         for output_index in 0..output_count {
             let buffer_index = self.get_buffer_index(block_id, output_index);
-            output_indices.push(buffer_index);
+            output_indices.push_unchecked(buffer_index);
         }
 
         // SAFETY: Our buffer indexing guarantees that:
@@ -192,24 +233,32 @@ impl<S: Sample> Graph<S> {
         unsafe {
             let buffers_ptr = self.audio_buffers.as_mut_ptr();
 
-            let input_slices: Vec<&[S]> = input_indices
-                .into_iter()
-                .map(|index| {
-                    let buffer_ptr = buffers_ptr.add(index);
-                    std::slice::from_raw_parts((&*buffer_ptr).as_ptr(), (&*buffer_ptr).len())
-                })
-                .collect();
-            let mut output_slices: Vec<&mut [S]> = output_indices
-                .into_iter()
-                .map(|index| {
-                    let buffer_ptr = buffers_ptr.add(index);
-                    std::slice::from_raw_parts_mut((&mut *buffer_ptr).as_mut_ptr(), (&*buffer_ptr).len())
-                })
-                .collect();
+            // Build input slices using stack allocation (no heap allocation)
+            let mut input_slices: StackVec<&[S], MAX_BLOCK_INPUTS> = StackVec::new();
+            let input_count = input_indices.len();
+            debug_assert!(
+                input_count <= MAX_BLOCK_INPUTS,
+                "Block input count {input_count} exceeds MAX_BLOCK_INPUTS {MAX_BLOCK_INPUTS}"
+            );
+            for &index in input_indices {
+                let buffer_ptr = buffers_ptr.add(index);
+                let slice = std::slice::from_raw_parts((*buffer_ptr).as_ptr(), (*buffer_ptr).len());
+                // SAFETY: We verified input_indices.len() <= MAX_BLOCK_INPUTS via debug_assert
+                input_slices.push_unchecked(slice);
+            }
+
+            // Build output slices using stack allocation (no heap allocation)
+            let mut output_slices: StackVec<&mut [S], MAX_BLOCK_OUTPUTS> = StackVec::new();
+            for &index in output_indices.as_slice() {
+                let buffer_ptr = buffers_ptr.add(index);
+                let slice = std::slice::from_raw_parts_mut((*buffer_ptr).as_mut_ptr(), (*buffer_ptr).len());
+                // SAFETY: output_indices.len() <= MAX_BLOCK_OUTPUTS (already verified above)
+                output_slices.push_unchecked(slice);
+            }
 
             self.blocks[block_id.0].process(
-                &input_slices,
-                &mut output_slices,
+                input_slices.as_slice(),
+                output_slices.as_mut_slice(),
                 &self.modulation_values,
                 &self.context,
             );
@@ -217,11 +266,20 @@ impl<S: Sample> Graph<S> {
     }
 
     fn collect_modulation_values(&mut self, block_id: BlockId) {
+        // Bounds check to prevent panic in audio thread
+        if block_id.0 >= self.blocks.len() {
+            return;
+        }
+
         let has_modulation = !self.blocks[block_id.0].modulation_outputs().is_empty();
         if has_modulation {
             let buffer_index = self.get_buffer_index(block_id, 0);
-            if !self.audio_buffers[buffer_index].is_empty() {
-                self.modulation_values[block_id.0] = self.audio_buffers[buffer_index][0];
+            // Safe lookup chain to prevent panic in audio thread
+            if let (Some(&first_sample), Some(mod_val)) = (
+                self.audio_buffers.get(buffer_index).and_then(|b| b.as_slice().first()),
+                self.modulation_values.get_mut(block_id.0),
+            ) {
+                *mod_val = first_sample;
             }
         }
     }
@@ -246,7 +304,10 @@ impl<S: Sample> Graph<S> {
     }
 }
 
-/// Used for easily constructing a DSP `Graph`.
+/// Fluent builder for constructing DSP graphs.
+///
+/// Provides methods to add blocks, create connections, and set up modulation.
+/// Call [`build`](Self::build) to finalize and prepare the graph.
 pub struct GraphBuilder<S: Sample> {
     graph: Graph<S>,
 }
@@ -299,6 +360,18 @@ impl<S: Sample> GraphBuilder<S> {
 
     // MODULATORS
 
+    /// Add an `EnvelopeBlock` to the `Graph`, which is useful for ADSR-style
+    /// amplitude or parameter modulation.
+    pub fn add_envelope(&mut self, attack: f64, decay: f64, sustain: f64, release: f64) -> BlockId {
+        let block = BlockType::Envelope(EnvelopeBlock::new(
+            S::from_f64(attack),
+            S::from_f64(decay),
+            S::from_f64(sustain.clamp(0.0, 1.0)),
+            S::from_f64(release),
+        ));
+        self.graph.add_block(block)
+    }
+
     /// Add an `LfoBlock` to the `Graph`, which is useful when wanting to
     /// modulate one or more `Parameter`s of one or more blocks.
     pub fn add_lfo(&mut self, frequency: f64, depth: f64, seed: Option<u64>) -> BlockId {
@@ -335,6 +408,11 @@ impl<S: Sample> GraphBuilder<S> {
     }
 
     /// Prepare the final DSP `Graph`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any block has more inputs or outputs than the realtime-safe
+    /// limits (`MAX_BLOCK_INPUTS` or `MAX_BLOCK_OUTPUTS`).
     pub fn build(mut self) -> Graph<S> {
         // TODO: Fix this logic to work with ALL last blocks that do not yet have an output
         // Currently this logic would make so that if multiple oscillators are used, only
@@ -347,6 +425,23 @@ impl<S: Sample> GraphBuilder<S> {
         }
 
         self.graph.prepare_for_playback();
+
+        // Validate that all blocks are within realtime-safe I/O limits
+        // This must run after prepare_for_playback() to check actual connection counts
+        for (idx, block) in self.graph.blocks.iter().enumerate() {
+            let connected_inputs = self.graph.block_input_buffers[idx].len();
+            let output_count = block.output_count();
+
+            assert!(
+                connected_inputs <= MAX_BLOCK_INPUTS,
+                "Block {idx} has {connected_inputs} connected inputs, exceeding MAX_BLOCK_INPUTS ({MAX_BLOCK_INPUTS})"
+            );
+            assert!(
+                output_count <= MAX_BLOCK_OUTPUTS,
+                "Block {idx} has {output_count} outputs, exceeding MAX_BLOCK_OUTPUTS ({MAX_BLOCK_OUTPUTS})"
+            );
+        }
+
         self.graph
     }
 }

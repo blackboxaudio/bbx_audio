@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+env:
+  CARGO_TERM_COLOR: always
+  PUBLISH_DELAY: 30
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Extract Version from Tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Releasing version: $VERSION"
+
+      - name: Setup Linux Dependencies
+        run: sudo apt-get update && sudo apt-get install -y alsa libasound2-dev libssl-dev pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify Cargo.toml Versions Match Tag
+        run: |
+          CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "bbx_core") | .version')
+          TAG_VERSION=${{ steps.version.outputs.version }}
+          if [ "$CARGO_VERSION" != "$TAG_VERSION" ]; then
+            echo "Error: Cargo.toml version ($CARGO_VERSION) does not match tag version ($TAG_VERSION)"
+            exit 1
+          fi
+
+      - name: Run Tests
+        run: cargo test --workspace --release
+
+      - name: Dry Run Publish
+        run: |
+          for crate in bbx_core bbx_midi bbx_dsp bbx_file bbx_plugin; do
+            echo "=== Dry run: $crate ==="
+            cargo publish --dry-run -p $crate
+          done
+
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: validate
+    environment: crates-io
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Linux Dependencies
+        run: sudo apt-get update && sudo apt-get install -y alsa libasound2-dev libssl-dev pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish bbx_core
+        run: cargo publish -p bbx_core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Publish bbx_midi
+        run: cargo publish -p bbx_midi --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Wait for crates.io Index
+        run: sleep ${{ env.PUBLISH_DELAY }}
+
+      - name: Publish bbx_dsp
+        run: cargo publish -p bbx_dsp --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Wait for crates.io Index
+        run: sleep ${{ env.PUBLISH_DELAY }}
+
+      - name: Publish bbx_file
+        run: cargo publish -p bbx_file --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Publish bbx_plugin
+        run: cargo publish -p bbx_plugin --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate, publish]
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"- %s" ${PREV_TAG}..HEAD)
+          fi
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: v${{ needs.validate.outputs.version }}
+          body: |
+            ## Changes
+
+            ${{ steps.changelog.outputs.commits }}
+
+            ## Installation
+
+            ```toml
+            [dependencies]
+            bbx_dsp = "${{ needs.validate.outputs.version }}"
+            ```
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}

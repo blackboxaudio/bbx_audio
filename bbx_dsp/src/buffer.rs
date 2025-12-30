@@ -1,8 +1,16 @@
+//! Audio buffer types.
+//!
+//! This module provides the [`Buffer`] trait for generic buffer operations
+//! and [`AudioBuffer`] for storing audio sample data during DSP processing.
+
 use std::ops::{Index, IndexMut};
 
 use crate::sample::Sample;
 
-/// Describes a buffer of an arbitrary data type `T`.
+/// A generic buffer interface for DSP operations.
+///
+/// Provides common operations for buffers used throughout the DSP system.
+/// Implemented by [`AudioBuffer`] for audio sample storage.
 pub trait Buffer<T> {
     /// Get the length of the `Buffer`.
     fn len(&self) -> usize;
@@ -23,7 +31,10 @@ pub trait Buffer<T> {
     fn zeroize(&mut self);
 }
 
-/// Used for containing audio sample data.
+/// A buffer for storing audio sample data.
+///
+/// Used internally by the DSP graph for block input/output buffers.
+/// Wraps a `Vec<S>` with convenience methods for audio processing.
 #[derive(Debug, Clone)]
 pub struct AudioBuffer<S: Sample> {
     data: Vec<S>,

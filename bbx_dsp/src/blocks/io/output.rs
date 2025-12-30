@@ -1,8 +1,13 @@
+//! Terminal output block for DSP graphs.
+
 use std::marker::PhantomData;
 
 use crate::{block::Block, context::DspContext, parameter::ModulationOutput, sample::Sample};
 
-/// Used for collecting audio output from all the relevant blocks within a DSP `Graph`.
+/// The terminal output block for a DSP graph.
+///
+/// Collects final audio from upstream blocks and makes it available
+/// for playback or further processing outside the graph.
 pub struct OutputBlock<S: Sample> {
     num_channels: usize,
     _phantom: PhantomData<S>,

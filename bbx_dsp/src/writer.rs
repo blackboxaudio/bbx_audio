@@ -1,6 +1,14 @@
+//! Audio file writer trait.
+//!
+//! This module defines the [`Writer`] trait for writing audio file data.
+//! Implementations are provided by the `bbx_file` crate (e.g., WAV writer).
+
 use crate::sample::Sample;
 
-/// Describes a component that can write audio files.
+/// Trait for writing audio data to files.
+///
+/// Implementations handle encoding and file format specifics. Call
+/// [`finalize`](Self::finalize) when done to ensure proper file closure.
 pub trait Writer<S: Sample>: Send + Sync {
     /// Get the sample rate of the writer.
     fn sample_rate(&self) -> f64;

@@ -1,6 +1,11 @@
+//! Audio file input block.
+
 use crate::{block::Block, context::DspContext, parameter::ModulationOutput, reader::Reader, sample::Sample};
 
-/// Used for reading (and processing) an audio file into a DSP `Graph`.
+/// Reads audio from a file into the DSP graph.
+///
+/// Wraps a [`Reader`] implementation to stream audio samples into the graph.
+/// Supports optional looping for continuous playback.
 pub struct FileInputBlock<S: Sample> {
     reader: Box<dyn Reader<S>>,
     current_position: usize,

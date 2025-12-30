@@ -1,3 +1,5 @@
+//! WAV file reader via wavers.
+
 use std::path::Path;
 
 use bbx_dsp::{
@@ -7,8 +9,10 @@ use bbx_dsp::{
 };
 use wavers::Wav;
 
-/// Used for reading audio files via the
-/// `FileInputBlock` component within the `bbx_dsp` crate.
+/// A WAV file reader implementing [`Reader`].
+///
+/// Loads the entire WAV file into memory on construction, providing
+/// sample data via the `read_channel` method.
 pub struct WavFileReader<S: Sample> {
     channel_buffers: Vec<AudioBuffer<S>>,
     sample_rate: f64,
