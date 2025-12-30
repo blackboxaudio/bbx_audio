@@ -31,23 +31,31 @@ jobs:
                   toolchain: nightly
                   override: true
 
+            - name: Setup mdbook
+              run: |
+                  curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.40/mdbook-v0.4.40-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+                  chmod +x mdbook
+                  sudo mv mdbook /usr/local/bin/
+
             - name: Setup Pages
               id: pages
               uses: actions/configure-pages@v4
 
-            - name: Clean Docs
-              run: cargo clean --doc
+            - name: Build mdbook
+              run: mdbook build docs
 
-            - name: Build Docs
+            - name: Build API Docs
               run: RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo +nightly doc --no-deps
 
-            - name: Remove Lock File
-              run: rm target/doc/.lock
+            - name: Move API Docs
+              run: |
+                  rm target/doc/.lock
+                  mv target/doc docs/book/api
 
             - name: Upload Artifact
               uses: actions/upload-pages-artifact@v3
               with:
-                  path: target/doc
+                  path: docs/book
 
     deploy:
         name: Deploy
