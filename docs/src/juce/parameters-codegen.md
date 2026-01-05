@@ -38,7 +38,7 @@ fn main() {
     let dest_path = Path::new(&out_dir).join("params.rs");
     fs::write(&dest_path, rust_code).unwrap();
 
-    // Generate C header
+    // Generate C header (prefer using ParamsFile API instead - see below)
     let mut c_header = String::from("/* Auto-generated - DO NOT EDIT */\n\n");
     c_header.push_str("#ifndef BBX_PARAMS_H\n#define BBX_PARAMS_H\n\n");
     if let Some(parameters) = params["parameters"].as_array() {
@@ -46,7 +46,16 @@ fn main() {
             let id = param["id"].as_str().unwrap();
             c_header.push_str(&format!("#define PARAM_{} {}\n", id, index));
         }
-        c_header.push_str(&format!("\n#define PARAM_COUNT {}\n", parameters.len()));
+        c_header.push_str(&format!("\n#define PARAM_COUNT {}\n\n", parameters.len()));
+
+        // Generate PARAM_IDS array for dynamic iteration
+        c_header.push_str("static const char* PARAM_IDS[PARAM_COUNT] = {\n");
+        for (i, param) in parameters.iter().enumerate() {
+            let id = param["id"].as_str().unwrap();
+            let comma = if i < parameters.len() - 1 { "," } else { "" };
+            c_header.push_str(&format!("    \"{}\"{}\n", id, comma));
+        }
+        c_header.push_str("};\n");
     }
     c_header.push_str("\n#endif /* BBX_PARAMS_H */\n");
 
@@ -126,6 +135,47 @@ corrosion_import_crate(MANIFEST_PATH dsp/Cargo.toml)
 target_include_directories(${PLUGIN_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/dsp/include)
 ```
+
+## Using PARAM_IDS in C++
+
+The generated header includes a `PARAM_IDS` array for dynamic parameter iteration:
+
+```cpp
+// Generated header contains:
+// static const char* PARAM_IDS[PARAM_COUNT] = { "GAIN", "MONO", ... };
+```
+
+### Caching Parameter Pointers
+
+Cache atomic pointers once in the constructor:
+
+```cpp
+// In processor.h
+std::array<std::atomic<float>*, PARAM_COUNT> m_paramPointers {};
+
+// In processor.cpp constructor
+for (size_t i = 0; i < PARAM_COUNT; ++i) {
+    m_paramPointers[i] = m_parameters.getRawParameterValue(juce::String(PARAM_IDS[i]));
+}
+```
+
+### Loading Parameters in processBlock
+
+Replace manual per-parameter loading with a loop:
+
+```cpp
+// Instead of:
+// auto* gain = m_parameters.getRawParameterValue("GAIN");
+// m_paramBuffer[PARAM_GAIN] = gain ? gain->load() : 0.0f;
+// ... repeated for each parameter
+
+// Use:
+for (size_t i = 0; i < PARAM_COUNT; ++i) {
+    m_paramBuffer[i] = m_paramPointers[i] ? m_paramPointers[i]->load() : 0.0f;
+}
+```
+
+This eliminates manual C++ updates when adding parameters.
 
 ## Verification
 

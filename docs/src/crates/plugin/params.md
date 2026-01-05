@@ -69,7 +69,10 @@ let c_header = params.generate_c_header();
 // #define PARAM_GAIN 0
 // #define PARAM_MONO 1
 // #define PARAM_COUNT 2
+// static const char* PARAM_IDS[PARAM_COUNT] = { "GAIN", "MONO" };
 ```
+
+The C header includes a `PARAM_IDS` array for dynamic iteration over parameters in C++.
 
 ## Programmatic Definitions
 

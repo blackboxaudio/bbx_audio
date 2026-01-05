@@ -10,11 +10,26 @@ Foundational utilities and data structures for the bbx_audio workspace.
 - **Stack-allocated vector**: Fixed-capacity vector without heap allocation
 - **RNG**: Fast XorShift random number generator
 
+## Cargo Features
+
+### `ftz-daz`
+
+Enables hardware-level denormal prevention on x86/x86_64 and AArch64 (Apple Silicon) processors. When enabled, the `enable_ftz_daz()` function becomes available:
+
+```rust
+use bbx_core::denormal::enable_ftz_daz;
+
+// Call once at the start of each audio thread
+enable_ftz_daz();
+```
+
+This sets CPU flags to automatically flush denormal floats to zero, avoiding the 10-100x slowdowns they can cause. On x86/x86_64, this enables both FTZ and DAZ modes. On AArch64, only FTZ is available—use `flush_denormal_f64/f32` in feedback paths for full coverage. Recommended for production audio applications.
+
 ## Modules
 
 ### `denormal`
 
-Utilities for flushing denormal (subnormal) floating-point values to zero, preventing CPU slowdowns during quiet audio passages.
+Utilities for handling denormal (subnormal) floating-point values, preventing CPU slowdowns during quiet audio passages.
 
 ```rust
 use bbx_core::{flush_denormal_f32, flush_denormal_f64};

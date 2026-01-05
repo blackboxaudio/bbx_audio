@@ -208,3 +208,74 @@ impl From<&[u8]> for MidiMessage {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_note_on_parsing() {
+        // Note On, channel 1, note 60 (C4), velocity 100
+        let msg = MidiMessage::new([0x90, 60, 100]);
+        assert_eq!(msg.get_status(), MidiMessageStatus::NoteOn);
+        assert_eq!(msg.get_channel(), 1);
+        assert_eq!(msg.get_note_number(), Some(60));
+        assert_eq!(msg.get_velocity(), Some(100));
+        assert_eq!(msg.get_note(), Some("C4".to_string()));
+    }
+
+    #[test]
+    fn test_note_off_parsing() {
+        // Note Off, channel 3, note 64 (E4), velocity 64
+        let msg = MidiMessage::new([0x82, 64, 64]);
+        assert_eq!(msg.get_status(), MidiMessageStatus::NoteOff);
+        assert_eq!(msg.get_channel(), 3);
+        assert_eq!(msg.get_note_number(), Some(64));
+        assert_eq!(msg.get_velocity(), Some(64));
+        assert_eq!(msg.get_note(), Some("E4".to_string()));
+    }
+
+    #[test]
+    fn test_control_change_parsing() {
+        // Control Change, channel 1, controller 7 (volume), value 127
+        let msg = MidiMessage::new([0xB0, 7, 127]);
+        assert_eq!(msg.get_status(), MidiMessageStatus::ControlChange);
+        assert_eq!(msg.get_channel(), 1);
+        assert_eq!(msg.get_control_change_data(), Some(127));
+        assert_eq!(msg.get_note_number(), None);
+    }
+
+    #[test]
+    fn test_channel_extraction() {
+        // Channels are 1-16 in user-facing API (internal byte is 0-15)
+        for ch in 0..16u8 {
+            let msg = MidiMessage::new([0x90 | ch, 60, 100]);
+            assert_eq!(msg.get_channel(), ch + 1);
+        }
+    }
+
+    #[test]
+    fn test_note_frequency() {
+        // A4 (note 69) should be 440 Hz
+        let msg = MidiMessage::new([0x90, 69, 100]);
+        let freq = msg.get_note_frequency().unwrap();
+        assert!((freq - 440.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_from_slice() {
+        // Test parsing from byte slice
+        let bytes: &[u8] = &[0x90, 60, 100];
+        let msg = MidiMessage::from(bytes);
+        assert_eq!(msg.get_status(), MidiMessageStatus::NoteOn);
+        assert_eq!(msg.get_note_number(), Some(60));
+    }
+
+    #[test]
+    fn test_pitch_wheel() {
+        // Pitch wheel message
+        let msg = MidiMessage::new([0xE0, 0x00, 0x40]);
+        assert_eq!(msg.get_status(), MidiMessageStatus::PitchWheel);
+        assert_eq!(msg.get_pitch_wheel_data(), Some((0x00, 0x40)));
+    }
+}

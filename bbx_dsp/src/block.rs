@@ -107,6 +107,7 @@ pub enum BlockType<S: Sample> {
 
 impl<S: Sample> BlockType<S> {
     /// Perform the calculation of the underlying `Block`.
+    #[inline]
     pub fn process(
         &mut self,
         inputs: &[&[S]],
@@ -137,6 +138,7 @@ impl<S: Sample> BlockType<S> {
     }
 
     /// Get the input count of the underlying `Block`.
+    #[inline]
     pub fn input_count(&self) -> usize {
         match self {
             // I/O
@@ -161,6 +163,7 @@ impl<S: Sample> BlockType<S> {
     }
 
     /// Get the output count of the underlying `Block`.
+    #[inline]
     pub fn output_count(&self) -> usize {
         match self {
             // I/O
@@ -185,6 +188,7 @@ impl<S: Sample> BlockType<S> {
     }
 
     /// Get the modulation outputs (if any) of the underlying `Block`.
+    #[inline]
     pub fn modulation_outputs(&self) -> &[ModulationOutput] {
         match self {
             // I/O
@@ -290,5 +294,17 @@ impl<S: Sample> BlockType<S> {
                 _ => Err(format!("Unknown LFO parameter: {parameter_name}")),
             },
         }
+    }
+
+    /// Returns `true` if this block is a modulator (LFO or Envelope).
+    #[inline]
+    pub fn is_modulator(&self) -> bool {
+        matches!(self, BlockType::Envelope(_) | BlockType::Lfo(_))
+    }
+
+    /// Returns `true` if this block is an output-type block (Output or FileOutput).
+    #[inline]
+    pub fn is_output(&self) -> bool {
+        matches!(self, BlockType::Output(_) | BlockType::FileOutput(_))
     }
 }

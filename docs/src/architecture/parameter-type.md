@@ -1,4 +1,4 @@
-# Parameter<S> Type
+# Parameter\<S\> Type
 
 The generic parameter type for static and modulated values.
 

@@ -15,6 +15,10 @@ links = "bbx_plugin"
 [lib]
 crate-type = ["rlib"]
 
+[features]
+default = []
+ftz-daz = ["bbx_core/ftz-daz"]
+
 [dependencies]
 bbx_core.workspace = true
 bbx_dsp.workspace = true

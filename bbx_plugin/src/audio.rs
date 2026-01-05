@@ -1,13 +1,17 @@
 //! Audio processing FFI functions.
 //!
 //! This module provides the generic audio processing function that bridges
-//! JUCE's processBlock to the Rust effects chain.
+//! JUCE's processBlock to the Rust effects chain using zero-copy buffer handling.
 
 use bbx_dsp::PluginDsp;
 
 use crate::handle::{BbxGraph, graph_from_handle};
 
-/// Maximum samples per buffer (stack allocation limit).
+/// Maximum samples per buffer.
+///
+/// Buffers larger than this are processed up to this limit only.
+/// This value accommodates most audio workflows (e.g., 4096 samples at 192kHz = ~21ms).
+/// Configure your DAW to use buffer sizes <= 4096 for full coverage.
 const MAX_SAMPLES: usize = 4096;
 
 /// Maximum channels supported.
@@ -16,11 +20,12 @@ const MAX_CHANNELS: usize = 2;
 /// Process a block of audio through the effects chain.
 ///
 /// This function is called by the macro-generated `bbx_graph_process` FFI function.
+/// It uses zero-copy buffer handling for optimal performance.
 ///
 /// # Safety
 ///
 /// - `handle` must be a valid pointer from `bbx_graph_create`.
-/// - `inputs` must be a valid pointer to an array of `num_channels` pointers.
+/// - `inputs` must be a valid pointer to an array of `num_channels` pointers, or null.
 /// - `outputs` must be a valid pointer to an array of `num_channels` pointers.
 /// - Each input/output channel pointer must be valid for `num_samples` floats.
 /// - `params` must be valid for `num_params` floats, or null.
@@ -40,20 +45,31 @@ pub unsafe fn process_audio<D: PluginDsp>(
     unsafe {
         let inner = graph_from_handle::<D>(handle);
 
+        let num_channels = num_channels as usize;
+        let num_samples = num_samples as usize;
+
         if !inner.prepared {
-            // Graph not prepared, output silence
-            for i in 0..num_channels as usize {
+            for i in 0..num_channels {
                 let output_ptr = *outputs.add(i);
                 if !output_ptr.is_null() {
-                    std::ptr::write_bytes(output_ptr, 0, num_samples as usize);
+                    std::ptr::write_bytes(output_ptr, 0, num_samples * size_of::<f32>());
                 }
             }
             return;
         }
 
-        let num_channels = num_channels as usize;
-        let num_samples = num_samples as usize;
+        // Debug check for buffer size limits
+        debug_assert!(
+            num_samples <= MAX_SAMPLES,
+            "Buffer size {num_samples} exceeds MAX_SAMPLES ({MAX_SAMPLES}). Only first {MAX_SAMPLES} samples processed."
+        );
+        debug_assert!(
+            num_channels <= MAX_CHANNELS,
+            "Channel count {num_channels} exceeds MAX_CHANNELS ({MAX_CHANNELS}). Only first {MAX_CHANNELS} channels processed."
+        );
+
         let samples_to_process = num_samples.min(MAX_SAMPLES);
+        let channels_to_process = num_channels.min(MAX_CHANNELS);
 
         // Apply parameters if provided
         if !params.is_null() && num_params > 0 {
@@ -61,53 +77,54 @@ pub unsafe fn process_audio<D: PluginDsp>(
             inner.dsp.apply_parameters(param_slice);
         }
 
-        // Build input slices
-        let mut input_buffers: [[f32; MAX_SAMPLES]; MAX_CHANNELS] = [[0.0; MAX_SAMPLES]; MAX_CHANNELS];
+        // Build input slices directly from FFI pointers (zero-copy)
+        // Use a small stack buffer for silent channels when input is null
+        let silent_buffer: [f32; MAX_SAMPLES] = [0.0; MAX_SAMPLES];
+        let silent_slice: &[f32] = &silent_buffer[..samples_to_process];
+
+        let mut input_slices_storage: [&[f32]; MAX_CHANNELS] = [silent_slice; MAX_CHANNELS];
+
         if !inputs.is_null() {
-            for (ch, input_buffer) in input_buffers
-                .iter_mut()
-                .enumerate()
-                .take(num_channels.min(MAX_CHANNELS))
-            {
+            #[allow(clippy::needless_range_loop)] // ch is used for both array indexing and pointer arithmetic
+            for ch in 0..channels_to_process {
                 let input_ptr = *inputs.add(ch);
                 if !input_ptr.is_null() {
-                    let src = std::slice::from_raw_parts(input_ptr, samples_to_process);
-                    input_buffer[..samples_to_process].copy_from_slice(src);
+                    input_slices_storage[ch] = std::slice::from_raw_parts(input_ptr, samples_to_process);
                 }
             }
         }
 
-        // Build output buffers
-        let mut output_buffers: [[f32; MAX_SAMPLES]; MAX_CHANNELS] = [[0.0; MAX_SAMPLES]; MAX_CHANNELS];
+        // Build output slices directly from FFI pointers (zero-copy)
+        // JUCE guarantees valid output pointers for all requested channels
+        let output_ptr_0 = *outputs.add(0);
+        let output_ptr_1 = if channels_to_process > 1 {
+            *outputs.add(1)
+        } else {
+            output_ptr_0
+        };
 
-        // Create slice references for the trait method
-        let input_slices: [&[f32]; MAX_CHANNELS] = [
-            &input_buffers[0][..samples_to_process],
-            &input_buffers[1][..samples_to_process],
-        ];
+        if output_ptr_0.is_null() {
+            return;
+        }
 
-        // Split the output buffers to satisfy borrow checker
-        let (left_buf, rest) = output_buffers.split_at_mut(1);
-        let (right_buf, _) = rest.split_at_mut(1);
-        let mut output_slices: [&mut [f32]; MAX_CHANNELS] = [
-            &mut left_buf[0][..samples_to_process],
-            &mut right_buf[0][..samples_to_process],
-        ];
+        let output_slice_0 = std::slice::from_raw_parts_mut(output_ptr_0, samples_to_process);
 
-        // Call the plugin's process method
-        inner.dsp.process(
-            &input_slices[..num_channels.min(MAX_CHANNELS)],
-            &mut output_slices[..num_channels.min(MAX_CHANNELS)],
-            &inner.context,
-        );
-
-        // Copy results back to output buffers
-        for (ch, output_buffer) in output_buffers.iter().enumerate().take(num_channels.min(MAX_CHANNELS)) {
-            let output_ptr = *outputs.add(ch);
-            if !output_ptr.is_null() {
-                let dest = std::slice::from_raw_parts_mut(output_ptr, samples_to_process);
-                dest.copy_from_slice(&output_buffer[..samples_to_process]);
+        if channels_to_process == 1 {
+            let mut output_refs: [&mut [f32]; 1] = [output_slice_0];
+            inner
+                .dsp
+                .process(&input_slices_storage[..1], &mut output_refs, &inner.context);
+        } else {
+            if output_ptr_1.is_null() {
+                return;
             }
+            let output_slice_1 = std::slice::from_raw_parts_mut(output_ptr_1, samples_to_process);
+            let mut output_refs: [&mut [f32]; 2] = [output_slice_0, output_slice_1];
+            inner.dsp.process(
+                &input_slices_storage[..channels_to_process],
+                &mut output_refs,
+                &inner.context,
+            );
         }
     }
 }

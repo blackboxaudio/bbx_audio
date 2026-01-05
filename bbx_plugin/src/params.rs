@@ -111,6 +111,7 @@ pub fn generate_rust_indices_from_defs(params: &[ParamDef]) -> String {
 /// #define PARAM_GAIN 0
 /// #define PARAM_PAN 1
 /// #define PARAM_COUNT 2
+/// static const char* PARAM_IDS[PARAM_COUNT] = { "GAIN", "PAN" };
 /// ```
 pub fn generate_c_header_from_defs(params: &[ParamDef]) -> String {
     let mut content = String::new();
@@ -123,6 +124,17 @@ pub fn generate_c_header_from_defs(params: &[ParamDef]) -> String {
     }
 
     content.push_str(&format!("\n#define PARAM_COUNT {}\n\n", params.len()));
+
+    // Generate PARAM_IDS array for dynamic iteration
+    if !params.is_empty() {
+        content.push_str("static const char* PARAM_IDS[PARAM_COUNT] = {\n");
+        for (i, param) in params.iter().enumerate() {
+            let comma = if i < params.len() - 1 { "," } else { "" };
+            content.push_str(&format!("    \"{}\"{}\n", param.id, comma));
+        }
+        content.push_str("};\n\n");
+    }
+
     content.push_str("#endif /* BBX_PARAMS_H */\n");
 
     content
@@ -215,6 +227,7 @@ impl ParamsFile {
     /// #define PARAM_GAIN 0
     /// #define PARAM_PAN 1
     /// #define PARAM_COUNT 2
+    /// static const char* PARAM_IDS[PARAM_COUNT] = { "GAIN", "PAN" };
     /// ```
     pub fn generate_c_header(&self) -> String {
         let mut content = String::new();
@@ -227,6 +240,17 @@ impl ParamsFile {
         }
 
         content.push_str(&format!("\n#define PARAM_COUNT {}\n\n", self.parameters.len()));
+
+        // Generate PARAM_IDS array for dynamic iteration
+        if !self.parameters.is_empty() {
+            content.push_str("static const char* PARAM_IDS[PARAM_COUNT] = {\n");
+            for (i, param) in self.parameters.iter().enumerate() {
+                let comma = if i < self.parameters.len() - 1 { "," } else { "" };
+                content.push_str(&format!("    \"{}\"{}\n", param.id, comma));
+            }
+            content.push_str("};\n\n");
+        }
+
         content.push_str("#endif /* BBX_PARAMS_H */\n");
 
         content
@@ -274,6 +298,9 @@ mod tests {
         assert!(header.contains("#define PARAM_GAIN 0"));
         assert!(header.contains("#define PARAM_MONO 1"));
         assert!(header.contains("#define PARAM_COUNT 2"));
+        assert!(header.contains("static const char* PARAM_IDS[PARAM_COUNT]"));
+        assert!(header.contains("\"GAIN\""));
+        assert!(header.contains("\"MONO\""));
     }
 
     #[test]
@@ -301,5 +328,7 @@ mod tests {
 
         let c_header = params.generate_c_header();
         assert!(c_header.contains("#define PARAM_GAIN 0"));
+        assert!(c_header.contains("static const char* PARAM_IDS[PARAM_COUNT]"));
+        assert!(c_header.contains("\"GAIN\""));
     }
 }

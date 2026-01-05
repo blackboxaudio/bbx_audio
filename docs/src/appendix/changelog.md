@@ -7,13 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
-- mdBook documentation
+- mdBook documentation with comprehensive guides
+- Denormal handling support for Apple Silicon (AArch64)
+- `ftz-daz` feature flag for flush-to-zero / denormals-are-zero mode
 
 ### Changed
-- (none)
+- Improved parameter initialization with dynamic approach
+- GraphBuilder now connects all terminal blocks to output (fixes multi-oscillator graphs)
 
 ### Fixed
-- (none)
+- Removed duplicate parameter index definitions
+- Removed unnecessary PhantomData from GainBlock, OverdriveBlock, PannerBlock
 
 ## [0.1.0] - Initial Release
 

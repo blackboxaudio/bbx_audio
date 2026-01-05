@@ -61,15 +61,10 @@ impl<S: Sample> OscillatorBlock<S> {
 
 impl<S: Sample> Block<S> for OscillatorBlock<S> {
     fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        // Determine base frequency (MIDI takes priority if set)
         let base = self.midi_frequency.unwrap_or(self.base_frequency);
 
-        // Apply Hz-based frequency modulation
         let freq_hz = match &self.frequency {
-            Parameter::Constant(f) => {
-                // Use MIDI frequency if set, otherwise use the constant
-                self.midi_frequency.unwrap_or(*f)
-            }
+            Parameter::Constant(f) => self.midi_frequency.unwrap_or(*f),
             Parameter::Modulated(block_id) => {
                 // Add modulation to base (allows vibrato on top of MIDI note)
                 // Safe lookup to prevent panic in audio thread
@@ -78,7 +73,6 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
             }
         };
 
-        // Apply pitch offset (semitones) - for pitch bend
         let pitch_offset_semitones = match &self.pitch_offset {
             Parameter::Constant(offset) => *offset,
             Parameter::Modulated(block_id) => {

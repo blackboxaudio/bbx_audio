@@ -46,7 +46,13 @@ impl<D: PluginDsp> GraphInner<D> {
     }
 
     /// Prepare the effects chain for playback with the given audio specifications.
+    ///
+    /// When the `ftz-daz` feature is enabled, this also configures CPU-level
+    /// FTZ/DAZ modes to prevent denormal performance penalties.
     pub fn prepare(&mut self, sample_rate: f64, buffer_size: usize, num_channels: usize) {
+        #[cfg(feature = "ftz-daz")]
+        bbx_core::denormal::enable_ftz_daz();
+
         self.context = DspContext {
             sample_rate,
             buffer_size,
@@ -74,10 +80,12 @@ impl<D: PluginDsp> Default for GraphInner<D> {
 ///
 /// # Safety
 ///
-/// The caller must ensure the pointer is valid and was created by
-/// `handle_from_graph` with the same DSP type.
+/// The caller must ensure:
+/// - The pointer is valid and was created by `handle_from_graph` with the same DSP type.
+/// - The returned reference is not used beyond the lifetime of the handle.
+/// - No other mutable references to the same handle exist concurrently.
 #[inline]
-pub unsafe fn graph_from_handle<D: PluginDsp>(handle: *mut BbxGraph) -> &'static mut GraphInner<D> {
+pub unsafe fn graph_from_handle<'a, D: PluginDsp>(handle: *mut BbxGraph) -> &'a mut GraphInner<D> {
     unsafe { &mut *(handle as *mut GraphInner<D>) }
 }
 
