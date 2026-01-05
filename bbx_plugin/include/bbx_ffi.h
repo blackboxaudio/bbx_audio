@@ -12,34 +12,6 @@ extern "C" {
 #endif
 
 /* ============================================================================
- * Parameter Index Constants (matching template-plugin/parameters.json)
- * ============================================================================ */
-
-/** Invert left channel phase (0.0 = off, 1.0 = on). */
-#define PARAM_INVERT_LEFT 0
-
-/** Invert right channel phase (0.0 = off, 1.0 = on). */
-#define PARAM_INVERT_RIGHT 1
-
-/** Channel routing mode (0 = Stereo, 1 = Left, 2 = Right, 3 = Swap). */
-#define PARAM_CHANNEL_MODE 2
-
-/** Sum to mono (0.0 = off, 1.0 = on). */
-#define PARAM_MONO 3
-
-/** Gain level in dB (-60 to +30). */
-#define PARAM_GAIN 4
-
-/** Pan position (-100 to +100). */
-#define PARAM_PAN 5
-
-/** DC offset removal enabled (0.0 = off, 1.0 = on). */
-#define PARAM_DC_OFFSET 6
-
-/** Total number of parameters. */
-#define PARAM_COUNT 7
-
-/* ============================================================================
  * Types
  * ============================================================================ */
 
