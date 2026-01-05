@@ -12,7 +12,7 @@ Foundational utilities and data structures for the bbx_audio workspace.
 
 ## Modules
 
-### `denormal`
+### `ftz-daz`
 
 Utilities for flushing denormal (subnormal) floating-point values to zero, preventing CPU slowdowns during quiet audio passages.
 

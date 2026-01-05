@@ -12,6 +12,9 @@ use crate::{
     smoothing::LinearSmoothedValue,
 };
 
+/// Maximum buffer size for stack-allocated smoothing cache.
+const MAX_BUFFER_SIZE: usize = 4096;
+
 /// An overdrive distortion effect with asymmetric soft clipping.
 ///
 /// Uses hyperbolic tangent saturation with different curves for positive
@@ -94,28 +97,33 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
             self.level_smoother.set_target_value(target_level);
         }
 
-        for (input_index, input_buffer) in inputs.iter().enumerate() {
-            // Clone smoothers for each channel to get same curve
-            let mut drive_sm = self.drive_smoother.clone();
-            let mut level_sm = self.level_smoother.clone();
+        let len = inputs.first().map_or(0, |ch| ch.len().min(context.buffer_size));
+        debug_assert!(len <= MAX_BUFFER_SIZE, "buffer_size exceeds MAX_BUFFER_SIZE");
 
-            for (sample_index, sample_value) in input_buffer.iter().enumerate() {
-                let drive = drive_sm.get_next_value().to_f64();
-                let level = level_sm.get_next_value().to_f64();
+        // Pre-compute smoothed values into stack buffers
+        let mut drive_values: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
+        let mut level_values: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
+
+        for i in 0..len {
+            drive_values[i] = self.drive_smoother.get_next_value().to_f64();
+            level_values[i] = self.level_smoother.get_next_value().to_f64();
+        }
+
+        // Apply the same smoothed curve to all channels
+        for (input_index, input_buffer) in inputs.iter().enumerate() {
+            let ch_len = input_buffer.len().min(len);
+            for (sample_index, sample_value) in input_buffer.iter().enumerate().take(ch_len) {
+                let drive = drive_values[sample_index];
+                let level = level_values[sample_index];
 
                 let driven = sample_value.to_f64() * drive;
                 let clipped = self.asymmetric_saturation(driven);
 
                 self.filter_state += self.filter_coefficient * (clipped - self.filter_state);
-                // Flush denormals to prevent CPU slowdown during quiet passages
                 self.filter_state = flush_denormal_f64(self.filter_state);
                 outputs[input_index][sample_index] = S::from_f64(self.filter_state * level);
             }
         }
-
-        // Advance main smoothers
-        self.drive_smoother.skip(context.buffer_size as i32);
-        self.level_smoother.skip(context.buffer_size as i32);
     }
 
     #[inline]

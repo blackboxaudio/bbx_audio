@@ -10,6 +10,9 @@ use crate::{
     smoothing::LinearSmoothedValue,
 };
 
+/// Maximum buffer size for stack-allocated smoothing cache.
+const MAX_BUFFER_SIZE: usize = 4096;
+
 /// A gain control block that applies amplitude scaling.
 ///
 /// Level is specified in decibels (dB).
@@ -80,19 +83,23 @@ impl<S: Sample> Block<S> for GainBlock<S> {
             return;
         }
 
-        // Smoothing path: clone smoother per channel for identical gain curves
-        for ch in 0..num_channels {
-            let len = inputs[ch].len().min(outputs[ch].len());
-            let mut channel_smoother = self.gain_smoother.clone();
+        // Smoothing path: compute smoothed values once, apply to all channels
+        let len = inputs.first().map_or(0, |ch| ch.len().min(context.buffer_size));
+        debug_assert!(len <= MAX_BUFFER_SIZE, "buffer_size exceeds MAX_BUFFER_SIZE");
 
-            for i in 0..len {
-                let gain = channel_smoother.get_next_value();
+        // Pre-compute all smoothed gain values into a stack buffer
+        let mut gain_values: [S; MAX_BUFFER_SIZE] = [S::ZERO; MAX_BUFFER_SIZE];
+        for gain_value in gain_values.iter_mut().take(len) {
+            *gain_value = self.gain_smoother.get_next_value();
+        }
+
+        // Apply the same gain curve to all channels
+        for ch in 0..num_channels {
+            let ch_len = inputs[ch].len().min(outputs[ch].len()).min(len);
+            for (i, &gain) in gain_values.iter().enumerate().take(ch_len) {
                 outputs[ch][i] = S::from_f64(inputs[ch][i].to_f64() * gain.to_f64());
             }
         }
-
-        // Advance the main smoother by buffer_size samples
-        self.gain_smoother.skip(context.buffer_size as i32);
     }
 
     #[inline]

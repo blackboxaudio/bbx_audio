@@ -151,6 +151,34 @@ impl<S: Sample> Graph<S> {
             let buffer_idx = self.get_buffer_index(conn.from, conn.from_output);
             self.block_input_buffers[conn.to.0].push(buffer_idx);
         }
+
+        #[cfg(debug_assertions)]
+        self.validate_buffer_indices();
+    }
+
+    /// Validates that input and output buffer indices never overlap for any block.
+    ///
+    /// This invariant is critical for the safety of `process_block_unsafe()`.
+    #[cfg(debug_assertions)]
+    fn validate_buffer_indices(&self) {
+        for block_id in 0..self.blocks.len() {
+            let input_indices = &self.block_input_buffers[block_id];
+
+            // Compute output indices for this block
+            let output_count = self.blocks[block_id].output_count();
+            let output_start = self.block_buffer_start[block_id];
+
+            for output_idx in 0..output_count {
+                let buffer_idx = output_start + output_idx;
+
+                // Check that no input index matches this output index
+                debug_assert!(
+                    !input_indices.contains(&buffer_idx),
+                    "Block {block_id} has overlapping input/output buffer index {buffer_idx}. \
+                     This would cause undefined behavior in process_block_unsafe()."
+                );
+            }
+        }
     }
 
     fn topological_sort(&self) -> Vec<BlockId> {
@@ -265,6 +293,21 @@ impl<S: Sample> Graph<S> {
         }
     }
 
+    /// Collect modulation values from modulator blocks.
+    ///
+    /// # Control-Rate Modulation
+    ///
+    /// Modulation operates at **control rate** (per-buffer), not audio rate (per-sample).
+    /// Only the first sample of each modulator's output is used as the modulation value
+    /// for the entire buffer. This has several implications:
+    ///
+    /// - **LFO frequency limit**: Maximum LFO frequency is `sample_rate / (2 * buffer_size)`. At 44.1kHz with 512
+    ///   samples, that's ~43Hz. Higher frequencies will alias.
+    /// - **Stepped modulation**: Fast parameter changes appear "stepped" at buffer boundaries.
+    /// - **Envelope precision**: Gate on/off detection only happens at buffer boundaries.
+    ///
+    /// This design is intentional for performance reasons: audio-rate modulation would
+    /// require per-sample parameter updates, significantly increasing CPU usage.
     fn collect_modulation_values(&mut self, block_id: BlockId) {
         // Bounds check to prevent panic in audio thread
         if block_id.0 >= self.blocks.len() {
@@ -274,7 +317,7 @@ impl<S: Sample> Graph<S> {
         let has_modulation = !self.blocks[block_id.0].modulation_outputs().is_empty();
         if has_modulation {
             let buffer_index = self.get_buffer_index(block_id, 0);
-            // Safe lookup chain to prevent panic in audio thread
+            // Take only the first sample (control rate, not audio rate)
             if let (Some(&first_sample), Some(mod_val)) = (
                 self.audio_buffers.get(buffer_index).and_then(|b| b.as_slice().first()),
                 self.modulation_values.get_mut(block_id.0),
@@ -374,13 +417,13 @@ impl<S: Sample> GraphBuilder<S> {
 
     /// Add an `LfoBlock` to the `Graph`, which is useful when wanting to
     /// modulate one or more `Parameter`s of one or more blocks.
+    ///
+    /// # Control-Rate Limitation
+    ///
+    /// LFO frequency is clamped to `sample_rate / (2 * buffer_size)` because modulation
+    /// operates at control rate (per-buffer), not audio rate. At 44.1kHz with 512 samples,
+    /// max frequency is ~43Hz. See [`Graph::collect_modulation_values`] for details.
     pub fn add_lfo(&mut self, frequency: f64, depth: f64, seed: Option<u64>) -> BlockId {
-        // Because the modulation is happening at *control rate*, we are
-        // limited to a frequency that is 1/2 of the sample rate divided
-        // by the buffer size. Audio rate modulation is not supported because:
-        // 1. Processing modulation at audio rate is too CPU-intensive.
-        // 2. Most musical modulation happens below 20Hz.
-        // 3. Control rate limitations help avoid artifacts from aliasing.
         let max_frequency = 0.5 * (self.graph.context.sample_rate / self.graph.context.buffer_size as f64);
         let clamped_frequency = frequency.clamp(0.01, max_frequency);
 
