@@ -15,9 +15,7 @@
 
 // Core types
 // Buffers
-pub use crate::buffer::AudioBuffer;
 // Configuration
-pub use crate::context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE, DspContext};
 // Parameters
 pub use crate::parameter::Parameter;
 // Smoothing (for custom block implementations)
@@ -26,6 +24,8 @@ pub use crate::smoothing::{
 };
 pub use crate::{
     block::{Block, BlockId, BlockType},
+    buffer::AudioBuffer,
+    context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE, DspContext},
     graph::{Graph, GraphBuilder},
     sample::Sample,
     waveform::Waveform,

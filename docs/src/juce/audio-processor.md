@@ -18,7 +18,9 @@ The integration pattern:
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <bbx_graph.h>
+#include <bbx_params.h>
 #include <array>
+#include <atomic>
 #include <vector>
 
 class PluginAudioProcessor : public juce::AudioProcessor {
@@ -33,8 +35,11 @@ public:
     // ... other AudioProcessor methods
 
 private:
+    juce::AudioProcessorValueTreeState m_parameters;
+
     bbx::Graph m_rustDsp;
     std::vector<float> m_paramBuffer;
+    std::array<std::atomic<float>*, PARAM_COUNT> m_paramPointers {};
 
     // Pointer arrays for FFI
     static constexpr size_t MAX_CHANNELS = 8;
@@ -50,9 +55,15 @@ private:
 ```cpp
 PluginAudioProcessor::PluginAudioProcessor()
     : AudioProcessor(/* bus layout */)
+    , m_parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
     // Allocate parameter buffer
     m_paramBuffer.resize(PARAM_COUNT);
+
+    // Cache parameter pointers for efficient access in processBlock
+    for (size_t i = 0; i < PARAM_COUNT; ++i) {
+        m_paramPointers[i] = m_parameters.getRawParameterValue(juce::String(PARAM_IDS[i]));
+    }
 }
 ```
 
@@ -96,11 +107,10 @@ void PluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // Clamp to max supported channels
     numChannels = std::min(numChannels, static_cast<uint32_t>(MAX_CHANNELS));
 
-    // Gather current parameter values
-    m_paramBuffer[PARAM_GAIN] = *gainParameter;
-    m_paramBuffer[PARAM_PAN] = *panParameter;
-    m_paramBuffer[PARAM_MONO] = *monoParameter ? 1.0f : 0.0f;
-    // ... more parameters
+    // Load parameter values from cached atomic pointers
+    for (size_t i = 0; i < PARAM_COUNT; ++i) {
+        m_paramBuffer[i] = m_paramPointers[i] ? m_paramPointers[i]->load() : 0.0f;
+    }
 
     // Build pointer arrays
     for (uint32_t ch = 0; ch < numChannels; ++ch) {
@@ -122,57 +132,42 @@ void PluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
 ## Parameter Integration
 
-### With APVTS
-
-Using `AudioProcessorValueTreeState`:
+The recommended approach uses `PARAM_IDS` from the generated header for dynamic iteration:
 
 ```cpp
-class PluginAudioProcessor : public juce::AudioProcessor {
-private:
-    juce::AudioProcessorValueTreeState parameters;
-
-    std::atomic<float>* gainParam = nullptr;
-    std::atomic<float>* panParam = nullptr;
-    // ...
-};
-
-PluginAudioProcessor::PluginAudioProcessor()
-    : parameters(*this, nullptr, "Parameters", createParameterLayout())
-{
-    gainParam = parameters.getRawParameterValue("gain");
-    panParam = parameters.getRawParameterValue("pan");
+// In constructor - cache all parameter pointers
+for (size_t i = 0; i < PARAM_COUNT; ++i) {
+    m_paramPointers[i] = m_parameters.getRawParameterValue(juce::String(PARAM_IDS[i]));
 }
 
-void PluginAudioProcessor::processBlock(...)
-{
-    m_paramBuffer[PARAM_GAIN] = gainParam->load();
-    m_paramBuffer[PARAM_PAN] = panParam->load();
-    // ...
+// In processBlock - load all values dynamically
+for (size_t i = 0; i < PARAM_COUNT; ++i) {
+    m_paramBuffer[i] = m_paramPointers[i] ? m_paramPointers[i]->load() : 0.0f;
 }
 ```
 
+This eliminates per-parameter boilerplate. When adding new parameters, only update `parameters.json` and the Rust `apply_parameters()` method.
+
 ### Parameter Layout
 
-Create parameters matching your Rust indices:
+Create the layout from JSON using `cortex::ParameterManager` or manually:
 
 ```cpp
 juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
 {
-    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+    // Option 1: Load from embedded JSON (recommended)
+    juce::String json = juce::String::createStringFromData(
+        PluginData::parameters_json, PluginData::parameters_jsonSize);
+    auto params = cortex::ParameterManager::LoadParametersFromJson(json);
+    return cortex::ParameterManager::CreateParameterLayout(params);
 
+    // Option 2: Manual definition
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "gain", "Gain",
+        "GAIN", "Gain",
         juce::NormalisableRange<float>(-60.0f, 30.0f, 0.1f),
         0.0f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "pan", "Pan",
-        juce::NormalisableRange<float>(-100.0f, 100.0f, 1.0f),
-        0.0f));
-
-    params.push_back(std::make_unique<juce::AudioParameterBool>(
-        "mono", "Mono", false));
-
+    // ... more parameters
     return { params.begin(), params.end() };
 }
 ```
