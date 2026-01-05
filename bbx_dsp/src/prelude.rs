@@ -17,16 +17,16 @@
 // Buffers
 // Configuration
 // Parameters
-pub use crate::parameter::Parameter;
 // Smoothing (for custom block implementations)
-pub use crate::smoothing::{
-    Linear, LinearSmoothedValue, Multiplicative, MultiplicativeSmoothedValue, SmoothedValue, SmoothingStrategy,
-};
 pub use crate::{
     block::{Block, BlockId, BlockType},
     buffer::AudioBuffer,
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE, DspContext},
     graph::{Graph, GraphBuilder},
+    parameter::Parameter,
     sample::Sample,
+    smoothing::{
+        Linear, LinearSmoothedValue, Multiplicative, MultiplicativeSmoothedValue, SmoothedValue, SmoothingStrategy,
+    },
     waveform::Waveform,
 };

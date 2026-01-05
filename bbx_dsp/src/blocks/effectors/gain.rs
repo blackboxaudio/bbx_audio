@@ -66,20 +66,28 @@ impl<S: Sample> Block<S> for GainBlock<S> {
             self.gain_smoother.set_target_value(target_gain);
         }
 
-        for (ch, input) in inputs.iter().enumerate() {
-            if ch >= outputs.len() {
-                break;
-            }
+        let num_channels = inputs.len().min(outputs.len());
 
-            // Reset smoother position for each channel (they all use same gain curve)
+        // Fast path: constant gain when not smoothing
+        if !self.gain_smoother.is_smoothing() {
+            let gain = self.gain_smoother.current().to_f64();
+            for ch in 0..num_channels {
+                let len = inputs[ch].len().min(outputs[ch].len());
+                for i in 0..len {
+                    outputs[ch][i] = S::from_f64(inputs[ch][i].to_f64() * gain);
+                }
+            }
+            return;
+        }
+
+        // Smoothing path: clone smoother per channel for identical gain curves
+        for ch in 0..num_channels {
+            let len = inputs[ch].len().min(outputs[ch].len());
             let mut channel_smoother = self.gain_smoother.clone();
 
-            for (i, &sample) in input.iter().enumerate() {
-                if i >= outputs[ch].len() {
-                    break;
-                }
+            for i in 0..len {
                 let gain = channel_smoother.get_next_value();
-                outputs[ch][i] = S::from_f64(sample.to_f64() * gain.to_f64());
+                outputs[ch][i] = S::from_f64(inputs[ch][i].to_f64() * gain.to_f64());
             }
         }
 
