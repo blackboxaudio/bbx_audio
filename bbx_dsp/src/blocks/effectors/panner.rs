@@ -1,7 +1,5 @@
 //! Stereo panning with constant power law.
 
-use std::marker::PhantomData;
-
 use crate::{
     block::Block,
     context::DspContext,
@@ -19,8 +17,6 @@ pub struct PannerBlock<S: Sample> {
 
     /// Smoothed position value for click-free panning.
     position_smoother: LinearSmoothedValue<S>,
-
-    _phantom: PhantomData<S>,
 }
 
 impl<S: Sample> PannerBlock<S> {
@@ -29,7 +25,6 @@ impl<S: Sample> PannerBlock<S> {
         Self {
             position: Parameter::Constant(position),
             position_smoother: LinearSmoothedValue::new(position),
-            _phantom: PhantomData,
         }
     }
 

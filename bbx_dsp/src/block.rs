@@ -295,4 +295,16 @@ impl<S: Sample> BlockType<S> {
             },
         }
     }
+
+    /// Returns `true` if this block is a modulator (LFO or Envelope).
+    #[inline]
+    pub fn is_modulator(&self) -> bool {
+        matches!(self, BlockType::Envelope(_) | BlockType::Lfo(_))
+    }
+
+    /// Returns `true` if this block is an output-type block (Output or FileOutput).
+    #[inline]
+    pub fn is_output(&self) -> bool {
+        matches!(self, BlockType::Output(_) | BlockType::FileOutput(_))
+    }
 }

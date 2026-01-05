@@ -1,7 +1,5 @@
 //! Overdrive distortion effect block.
 
-use std::marker::PhantomData;
-
 use bbx_core::flush_denormal_f64;
 
 use crate::{
@@ -35,8 +33,6 @@ pub struct OverdriveBlock<S: Sample> {
     drive_smoother: LinearSmoothedValue<S>,
     /// Smoothed level value for click-free changes.
     level_smoother: LinearSmoothedValue<S>,
-
-    _phantom_data: PhantomData<S>,
 }
 
 impl<S: Sample> OverdriveBlock<S> {
@@ -53,7 +49,6 @@ impl<S: Sample> OverdriveBlock<S> {
             filter_coefficient: 0.0,
             drive_smoother: LinearSmoothedValue::new(S::from_f64(drive_val)),
             level_smoother: LinearSmoothedValue::new(S::from_f64(level_val)),
-            _phantom_data: PhantomData,
         };
         overdrive.update_filter(sample_rate);
         overdrive

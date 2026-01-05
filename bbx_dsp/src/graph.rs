@@ -457,13 +457,28 @@ impl<S: Sample> GraphBuilder<S> {
     /// Panics if any block has more inputs or outputs than the realtime-safe
     /// limits (`MAX_BLOCK_INPUTS` or `MAX_BLOCK_OUTPUTS`).
     pub fn build(mut self) -> Graph<S> {
-        // TODO: Fix this logic to work with ALL last blocks that do not yet have an output
-        // Currently this logic would make so that if multiple oscillators are used, only
-        // one of them would be connected to the output.
-        if let Some(last_block) = self.graph.topological_sort().last() {
-            let output = self.graph.add_output_block();
+        let output = self.graph.add_output_block();
+
+        // Find all terminal blocks: blocks with no outgoing connections,
+        // excluding modulators (LFO, Envelope) and output-type blocks.
+        // These terminal blocks will all be mixed to the output.
+        let terminal_blocks: Vec<BlockId> = self
+            .graph
+            .blocks
+            .iter()
+            .enumerate()
+            .filter(|(idx, block)| {
+                let block_id = BlockId(*idx);
+                let has_outgoing = self.graph.connections.iter().any(|c| c.from == block_id);
+                !has_outgoing && !block.is_modulator() && !block.is_output()
+            })
+            .map(|(idx, _)| BlockId(idx))
+            .collect();
+
+        // Connect all terminal blocks to output (signals will be summed)
+        for block_id in terminal_blocks {
             for channel_index in 0..self.graph.context.num_channels {
-                self.connect(*last_block, 0, output, channel_index);
+                self.connect(block_id, 0, output, channel_index);
             }
         }
 

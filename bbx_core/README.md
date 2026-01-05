@@ -14,7 +14,7 @@ Foundational utilities and data structures for the bbx_audio workspace.
 
 ### `ftz-daz`
 
-Enables hardware-level denormal prevention on x86/x86_64 processors. When enabled, the `enable_ftz_daz()` function becomes available:
+Enables hardware-level denormal prevention on x86/x86_64 and AArch64 (Apple Silicon) processors. When enabled, the `enable_ftz_daz()` function becomes available:
 
 ```rust
 use bbx_core::denormal::enable_ftz_daz;
@@ -23,7 +23,7 @@ use bbx_core::denormal::enable_ftz_daz;
 enable_ftz_daz();
 ```
 
-This sets CPU flags (FTZ and DAZ) to automatically flush denormal floats to zero, avoiding the 10-100x slowdowns they can cause. Recommended for production audio applications.
+This sets CPU flags to automatically flush denormal floats to zero, avoiding the 10-100x slowdowns they can cause. On x86/x86_64, this enables both FTZ and DAZ modes. On AArch64, only FTZ is available—use `flush_denormal_f64/f32` in feedback paths for full coverage. Recommended for production audio applications.
 
 ## Modules
 

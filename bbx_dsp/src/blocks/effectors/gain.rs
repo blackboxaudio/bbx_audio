@@ -1,7 +1,5 @@
 //! Gain control block with dB input.
 
-use std::marker::PhantomData;
-
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
@@ -22,8 +20,6 @@ pub struct GainBlock<S: Sample> {
 
     /// Smoothed linear gain value for click-free parameter changes.
     gain_smoother: LinearSmoothedValue<S>,
-
-    _phantom: PhantomData<S>,
 }
 
 impl<S: Sample> GainBlock<S> {
@@ -40,7 +36,6 @@ impl<S: Sample> GainBlock<S> {
         Self {
             level_db: Parameter::Constant(level_db),
             gain_smoother: LinearSmoothedValue::new(S::from_f64(initial_gain)),
-            _phantom: PhantomData,
         }
     }
 
