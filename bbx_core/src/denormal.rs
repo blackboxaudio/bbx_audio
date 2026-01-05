@@ -7,7 +7,7 @@
 //!
 //! When the `ftz-daz` feature is enabled, this module also provides CPU-level
 //! FTZ (Flush-To-Zero) and DAZ (Denormals-Are-Zero) mode configuration for
-//! x86/x86_64 processors.
+//! x86/x86_64 and AArch64 processors.
 
 /// Threshold below which values are considered denormal.
 /// This is slightly above the actual denormal threshold to catch
@@ -63,10 +63,43 @@ pub fn enable_ftz_daz() {
     }
 }
 
-/// No-op stub for non-x86 architectures when `ftz-daz` feature is enabled.
-#[cfg(all(feature = "ftz-daz", not(any(target_arch = "x86", target_arch = "x86_64"))))]
+/// Enable FTZ (Flush-To-Zero) mode on AArch64.
+///
+/// Sets the FZ bit in FPCR, causing denormal outputs to be flushed to zero.
+///
+/// # ARM vs x86 Differences
+///
+/// ARM FPCR.FZ only affects outputs (no universal DAZ equivalent).
+/// Use `flush_denormal_f64/f32` in feedback paths for full coverage.
+#[cfg(all(feature = "ftz-daz", target_arch = "aarch64"))]
 pub fn enable_ftz_daz() {
-    // No-op on non-x86 architectures
+    use std::arch::asm;
+
+    const FZ_BIT: u64 = 1 << 24;
+
+    unsafe {
+        let mut fpcr: u64;
+        asm!(
+            "mrs {}, fpcr",
+            out(reg) fpcr,
+            options(nomem, nostack, preserves_flags)
+        );
+        fpcr |= FZ_BIT;
+        asm!(
+            "msr fpcr, {}",
+            in(reg) fpcr,
+            options(nomem, nostack, preserves_flags)
+        );
+    }
+}
+
+/// No-op stub for unsupported architectures when `ftz-daz` feature is enabled.
+#[cfg(all(
+    feature = "ftz-daz",
+    not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))
+))]
+pub fn enable_ftz_daz() {
+    // No-op on unsupported architectures
 }
 
 #[cfg(test)]
@@ -97,5 +130,24 @@ mod tests {
     fn test_f32_denormal_handling() {
         assert_eq!(flush_denormal_f32(1.0), 1.0);
         assert_eq!(flush_denormal_f32(1e-16), 0.0);
+    }
+
+    #[cfg(all(feature = "ftz-daz", target_arch = "aarch64"))]
+    #[test]
+    fn test_enable_ftz_daz_sets_fz_bit() {
+        use std::arch::asm;
+        const FZ_BIT: u64 = 1 << 24;
+
+        enable_ftz_daz();
+
+        let fpcr: u64;
+        unsafe {
+            asm!(
+                "mrs {}, fpcr",
+                out(reg) fpcr,
+                options(nomem, nostack, preserves_flags)
+            );
+        }
+        assert_ne!(fpcr & FZ_BIT, 0, "FZ bit should be set after enable_ftz_daz()");
     }
 }

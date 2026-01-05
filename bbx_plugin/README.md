@@ -16,12 +16,18 @@ This crate re-exports `bbx_dsp`, so plugin projects only need to add `bbx_plugin
 
 ### `ftz-daz`
 
-Enables hardware-level denormal prevention on x86/x86_64 processors. When enabled, `enable_ftz_daz()` is called automatically during `prepare()`, setting CPU flags to flush denormal floating-point numbers to zero.
+Enables hardware-level denormal prevention. When enabled, `enable_ftz_daz()` is called automatically during `prepare()`, setting CPU flags to flush denormal floating-point numbers to zero.
 
 ```toml
 [dependencies]
 bbx_plugin = { version = "...", features = ["ftz-daz"] }
 ```
+
+| Platform | Behavior |
+|----------|----------|
+| x86/x86_64 | Full FTZ + DAZ (inputs and outputs) |
+| AArch64 (Apple Silicon) | FTZ only (outputs) |
+| Other | No-op |
 
 This is recommended for production audio plugins to avoid the 10-100x CPU slowdowns that denormals can cause.
 

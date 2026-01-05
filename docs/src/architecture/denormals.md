@@ -75,10 +75,20 @@ enable_ftz_daz();
 
 When using `bbx_plugin` with the `ftz-daz` feature, this is called automatically during `prepare()`.
 
+#### Platform Support
+
+| Platform | Behavior |
+|----------|----------|
+| x86/x86_64 | Full FTZ + DAZ (inputs and outputs flushed) |
+| AArch64 (ARM64/Apple Silicon) | FTZ only (outputs flushed) |
+| Other | No-op (use software flushing) |
+
+**Note:** ARM processors lack a universal DAZ equivalent, so denormal inputs are handled normally. For portable code, use `flush_denormal_f32/f64` in filter feedback paths as defense-in-depth.
+
 | Pros | Cons |
 |------|------|
-| No per-sample overhead | x86/x86_64 only (no-op on other architectures) |
-| Handles all float operations automatically | Affects all code on the thread |
+| No per-sample overhead | Affects all code on the thread |
+| Handles all float operations automatically | ARM: outputs only (no DAZ) |
 | Recommended for production plugins | |
 
 ### DC Offset
