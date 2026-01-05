@@ -48,3 +48,6 @@ Cargo.lock
 
 ## Test coverage output
 **/tarpaulin-report.html
+
+## Documentation
+docs/book/
