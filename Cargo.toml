@@ -22,7 +22,7 @@ rust-version = "1.85"
 bbx_core = { version = "0.2.0", path = "bbx_core" }
 bbx_dsp = { version = "0.2.0", path = "bbx_dsp" }
 bbx_file = { version = "0.2.0", path = "bbx_file" }
-bbx_midi = { version = "0.2.0", path = "bbx_midi" }
+bbx_midi = { version = "0.2.0", path = "bbx_midi", default-features = false }
 bbx_plugin = { version = "0.2.0", path = "bbx_plugin" }
 
 # External dependencies

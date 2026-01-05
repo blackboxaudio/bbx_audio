@@ -11,6 +11,7 @@ Effector blocks process and transform audio signals.
 | [OverdriveBlock](effectors/overdrive.md) | Soft-clipping distortion |
 | [DcBlockerBlock](effectors/dc-blocker.md) | DC offset removal |
 | [ChannelRouterBlock](effectors/channel-router.md) | Channel routing |
+| [LowPassFilterBlock](effectors/low-pass-filter.md) | SVF low-pass filter |
 
 ## Characteristics
 

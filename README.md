@@ -20,7 +20,7 @@ A Rust workspace for audio DSP with C FFI bindings for JUCE plugin integration.
 | [`bbx_core`](./bbx_core) | Error types and foundational utilities |
 | [`bbx_dsp`](./bbx_dsp) | DSP graph system, blocks, and `PluginDsp` trait |
 | [`bbx_file`](./bbx_file) | Audio file I/O (WAV/MP3) |
-| [`bbx_midi`](./bbx_midi) | MIDI streaming |
+| [`bbx_midi`](./bbx_midi) | MIDI messages, events, and streaming |
 | [`bbx_plugin`](./bbx_plugin) | C FFI bindings for JUCE integration |
 | [`bbx_sandbox`](./bbx_sandbox) | Examples and testing playground |
 

@@ -7,6 +7,6 @@ publish = false
 [dependencies]
 bbx_dsp.workspace = true
 bbx_file.workspace = true
-bbx_midi.workspace = true
+bbx_midi = { workspace = true, features = ["streaming"] }
 rand.workspace = true
 rodio.workspace = true

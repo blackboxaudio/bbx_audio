@@ -32,6 +32,38 @@ typedef enum BbxError {
  */
 typedef struct BbxGraph BbxGraph;
 
+/**
+ * MIDI message status types.
+ */
+typedef enum BbxMidiStatus {
+    BBX_MIDI_STATUS_UNKNOWN = 0,
+    BBX_MIDI_STATUS_NOTE_OFF = 1,
+    BBX_MIDI_STATUS_NOTE_ON = 2,
+    BBX_MIDI_STATUS_POLYPHONIC_AFTERTOUCH = 3,
+    BBX_MIDI_STATUS_CONTROL_CHANGE = 4,
+    BBX_MIDI_STATUS_PROGRAM_CHANGE = 5,
+    BBX_MIDI_STATUS_CHANNEL_AFTERTOUCH = 6,
+    BBX_MIDI_STATUS_PITCH_WHEEL = 7,
+} BbxMidiStatus;
+
+/**
+ * MIDI message structure (matches Rust MidiMessage repr(C)).
+ */
+typedef struct BbxMidiMessage {
+    uint8_t channel;
+    BbxMidiStatus status;
+    uint8_t data_1;
+    uint8_t data_2;
+} BbxMidiMessage;
+
+/**
+ * MIDI event with sample-accurate timing.
+ */
+typedef struct BbxMidiEvent {
+    BbxMidiMessage message;
+    uint32_t sample_offset;
+} BbxMidiEvent;
+
 /* ============================================================================
  * Lifecycle Functions
  * ============================================================================ */
@@ -86,6 +118,8 @@ BbxError bbx_graph_reset(BbxGraph* handle);
  * @param num_samples Number of samples per channel.
  * @param params Pointer to flat float array of parameter values.
  * @param num_params Number of parameters in the array.
+ * @param midi_events Pointer to array of MIDI events (may be NULL for effects).
+ * @param num_midi_events Number of MIDI events in the array.
  */
 void bbx_graph_process(BbxGraph* handle,
                        const float* const* inputs,
@@ -93,7 +127,9 @@ void bbx_graph_process(BbxGraph* handle,
                        uint32_t num_channels,
                        uint32_t num_samples,
                        const float* params,
-                       uint32_t num_params);
+                       uint32_t num_params,
+                       const BbxMidiEvent* midi_events,
+                       uint32_t num_midi_events);
 
 #ifdef __cplusplus
 }

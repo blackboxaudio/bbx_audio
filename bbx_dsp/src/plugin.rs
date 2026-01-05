@@ -3,6 +3,8 @@
 //! This module defines the `PluginDsp` trait that consumers implement
 //! to define their plugin's DSP processing chain.
 
+use bbx_midi::MidiEvent;
+
 use crate::context::DspContext;
 
 /// Trait for plugin-specific DSP implementations.
@@ -37,8 +39,8 @@ use crate::context::DspContext;
 ///         // Map parameter array to block fields
 ///     }
 ///
-///     fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], context: &DspContext) {
-///         // Process audio through the chain
+///     fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], midi_events: &[MidiEvent], context: &DspContext) {
+///         // Process audio and MIDI through the chain
 ///     }
 /// }
 /// ```
@@ -62,10 +64,41 @@ pub trait PluginDsp: Default + Send + 'static {
     /// via generated constants from `parameters.json`.
     fn apply_parameters(&mut self, params: &[f32]);
 
-    /// Process a block of audio.
+    /// Process a block of audio with MIDI events.
     ///
     /// - `inputs`: Array of input channel buffers
     /// - `outputs`: Array of output channel buffers
+    /// - `midi_events`: MIDI events with sample-accurate timing (sorted by sample_offset)
     /// - `context`: DSP context with sample rate, buffer size, etc.
-    fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], context: &DspContext);
+    fn process(
+        &mut self,
+        inputs: &[&[f32]],
+        outputs: &mut [&mut [f32]],
+        midi_events: &[MidiEvent],
+        context: &DspContext,
+    );
+
+    /// Called when a note-on event is received.
+    ///
+    /// Default implementation does nothing (suitable for effect plugins).
+    #[allow(unused_variables)]
+    fn note_on(&mut self, note: u8, velocity: u8, sample_offset: u32) {}
+
+    /// Called when a note-off event is received.
+    ///
+    /// Default implementation does nothing (suitable for effect plugins).
+    #[allow(unused_variables)]
+    fn note_off(&mut self, note: u8, sample_offset: u32) {}
+
+    /// Called when a control change event is received.
+    ///
+    /// Default implementation does nothing.
+    #[allow(unused_variables)]
+    fn control_change(&mut self, cc: u8, value: u8, sample_offset: u32) {}
+
+    /// Called when a pitch bend event is received.
+    ///
+    /// Default implementation does nothing.
+    #[allow(unused_variables)]
+    fn pitch_bend(&mut self, value: i16, sample_offset: u32) {}
 }

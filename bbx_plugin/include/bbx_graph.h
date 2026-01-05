@@ -89,16 +89,20 @@ public:
      * @param numSamples Number of samples per channel.
      * @param params Pointer to parameter array.
      * @param numParams Number of parameters.
+     * @param midiEvents Pointer to array of MIDI events (may be nullptr for effects).
+     * @param numMidiEvents Number of MIDI events in the array.
      */
     void Process(const float* const* inputs,
         float* const* outputs,
         uint32_t numChannels,
         uint32_t numSamples,
         const float* params,
-        uint32_t numParams)
+        uint32_t numParams,
+        const BbxMidiEvent* midiEvents = nullptr,
+        uint32_t numMidiEvents = 0)
     {
         if (m_handle) {
-            bbx_graph_process(m_handle, inputs, outputs, numChannels, numSamples, params, numParams);
+            bbx_graph_process(m_handle, inputs, outputs, numChannels, numSamples, params, numParams, midiEvents, numMidiEvents);
         }
     }
 

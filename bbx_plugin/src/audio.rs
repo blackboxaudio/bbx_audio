@@ -4,6 +4,7 @@
 //! JUCE's processBlock to the Rust effects chain using zero-copy buffer handling.
 
 use bbx_dsp::PluginDsp;
+use bbx_midi::MidiEvent;
 
 use crate::handle::{BbxGraph, graph_from_handle};
 
@@ -29,6 +30,8 @@ const MAX_CHANNELS: usize = 2;
 /// - `outputs` must be a valid pointer to an array of `num_channels` pointers.
 /// - Each input/output channel pointer must be valid for `num_samples` floats.
 /// - `params` must be valid for `num_params` floats, or null.
+/// - `midi_events` must be valid for `num_midi_events` MidiEvent structs, or null.
+#[allow(clippy::too_many_arguments)]
 pub unsafe fn process_audio<D: PluginDsp>(
     handle: *mut BbxGraph,
     inputs: *const *const f32,
@@ -37,6 +40,8 @@ pub unsafe fn process_audio<D: PluginDsp>(
     num_samples: u32,
     params: *const f32,
     num_params: u32,
+    midi_events: *const MidiEvent,
+    num_midi_events: u32,
 ) {
     if handle.is_null() || outputs.is_null() {
         return;
@@ -77,6 +82,13 @@ pub unsafe fn process_audio<D: PluginDsp>(
             inner.dsp.apply_parameters(param_slice);
         }
 
+        // Build MIDI slice (empty if null pointer or zero count)
+        let midi_slice: &[MidiEvent] = if !midi_events.is_null() && num_midi_events > 0 {
+            std::slice::from_raw_parts(midi_events, num_midi_events as usize)
+        } else {
+            &[]
+        };
+
         // Build input slices directly from FFI pointers (zero-copy)
         // Use a small stack buffer for silent channels when input is null
         let silent_buffer: [f32; MAX_SAMPLES] = [0.0; MAX_SAMPLES];
@@ -113,7 +125,7 @@ pub unsafe fn process_audio<D: PluginDsp>(
             let mut output_refs: [&mut [f32]; 1] = [output_slice_0];
             inner
                 .dsp
-                .process(&input_slices_storage[..1], &mut output_refs, &inner.context);
+                .process(&input_slices_storage[..1], &mut output_refs, midi_slice, &inner.context);
         } else {
             if output_ptr_1.is_null() {
                 return;
@@ -123,6 +135,7 @@ pub unsafe fn process_audio<D: PluginDsp>(
             inner.dsp.process(
                 &input_slices_storage[..channels_to_process],
                 &mut output_refs,
+                midi_slice,
                 &inner.context,
             );
         }

@@ -19,6 +19,21 @@ MIDI message parsing and streaming utilities for audio applications.
 - `PolyphonicAftertouch` - Per-note pressure
 - `ChannelAftertouch` - Channel-wide pressure
 
+## MidiEvent
+
+For sample-accurate MIDI timing in audio callbacks:
+
+```rust
+use bbx_midi::{MidiMessage, MidiEvent};
+
+let event = MidiEvent {
+    message: MidiMessage::new([0x90, 60, 100]),
+    sample_offset: 128,  // Process at sample 128 in buffer
+};
+```
+
+Used with `PluginDsp::process()` for synthesizer plugins.
+
 ## Usage
 
 ```rust
@@ -43,6 +58,32 @@ for message in buffer.iter() {
 
 buffer.clear(); // Reset without deallocation
 ```
+
+## Cargo Features
+
+### `streaming`
+
+Enables real-time MIDI input via `midir`:
+
+```toml
+[dependencies]
+bbx_midi = { version = "...", features = ["streaming"] }
+```
+
+```rust
+use bbx_midi::{stream::MidiInputStream, MidiMessage, MidiMessageStatus};
+
+// Create stream with optional filters
+let stream = MidiInputStream::new(
+    vec![MidiMessageStatus::NoteOn, MidiMessageStatus::NoteOff],
+    |msg| println!("Received: {:?}", msg),
+);
+
+// Start listening (prompts for port selection)
+let handle = stream.init();
+```
+
+Used by `bbx_sandbox` for terminal-based DSP testing with live MIDI input.
 
 ## License
 

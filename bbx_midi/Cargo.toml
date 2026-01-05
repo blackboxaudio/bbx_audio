@@ -11,5 +11,9 @@ readme = "README.md"
 keywords = ["midi", "audio", "music", "realtime", "streaming"]
 categories = ["multimedia::audio", "parser-implementations"]
 
+[features]
+default = []
+streaming = ["dep:midir"]
+
 [dependencies]
-midir.workspace = true
+midir = { workspace = true, optional = true }
