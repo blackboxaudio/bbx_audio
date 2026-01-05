@@ -120,7 +120,6 @@ impl<T, const N: usize> StackVec<T, N> {
     /// Removes all elements from the vector.
     #[inline]
     pub fn clear(&mut self) {
-        // Drop all initialized elements
         while self.pop().is_some() {}
     }
 
@@ -170,7 +169,6 @@ impl<T, const N: usize> Default for StackVec<T, N> {
 
 impl<T, const N: usize> Drop for StackVec<T, N> {
     fn drop(&mut self) {
-        // Drop all initialized elements
         for i in 0..self.len {
             // SAFETY: Elements 0..len are initialized
             unsafe {
@@ -246,7 +244,6 @@ impl<T, const N: usize> ExactSizeIterator for StackVecIntoIter<T, N> {}
 
 impl<T, const N: usize> Drop for StackVecIntoIter<T, N> {
     fn drop(&mut self) {
-        // Drop remaining elements that weren't consumed
         for i in self.index..self.vec.len {
             // SAFETY: Elements index..len are still initialized
             unsafe {

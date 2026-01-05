@@ -81,7 +81,6 @@ impl<S: Sample> OverdriveBlock<S> {
 
 impl<S: Sample> Block<S> for OverdriveBlock<S> {
     fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        // Get target values and set up smoothing
         let target_drive = S::from_f64(self.drive.get_value(modulation_values).to_f64());
         let target_level = S::from_f64(self.level.get_value(modulation_values).to_f64().clamp(0.0, 1.0));
 
@@ -95,7 +94,6 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
         let len = inputs.first().map_or(0, |ch| ch.len().min(context.buffer_size));
         debug_assert!(len <= MAX_BUFFER_SIZE, "buffer_size exceeds MAX_BUFFER_SIZE");
 
-        // Pre-compute smoothed values into stack buffers
         let mut drive_values: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
         let mut level_values: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
 
@@ -104,7 +102,6 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
             level_values[i] = self.level_smoother.get_next_value().to_f64();
         }
 
-        // Apply the same smoothed curve to all channels
         for (input_index, input_buffer) in inputs.iter().enumerate() {
             let ch_len = input_buffer.len().min(len);
             for (sample_index, sample_value) in input_buffer.iter().enumerate().take(ch_len) {

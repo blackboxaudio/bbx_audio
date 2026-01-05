@@ -60,7 +60,6 @@ impl<T> SpscRingBufferInner<T> {
         let capacity = capacity.next_power_of_two().max(1);
         let mask = capacity - 1;
 
-        // Allocate buffer
         let buffer: Vec<UnsafeCell<MaybeUninit<T>>> =
             (0..capacity).map(|_| UnsafeCell::new(MaybeUninit::uninit())).collect();
 
@@ -76,7 +75,6 @@ impl<T> SpscRingBufferInner<T> {
 
 impl<T> Drop for SpscRingBufferInner<T> {
     fn drop(&mut self) {
-        // Drop any remaining items in the buffer
         let head = self.head.load(Ordering::Relaxed);
         let tail = self.tail.load(Ordering::Relaxed);
 

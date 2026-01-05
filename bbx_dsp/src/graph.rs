@@ -185,7 +185,6 @@ impl<S: Sample> Graph<S> {
         let mut in_degree = vec![0; self.blocks.len()];
         let mut adjacency_list: HashMap<BlockId, Vec<BlockId>> = HashMap::new();
 
-        // Build adjacency list and calculate in-degrees
         for connection in &self.connections {
             adjacency_list.entry(connection.from).or_default().push(connection.to);
             in_degree[connection.to.0] += 1;
@@ -221,19 +220,16 @@ impl<S: Sample> Graph<S> {
     /// Executes blocks in topologically sorted order, copying final output
     /// to the provided buffers (one per channel).
     pub fn process_buffers(&mut self, output_buffers: &mut [&mut [S]]) {
-        // Clear all buffers
         for buffer in &mut self.audio_buffers {
             buffer.zeroize();
         }
 
-        // Process blocks according to execution order
         for i in 0..self.execution_order.len() {
             let block_id = self.execution_order[i];
             self.process_block_unsafe(block_id);
             self.collect_modulation_values(block_id);
         }
 
-        // Copy final output to the provided buffer
         self.copy_to_output_buffer(output_buffers);
     }
 
