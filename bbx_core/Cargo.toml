@@ -11,6 +11,10 @@ readme = "README.md"
 keywords = ["audio", "dsp", "lock-free", "realtime", "spsc"]
 categories = ["multimedia::audio", "data-structures", "no-std"]
 
+[features]
+default = []
+ftz-daz = []
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }
 

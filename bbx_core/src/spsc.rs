@@ -56,11 +56,9 @@ unsafe impl<T: Send> Sync for SpscRingBufferInner<T> {}
 
 impl<T> SpscRingBufferInner<T> {
     fn new(capacity: usize) -> Self {
-        // Round up to next power of 2
         let capacity = capacity.next_power_of_two().max(1);
         let mask = capacity - 1;
 
-        // Allocate buffer
         let buffer: Vec<UnsafeCell<MaybeUninit<T>>> =
             (0..capacity).map(|_| UnsafeCell::new(MaybeUninit::uninit())).collect();
 
@@ -76,7 +74,6 @@ impl<T> SpscRingBufferInner<T> {
 
 impl<T> Drop for SpscRingBufferInner<T> {
     fn drop(&mut self) {
-        // Drop any remaining items in the buffer
         let head = self.head.load(Ordering::Relaxed);
         let tail = self.tail.load(Ordering::Relaxed);
 

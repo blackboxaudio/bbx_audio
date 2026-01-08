@@ -12,34 +12,6 @@ extern "C" {
 #endif
 
 /* ============================================================================
- * Parameter Index Constants (matching template-plugin/parameters.json)
- * ============================================================================ */
-
-/** Invert left channel phase (0.0 = off, 1.0 = on). */
-#define PARAM_INVERT_LEFT 0
-
-/** Invert right channel phase (0.0 = off, 1.0 = on). */
-#define PARAM_INVERT_RIGHT 1
-
-/** Channel routing mode (0 = Stereo, 1 = Left, 2 = Right, 3 = Swap). */
-#define PARAM_CHANNEL_MODE 2
-
-/** Sum to mono (0.0 = off, 1.0 = on). */
-#define PARAM_MONO 3
-
-/** Gain level in dB (-60 to +30). */
-#define PARAM_GAIN 4
-
-/** Pan position (-100 to +100). */
-#define PARAM_PAN 5
-
-/** DC offset removal enabled (0.0 = off, 1.0 = on). */
-#define PARAM_DC_OFFSET 6
-
-/** Total number of parameters. */
-#define PARAM_COUNT 7
-
-/* ============================================================================
  * Types
  * ============================================================================ */
 
@@ -59,6 +31,38 @@ typedef enum BbxError {
  * Opaque handle representing a DSP effects chain.
  */
 typedef struct BbxGraph BbxGraph;
+
+/**
+ * MIDI message status types.
+ */
+typedef enum BbxMidiStatus {
+    BBX_MIDI_STATUS_UNKNOWN = 0,
+    BBX_MIDI_STATUS_NOTE_OFF = 1,
+    BBX_MIDI_STATUS_NOTE_ON = 2,
+    BBX_MIDI_STATUS_POLYPHONIC_AFTERTOUCH = 3,
+    BBX_MIDI_STATUS_CONTROL_CHANGE = 4,
+    BBX_MIDI_STATUS_PROGRAM_CHANGE = 5,
+    BBX_MIDI_STATUS_CHANNEL_AFTERTOUCH = 6,
+    BBX_MIDI_STATUS_PITCH_WHEEL = 7,
+} BbxMidiStatus;
+
+/**
+ * MIDI message structure (matches Rust MidiMessage repr(C)).
+ */
+typedef struct BbxMidiMessage {
+    uint8_t channel;
+    BbxMidiStatus status;
+    uint8_t data_1;
+    uint8_t data_2;
+} BbxMidiMessage;
+
+/**
+ * MIDI event with sample-accurate timing.
+ */
+typedef struct BbxMidiEvent {
+    BbxMidiMessage message;
+    uint32_t sample_offset;
+} BbxMidiEvent;
 
 /* ============================================================================
  * Lifecycle Functions
@@ -114,6 +118,8 @@ BbxError bbx_graph_reset(BbxGraph* handle);
  * @param num_samples Number of samples per channel.
  * @param params Pointer to flat float array of parameter values.
  * @param num_params Number of parameters in the array.
+ * @param midi_events Pointer to array of MIDI events (may be NULL for effects).
+ * @param num_midi_events Number of MIDI events in the array.
  */
 void bbx_graph_process(BbxGraph* handle,
                        const float* const* inputs,
@@ -121,7 +127,9 @@ void bbx_graph_process(BbxGraph* handle,
                        uint32_t num_channels,
                        uint32_t num_samples,
                        const float* params,
-                       uint32_t num_params);
+                       uint32_t num_params,
+                       const BbxMidiEvent* midi_events,
+                       uint32_t num_midi_events);
 
 #ifdef __cplusplus
 }

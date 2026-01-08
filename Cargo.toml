@@ -10,20 +10,20 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Black Box Audio, LLC"]
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/blackboxaudio/bbx_audio"
-rust-version = "1.85"
+rust-version = "1.89.0"
 
 [workspace.dependencies]
 # Internal crates (version + path for publishing)
-bbx_core = { version = "0.2.0", path = "bbx_core" }
-bbx_dsp = { version = "0.2.0", path = "bbx_dsp" }
-bbx_file = { version = "0.2.0", path = "bbx_file" }
-bbx_midi = { version = "0.2.0", path = "bbx_midi" }
-bbx_plugin = { version = "0.2.0", path = "bbx_plugin" }
+bbx_core = { version = "0.2.1", path = "bbx_core" }
+bbx_dsp = { version = "0.2.1", path = "bbx_dsp" }
+bbx_file = { version = "0.2.1", path = "bbx_file" }
+bbx_midi = { version = "0.2.1", path = "bbx_midi", default-features = false }
+bbx_plugin = { version = "0.2.1", path = "bbx_plugin" }
 
 # External dependencies
 hound = "3.5.1"
@@ -33,4 +33,5 @@ rand = "0.8.5"
 rodio = "0.20.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+tempfile = "3.15"
 wavers = "1.5.1"

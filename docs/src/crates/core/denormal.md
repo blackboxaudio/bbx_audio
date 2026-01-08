@@ -86,18 +86,55 @@ fn flush_denormal_f32(x: f32) -> f32 {
 
 This is typically faster than relying on FPU denormal handling.
 
-## Alternatives
+## Hardware FTZ/DAZ Mode
 
-### CPU Flush-to-Zero Mode
+For maximum performance, bbx_core provides the `ftz-daz` Cargo feature that enables hardware-level denormal handling on x86/x86_64 processors.
 
-Some CPUs support a "flush-to-zero" (FTZ) mode that automatically flushes denormals. This is faster but:
+### Enabling the Feature
 
-- Platform-specific
-- Requires changing FPU state
-- May affect other code running on the same thread
+```toml
+[dependencies]
+bbx_core = { version = "...", features = ["ftz-daz"] }
+```
 
-### DAZ (Denormals-Are-Zero)
+### enable_ftz_daz
 
-Similar to FTZ but for inputs. Also platform-specific.
+When the feature is enabled, call `enable_ftz_daz()` once at the start of each audio processing thread:
 
-The explicit flush functions work everywhere and have predictable behavior.
+```rust
+use bbx_core::denormal::enable_ftz_daz;
+
+fn audio_thread_init() {
+    enable_ftz_daz();
+    // All subsequent float operations on this thread will auto-flush denormals
+}
+```
+
+This sets two CPU flags:
+- **FTZ (Flush-To-Zero)**: Denormal results are flushed to zero
+- **DAZ (Denormals-Are-Zero)**: Denormal inputs are treated as zero
+
+### Platform Support
+
+- **x86/x86_64**: Full support via MXCSR register
+- **Other architectures**: No-op (use the software flush functions instead)
+
+### bbx_plugin Integration
+
+When using `bbx_plugin` with the `ftz-daz` feature enabled, `enable_ftz_daz()` is called automatically during `prepare()`:
+
+```toml
+[dependencies]
+bbx_plugin = { version = "...", features = ["ftz-daz"] }
+```
+
+This is the recommended approach for audio plugins.
+
+## Software vs Hardware Approach
+
+| Approach | Use Case |
+|----------|----------|
+| `flush_denormal_*` functions | Cross-platform, targeted flushing in specific code paths |
+| `enable_ftz_daz()` | Maximum performance on x86/x86_64, affects all operations |
+
+For production audio plugins on desktop platforms, enabling the `ftz-daz` feature is recommended. The software flush functions remain useful for cross-platform code or when you need fine-grained control over which values are flushed.

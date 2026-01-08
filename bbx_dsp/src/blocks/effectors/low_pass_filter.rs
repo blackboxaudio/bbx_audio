@@ -1,0 +1,117 @@
+//! State Variable Filter (SVF) based low-pass filter block.
+
+use crate::{
+    block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
+    context::DspContext,
+    parameter::{ModulationOutput, Parameter},
+    sample::Sample,
+};
+
+/// SVF-based low-pass filter for efficient, stable filtering.
+///
+/// Uses the TPT (Topology Preserving Transform) SVF algorithm which is:
+/// - Stable at all cutoff frequencies
+/// - Has no delay-free loops
+/// - Maintains consistent behavior regardless of sample rate
+pub struct LowPassFilterBlock<S: Sample> {
+    /// Cutoff frequency in Hz (20-20000).
+    pub cutoff: Parameter<S>,
+    /// Resonance (Q factor, 0.5-10.0, default 0.707 = Butterworth).
+    pub resonance: Parameter<S>,
+
+    ic1eq: [f64; 2],
+    ic2eq: [f64; 2],
+    sample_rate: f64,
+}
+
+impl<S: Sample> LowPassFilterBlock<S> {
+    const MIN_CUTOFF: f64 = 20.0;
+    const MAX_CUTOFF: f64 = 20000.0;
+    const MIN_Q: f64 = 0.5;
+    const MAX_Q: f64 = 10.0;
+
+    /// Create a new low-pass filter with the given cutoff and resonance.
+    pub fn new(cutoff: S, resonance: S) -> Self {
+        Self {
+            cutoff: Parameter::Constant(cutoff),
+            resonance: Parameter::Constant(resonance),
+            ic1eq: [0.0; 2],
+            ic2eq: [0.0; 2],
+            sample_rate: 44100.0,
+        }
+    }
+
+    /// Set the sample rate for coefficient calculation.
+    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_rate = sample_rate;
+    }
+
+    /// Reset filter state (clear delay lines).
+    pub fn reset(&mut self) {
+        self.ic1eq = [0.0; 2];
+        self.ic2eq = [0.0; 2];
+    }
+}
+
+impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
+    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
+        let cutoff_hz = self
+            .cutoff
+            .get_value(modulation_values)
+            .to_f64()
+            .clamp(Self::MIN_CUTOFF, Self::MAX_CUTOFF);
+
+        let q = self
+            .resonance
+            .get_value(modulation_values)
+            .to_f64()
+            .clamp(Self::MIN_Q, Self::MAX_Q);
+
+        let g = (std::f64::consts::PI * cutoff_hz / context.sample_rate).tan();
+        let k = 1.0 / q;
+        let a1 = 1.0 / (1.0 + g * (g + k));
+        let a2 = g * a1;
+        let a3 = g * a2;
+
+        let num_channels = inputs.len().min(outputs.len()).min(2);
+
+        for ch in 0..num_channels {
+            let input = inputs[ch];
+            let output = &mut outputs[ch];
+
+            let mut ic1 = self.ic1eq[ch];
+            let mut ic2 = self.ic2eq[ch];
+
+            for i in 0..context.buffer_size.min(input.len()).min(output.len()) {
+                let v0 = input[i].to_f64();
+
+                let v3 = v0 - ic2;
+                let v1 = a1 * ic1 + a2 * v3;
+                let v2 = ic2 + a2 * ic1 + a3 * v3;
+
+                ic1 = 2.0 * v1 - ic1;
+                ic2 = 2.0 * v2 - ic2;
+
+                output[i] = S::from_f64(v2);
+            }
+
+            self.ic1eq[ch] = ic1;
+            self.ic2eq[ch] = ic2;
+        }
+    }
+
+    #[inline]
+    fn input_count(&self) -> usize {
+        DEFAULT_EFFECTOR_INPUT_COUNT
+    }
+
+    #[inline]
+    fn output_count(&self) -> usize {
+        DEFAULT_EFFECTOR_OUTPUT_COUNT
+    }
+
+    #[inline]
+    fn modulation_outputs(&self) -> &[ModulationOutput] {
+        &[]
+    }
+}

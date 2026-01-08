@@ -19,7 +19,7 @@
 //!     fn prepare(&mut self, context: &DspContext) { /* ... */ }
 //!     fn reset(&mut self) { /* ... */ }
 //!     fn apply_parameters(&mut self, params: &[f32]) { /* ... */ }
-//!     fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], context: &DspContext) { /* ... */ }
+//!     fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], midi_events: &[MidiEvent], context: &DspContext) { /* ... */ }
 //! }
 //!
 //! impl Default for PluginGraph {
@@ -41,6 +41,9 @@ pub mod core {
 }
 pub mod dsp {
     pub use bbx_dsp::*;
+}
+pub mod midi {
+    pub use bbx_midi::*;
 }
 
 // Re-export types needed by the macro

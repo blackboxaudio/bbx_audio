@@ -15,9 +15,14 @@ links = "bbx_plugin"
 [lib]
 crate-type = ["rlib"]
 
+[features]
+default = []
+ftz-daz = ["bbx_core/ftz-daz"]
+
 [dependencies]
 bbx_core.workspace = true
 bbx_dsp.workspace = true
-bbx_midi.workspace = true
+bbx_midi = { workspace = true, default-features = false }
+
 serde.workspace = true
 serde_json.workspace = true

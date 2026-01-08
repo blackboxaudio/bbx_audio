@@ -4,6 +4,10 @@
 //! significant CPU slowdowns (10-100x) on x86 processors due to microcode
 //! fallback handling. This module provides utilities to flush these values
 //! to zero, preventing performance degradation in audio processing.
+//!
+//! When the `ftz-daz` feature is enabled, this module also provides CPU-level
+//! FTZ (Flush-To-Zero) and DAZ (Denormals-Are-Zero) mode configuration for
+//! x86/x86_64 and AArch64 processors.
 
 /// Threshold below which values are considered denormal.
 /// This is slightly above the actual denormal threshold to catch
@@ -24,6 +28,78 @@ pub fn flush_denormal_f64(x: f64) -> f64 {
 #[inline]
 pub fn flush_denormal_f32(x: f32) -> f32 {
     if x.abs() < DENORMAL_THRESHOLD_F32 { 0.0 } else { x }
+}
+
+/// Enable FTZ (Flush-To-Zero) and DAZ (Denormals-Are-Zero) modes on x86/x86_64.
+///
+/// This sets CPU flags that cause denormalized floating-point numbers to be
+/// automatically flushed to zero, avoiding the significant performance penalty
+/// (10-100x slowdown) that denormals can cause.
+///
+/// This function is only available when the `ftz-daz` feature is enabled and
+/// compiling for x86/x86_64 targets.
+///
+/// # Safety
+///
+/// This function modifies CPU control registers. It is safe to call from any
+/// thread, but the flags are per-thread on most systems. Call this at the start
+/// of any audio processing thread.
+#[cfg(all(feature = "ftz-daz", any(target_arch = "x86", target_arch = "x86_64")))]
+pub fn enable_ftz_daz() {
+    #[cfg(target_arch = "x86")]
+    use std::arch::x86::{_MM_FLUSH_ZERO_ON, _MM_SET_FLUSH_ZERO_MODE, _mm_getcsr, _mm_setcsr};
+    #[cfg(target_arch = "x86_64")]
+    use std::arch::x86_64::{_MM_FLUSH_ZERO_ON, _MM_SET_FLUSH_ZERO_MODE, _mm_getcsr, _mm_setcsr};
+
+    const DAZ_BIT: u32 = 1 << 6;
+
+    unsafe {
+        // Enable FTZ (Flush-To-Zero)
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+
+        // Enable DAZ (Denormals-Are-Zero)
+        let mxcsr = _mm_getcsr();
+        _mm_setcsr(mxcsr | DAZ_BIT);
+    }
+}
+
+/// Enable FTZ (Flush-To-Zero) mode on AArch64.
+///
+/// Sets the FZ bit in FPCR, causing denormal outputs to be flushed to zero.
+///
+/// # ARM vs x86 Differences
+///
+/// ARM FPCR.FZ only affects outputs (no universal DAZ equivalent).
+/// Use `flush_denormal_f64/f32` in feedback paths for full coverage.
+#[cfg(all(feature = "ftz-daz", target_arch = "aarch64"))]
+pub fn enable_ftz_daz() {
+    use std::arch::asm;
+
+    const FZ_BIT: u64 = 1 << 24;
+
+    unsafe {
+        let mut fpcr: u64;
+        asm!(
+            "mrs {}, fpcr",
+            out(reg) fpcr,
+            options(nomem, nostack, preserves_flags)
+        );
+        fpcr |= FZ_BIT;
+        asm!(
+            "msr fpcr, {}",
+            in(reg) fpcr,
+            options(nomem, nostack, preserves_flags)
+        );
+    }
+}
+
+/// No-op stub for unsupported architectures when `ftz-daz` feature is enabled.
+#[cfg(all(
+    feature = "ftz-daz",
+    not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))
+))]
+pub fn enable_ftz_daz() {
+    // No-op on unsupported architectures
 }
 
 #[cfg(test)]
@@ -54,5 +130,24 @@ mod tests {
     fn test_f32_denormal_handling() {
         assert_eq!(flush_denormal_f32(1.0), 1.0);
         assert_eq!(flush_denormal_f32(1e-16), 0.0);
+    }
+
+    #[cfg(all(feature = "ftz-daz", target_arch = "aarch64"))]
+    #[test]
+    fn test_enable_ftz_daz_sets_fz_bit() {
+        use std::arch::asm;
+        const FZ_BIT: u64 = 1 << 24;
+
+        enable_ftz_daz();
+
+        let fpcr: u64;
+        unsafe {
+            asm!(
+                "mrs {}, fpcr",
+                out(reg) fpcr,
+                options(nomem, nostack, preserves_flags)
+            );
+        }
+        assert_ne!(fpcr & FZ_BIT, 0, "FZ bit should be set after enable_ftz_daz()");
     }
 }

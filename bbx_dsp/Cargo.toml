@@ -13,3 +13,4 @@ categories = ["multimedia::audio", "science"]
 
 [dependencies]
 bbx_core.workspace = true
+bbx_midi = { workspace = true, default-features = false }

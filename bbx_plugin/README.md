@@ -12,6 +12,25 @@ This crate re-exports `bbx_dsp`, so plugin projects only need to add `bbx_plugin
 - **Buffer processing**: Zero-copy audio buffer interop
 - **Plugin integration**: Works with JUCE AudioProcessor
 
+## Cargo Features
+
+### `ftz-daz`
+
+Enables hardware-level denormal prevention. When enabled, `enable_ftz_daz()` is called automatically during `prepare()`, setting CPU flags to flush denormal floating-point numbers to zero.
+
+```toml
+[dependencies]
+bbx_plugin = { version = "...", features = ["ftz-daz"] }
+```
+
+| Platform | Behavior |
+|----------|----------|
+| x86/x86_64 | Full FTZ + DAZ (inputs and outputs) |
+| AArch64 (Apple Silicon) | FTZ only (outputs) |
+| Other | No-op |
+
+This is recommended for production audio plugins to avoid the 10-100x CPU slowdowns that denormals can cause.
+
 ## Usage
 
 ### Implementing PluginDsp
@@ -44,9 +63,10 @@ impl PluginDsp for MyPlugin {
         &mut self,
         inputs: &[&[f32]],
         outputs: &mut [&mut [f32]],
+        midi_events: &[MidiEvent],
         context: &DspContext,
     ) {
-        // Audio processing
+        // Audio processing (midi_events for synthesizers)
     }
 }
 
@@ -69,7 +89,7 @@ The `bbx_plugin_ffi!` macro generates:
 - `bbx_prepare(handle, sample_rate, buffer_size, channels)` - Prepare for playback
 - `bbx_reset(handle)` - Reset state
 - `bbx_apply_parameters(handle, params, count)` - Update parameters
-- `bbx_process(handle, inputs, outputs, channels, samples)` - Process audio
+- `bbx_process(handle, inputs, outputs, midi_events, midi_count, channels, samples)` - Process audio with MIDI
 
 ### JUCE Integration
 

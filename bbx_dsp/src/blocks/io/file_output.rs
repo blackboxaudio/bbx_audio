@@ -59,7 +59,6 @@ impl<S: Sample + Send + 'static> FileOutputBlock<S> {
         let stop_signal_clone = stop_signal.clone();
         let error_flag_clone = error_flag.clone();
 
-        // Spawn I/O thread
         let writer_thread = thread::spawn(move || {
             Self::writer_thread_fn(consumer, writer, stop_signal_clone, error_flag_clone, num_channels);
         });
@@ -82,7 +81,6 @@ impl<S: Sample + Send + 'static> FileOutputBlock<S> {
         error_flag: Arc<AtomicBool>,
         num_channels: usize,
     ) {
-        // Per-channel buffers for de-interleaving
         let mut channel_buffers: Vec<Vec<S>> = vec![Vec::new(); num_channels];
         let mut current_channel = 0;
 
@@ -90,12 +88,10 @@ impl<S: Sample + Send + 'static> FileOutputBlock<S> {
         const FLUSH_THRESHOLD: usize = 4096;
 
         loop {
-            // Try to consume samples (non-blocking)
             while let Some(sample) = consumer.try_pop() {
                 channel_buffers[current_channel].push(sample);
                 current_channel = (current_channel + 1) % num_channels;
 
-                // Flush to disk periodically
                 if channel_buffers[0].len() >= FLUSH_THRESHOLD {
                     for (ch, buffer) in channel_buffers.iter_mut().enumerate() {
                         if writer.write_channel(ch, buffer).is_err() {
@@ -106,16 +102,13 @@ impl<S: Sample + Send + 'static> FileOutputBlock<S> {
                 }
             }
 
-            // Check stop signal
             if stop_signal.load(Ordering::Relaxed) {
-                // Flush remaining samples
                 for (ch, buffer) in channel_buffers.iter().enumerate() {
                     if !buffer.is_empty() && writer.write_channel(ch, buffer).is_err() {
                         error_flag.store(true, Ordering::Relaxed);
                     }
                 }
 
-                // Finalize the writer
                 if writer.finalize().is_err() {
                     error_flag.store(true, Ordering::Relaxed);
                 }
@@ -141,15 +134,12 @@ impl<S: Sample + Send + 'static> FileOutputBlock<S> {
     pub fn stop_recording(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.is_recording = false;
 
-        // Signal writer thread to stop
         self.stop_signal.store(true, Ordering::Relaxed);
 
-        // Wait for writer thread to finish
         if let Some(handle) = self.writer_thread.take() {
             handle.join().map_err(|_| "Writer thread panicked")?;
         }
 
-        // Check if any errors occurred during writing
         if self.error_flag.load(Ordering::Relaxed) {
             return Err("Error occurred while writing to file".into());
         }
@@ -184,7 +174,6 @@ impl<S: Sample + Send + 'static> Block<S> for FileOutputBlock<S> {
             None => return,
         };
 
-        // Interleave and push to ring buffer (non-blocking)
         let active_channels = inputs.len().min(self.num_channels);
         let buffer_len = inputs[0].len();
 
@@ -214,10 +203,9 @@ impl<S: Sample + Send + 'static> Block<S> for FileOutputBlock<S> {
 
 impl<S: Sample + Send + 'static> Drop for FileOutputBlock<S> {
     fn drop(&mut self) {
-        // Signal writer thread to stop
         self.stop_signal.store(true, Ordering::Relaxed);
 
-        // Wait for writer thread to finish (ignore errors in drop)
+        // Ignore errors in drop
         if let Some(handle) = self.writer_thread.take() {
             let _ = handle.join();
         }

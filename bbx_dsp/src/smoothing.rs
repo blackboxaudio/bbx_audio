@@ -10,6 +10,11 @@ use crate::sample::Sample;
 
 const INV_1000: f64 = 1.0 / 1000.0;
 
+/// Minimum ramp length in milliseconds to prevent instant value jumps (clicks).
+/// 0.01ms is fast enough to sound near-instantaneous while still providing
+/// a brief transition to avoid discontinuities.
+const MIN_RAMP_LENGTH_MS: f64 = 0.01;
+
 /// Check if two Sample values are approximately equal.
 #[inline]
 fn is_approximately_equal<S: Sample>(a: S, b: S) -> bool {
@@ -134,10 +139,11 @@ impl<S: Sample, T: SmoothingStrategy> SmoothedValue<S, T> {
     /// Reset the sample rate and ramp length.
     ///
     /// This recalculates the increment based on the new timing parameters.
+    /// A minimum ramp length of 0.01ms is enforced to prevent clicks.
     pub fn reset(&mut self, sample_rate: f64, ramp_length_millis: f64) {
         if sample_rate > 0.0 && ramp_length_millis >= 0.0 {
             self.sample_rate = sample_rate;
-            self.ramp_length_millis = ramp_length_millis;
+            self.ramp_length_millis = ramp_length_millis.max(MIN_RAMP_LENGTH_MS);
             self.update_increment();
         }
     }
@@ -218,13 +224,9 @@ impl<S: Sample, T: SmoothingStrategy> SmoothedValue<S, T> {
     /// Recalculate the increment based on current timing parameters.
     #[inline]
     fn update_increment(&mut self) {
-        if self.ramp_length_millis <= 0.0 {
-            self.current_value = self.target_value;
-            self.increment = 0.0;
-            return;
-        }
-
-        let num_samples = self.ramp_length_millis * self.sample_rate * INV_1000;
+        // Enforce minimum ramp length to prevent clicks
+        let ramp_ms = self.ramp_length_millis.max(MIN_RAMP_LENGTH_MS);
+        let num_samples = ramp_ms * self.sample_rate * INV_1000;
         self.increment = T::update_increment::<S>(self.current_value, self.target_value, num_samples);
     }
 }
@@ -298,9 +300,19 @@ mod tests {
 
     #[test]
     fn test_zero_ramp_length() {
+        // With minimum ramp enforcement (0.01ms), zero ramp is treated as 0.01ms
+        // At 44100 Hz, that's about 0.44 samples, so it reaches target quickly
         let mut sv = LinearSmoothedValue::<f32>::new(0.0);
-        sv.reset(44100.0, 0.0); // Zero ramp = immediate
+        sv.reset(44100.0, 0.0);
         sv.set_target_value(1.0);
+
+        // Should still be smoothing (minimum ramp applied)
+        assert!(sv.is_smoothing());
+
+        // But should reach target after a few samples
+        for _ in 0..5 {
+            sv.get_next_value();
+        }
         assert_eq!(sv.current(), 1.0);
         assert!(!sv.is_smoothing());
     }

@@ -52,15 +52,44 @@ fn process_filter(&mut self, input: f32) -> f32 {
 
 ### CPU FTZ/DAZ Mode
 
-Set CPU flags to auto-flush:
+bbx_core provides the `ftz-daz` Cargo feature for hardware-level denormal prevention. When enabled, the `enable_ftz_daz()` function sets CPU flags to automatically flush denormals to zero.
 
-```rust
-// Platform-specific, not portable
-unsafe { _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON); }
+Enable the feature in your `Cargo.toml`:
+
+```toml
+[dependencies]
+bbx_core = { version = "...", features = ["ftz-daz"] }
+
+# Or for plugins (recommended):
+bbx_plugin = { version = "...", features = ["ftz-daz"] }
 ```
 
-Pros: Automatic, no per-sample cost
-Cons: Platform-specific, affects all code
+Usage:
+
+```rust
+use bbx_core::denormal::enable_ftz_daz;
+
+// Call once at the start of each audio thread
+enable_ftz_daz();
+```
+
+When using `bbx_plugin` with the `ftz-daz` feature, this is called automatically during `prepare()`.
+
+#### Platform Support
+
+| Platform | Behavior |
+|----------|----------|
+| x86/x86_64 | Full FTZ + DAZ (inputs and outputs flushed) |
+| AArch64 (ARM64/Apple Silicon) | FTZ only (outputs flushed) |
+| Other | No-op (use software flushing) |
+
+**Note:** ARM processors lack a universal DAZ equivalent, so denormal inputs are handled normally. For portable code, use `flush_denormal_f32/f64` in filter feedback paths as defense-in-depth.
+
+| Pros | Cons |
+|------|------|
+| No per-sample overhead | Affects all code on the thread |
+| Handles all float operations automatically | ARM: outputs only (no DAZ) |
+| Recommended for production plugins | |
 
 ### DC Offset
 
@@ -71,5 +100,5 @@ const DC_OFFSET: f32 = 1e-25;
 let output = (input + DC_OFFSET) * coefficient;
 ```
 
-Pros: Simple
+Pros: Simple, portable
 Cons: Introduces actual DC offset

@@ -13,5 +13,9 @@ categories = ["multimedia::audio", "filesystem"]
 
 [dependencies]
 bbx_dsp.workspace = true
+
 hound.workspace = true
 wavers.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

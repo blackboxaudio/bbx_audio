@@ -67,7 +67,6 @@ impl<S: Sample> Writer<S> for WavFileWriter<S> {
         }
 
         self.channel_buffers[channel_index].extend_from_slice(samples);
-        // TODO: Should this be called?
         self.write_available_samples()?;
 
         Ok(())
@@ -109,5 +108,59 @@ impl<S: Sample> WavFileWriter<S> {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::NamedTempFile;
+
+    use super::*;
+
+    #[test]
+    fn test_wav_writer_creation() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_str().unwrap();
+
+        let writer = WavFileWriter::<f32>::new(path, 44100.0, 2);
+        assert!(writer.is_ok());
+
+        let writer = writer.unwrap();
+        assert_eq!(writer.sample_rate(), 44100.0);
+        assert_eq!(writer.num_channels(), 2);
+        assert!(writer.can_write());
+    }
+
+    #[test]
+    fn test_wav_writer_write_and_finalize() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_str().unwrap();
+
+        let mut writer = WavFileWriter::<f32>::new(path, 44100.0, 2).unwrap();
+
+        // Write some samples
+        let samples: Vec<f32> = (0..100).map(|i| (i as f32 / 100.0)).collect();
+        writer.write_channel(0, &samples).unwrap();
+        writer.write_channel(1, &samples).unwrap();
+        writer.finalize().unwrap();
+
+        // Verify file was created and has content
+        let metadata = fs::metadata(path).unwrap();
+        assert!(metadata.len() > 0);
+    }
+
+    #[test]
+    fn test_wav_writer_channel_bounds() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_str().unwrap();
+
+        let mut writer = WavFileWriter::<f32>::new(path, 44100.0, 2).unwrap();
+
+        // Writing to invalid channel should error
+        let samples = vec![0.0f32; 10];
+        let result = writer.write_channel(5, &samples);
+        assert!(result.is_err());
     }
 }

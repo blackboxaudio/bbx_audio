@@ -185,15 +185,4 @@ bbx_graph_process(
 );
 ```
 
-## Parameter Constants
-
-The header includes generated parameter index constants:
-
-```c
-#define PARAM_GAIN 0
-#define PARAM_PAN 1
-// ...
-#define PARAM_COUNT 7
-```
-
-Use these when building the parameter array.
+Note: Parameter index constants (`PARAM_*`) are defined in the generated `bbx_params.h` header, not in `bbx_ffi.h`. See [Parameter Code Generation](parameters-codegen.md) for details.
