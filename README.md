@@ -18,6 +18,7 @@ A Rust workspace for audio DSP with C FFI bindings for JUCE plugin integration.
 | Crate | Description |
 |-------|-------------|
 | [`bbx_core`](./bbx_core) | Error types and foundational utilities |
+| [`bbx_draw`](./bbx_draw) | Audio visualization primitives for nannou |
 | [`bbx_dsp`](./bbx_dsp) | DSP graph system, blocks, and `PluginDsp` trait |
 | [`bbx_file`](./bbx_file) | Audio file I/O (WAV/MP3) |
 | [`bbx_midi`](./bbx_midi) | MIDI messages, events, and streaming |

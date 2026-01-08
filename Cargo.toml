@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "bbx_core",
+    "bbx_draw",
     "bbx_dsp",
     "bbx_file",
     "bbx_midi",

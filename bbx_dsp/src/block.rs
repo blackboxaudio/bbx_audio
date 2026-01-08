@@ -40,6 +40,19 @@ pub(crate) const DEFAULT_MODULATOR_OUTPUT_COUNT: usize = 1;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockId(pub usize);
 
+/// Category of a DSP block for visualization and organization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BlockCategory {
+    /// Audio signal generators (oscillators, noise, etc.).
+    Generator,
+    /// Audio signal processors (filters, effects, etc.).
+    Effector,
+    /// Control signal generators (LFOs, envelopes, etc.).
+    Modulator,
+    /// Input/output blocks (file I/O, audio output, etc.).
+    IO,
+}
+
 /// The core trait for DSP processing units.
 ///
 /// A block represents a single DSP operation (oscillator, filter, gain, etc.)
@@ -323,5 +336,40 @@ impl<S: Sample> BlockType<S> {
     #[inline]
     pub fn is_output(&self) -> bool {
         matches!(self, BlockType::Output(_) | BlockType::FileOutput(_))
+    }
+
+    /// Returns the category of this block.
+    #[inline]
+    pub fn category(&self) -> BlockCategory {
+        match self {
+            BlockType::FileInput(_) | BlockType::FileOutput(_) | BlockType::Output(_) => BlockCategory::IO,
+            BlockType::Oscillator(_) => BlockCategory::Generator,
+            BlockType::ChannelRouter(_)
+            | BlockType::DcBlocker(_)
+            | BlockType::Gain(_)
+            | BlockType::LowPassFilter(_)
+            | BlockType::Overdrive(_)
+            | BlockType::Panner(_) => BlockCategory::Effector,
+            BlockType::Envelope(_) | BlockType::Lfo(_) => BlockCategory::Modulator,
+        }
+    }
+
+    /// Returns the display name of this block type.
+    #[inline]
+    pub fn name(&self) -> &'static str {
+        match self {
+            BlockType::FileInput(_) => "File Input",
+            BlockType::FileOutput(_) => "File Output",
+            BlockType::Output(_) => "Output",
+            BlockType::Oscillator(_) => "Oscillator",
+            BlockType::ChannelRouter(_) => "Channel Router",
+            BlockType::DcBlocker(_) => "DC Blocker",
+            BlockType::Gain(_) => "Gain",
+            BlockType::LowPassFilter(_) => "Low Pass Filter",
+            BlockType::Overdrive(_) => "Overdrive",
+            BlockType::Panner(_) => "Panner",
+            BlockType::Envelope(_) => "Envelope",
+            BlockType::Lfo(_) => "LFO",
+        }
     }
 }
