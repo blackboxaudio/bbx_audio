@@ -200,16 +200,10 @@ impl GraphTopologyVisualizer {
                 let curve_offset = self.config.horizontal_spacing * 0.5;
                 let control1 = Point2::new(start.x - curve_offset, start.y);
                 let control2 = Point2::new(end.x - curve_offset, end.y);
-                let label_pos = Point2::new(
-                    start.x - curve_offset - 5.0,
-                    (start.y + end.y) / 2.0,
-                );
+                let label_pos = Point2::new(start.x - curve_offset - 5.0, (start.y + end.y) / 2.0);
                 (start, end, control1, control2, label_pos)
             } else {
-                let start = Point2::new(
-                    from_center.x + self.config.block_width / 2.0,
-                    from_center.y,
-                );
+                let start = Point2::new(from_center.x + self.config.block_width / 2.0, from_center.y);
                 let end = Point2::new(
                     to_center.x - self.config.block_width / 2.0,
                     to_center.y - self.config.block_height * 0.25,

@@ -53,7 +53,7 @@ For real-time audio visualization, use the lock-free audio bridge:
 ```rust
 use bbx_draw::{audio_bridge, AudioFrame, WaveformVisualizer};
 
-// Create bridge pair
+// Create bridge pair (16 = frame buffer capacity)
 let (mut producer, consumer) = audio_bridge(16);
 
 // In audio thread: send frames
@@ -79,7 +79,7 @@ cargo run --example spectrum_analyzer -p bbx_draw
 
 ## Features
 
-- `sketch-registry` (default) - Enables sketch discovery and caching via `SketchRegistry`
+- `sketchbook` (default) - Enables sketch discovery and caching via `SketchRegistry`
 
 ## Threading Model
 

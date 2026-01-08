@@ -23,5 +23,5 @@ dirs = { version = "5.0", optional = true }
 rodio.workspace = true
 
 [features]
-default = ["sketch-registry"]
-sketch-registry = ["dep:dirs"]
+default = ["sketchbook"]
+sketchbook = ["dep:dirs"]

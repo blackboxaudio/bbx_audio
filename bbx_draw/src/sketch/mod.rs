@@ -2,9 +2,9 @@
 
 mod traits;
 
-#[cfg(feature = "sketch-registry")]
+#[cfg(feature = "sketchbook")]
 mod registry;
 
-#[cfg(feature = "sketch-registry")]
+#[cfg(feature = "sketchbook")]
 pub use registry::{SketchMetadata, SketchRegistry};
 pub use traits::Sketch;
