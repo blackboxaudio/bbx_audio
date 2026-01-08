@@ -31,6 +31,17 @@ bbx_plugin = { version = "...", features = ["ftz-daz"] }
 
 This is recommended for production audio plugins to avoid the 10-100x CPU slowdowns that denormals can cause.
 
+### `simd`
+
+Enables SIMD optimizations for DSP processing. Requires nightly Rust.
+
+```toml
+[dependencies]
+bbx_plugin = { version = "...", features = ["simd"] }
+```
+
+Propagates to both `bbx_core` and `bbx_dsp`, enabling vectorized operations in supported blocks (Oscillator, LFO, Gain).
+
 ## Usage
 
 ### Implementing PluginDsp

@@ -109,7 +109,7 @@
 - [Performance Considerations](architecture/performance.md)
     - [Zero-Allocation Processing](architecture/zero-allocation.md)
     - [Cache Efficiency](architecture/cache-efficiency.md)
-    - [SIMD Opportunities](architecture/simd.md)
+    - [SIMD Optimizations](architecture/simd.md)
 
 # Contributing
 

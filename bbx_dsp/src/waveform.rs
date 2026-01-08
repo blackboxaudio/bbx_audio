@@ -7,6 +7,8 @@ use std::simd::{StdFloat, cmp::SimdPartialOrd, f64x4};
 
 use bbx_core::random::XorShiftRng;
 
+use crate::sample::Sample;
+
 /// Standard waveform shapes for oscillators and LFOs.
 #[derive(Debug, Clone, Copy)]
 pub enum Waveform {
@@ -61,6 +63,26 @@ pub(crate) fn generate_waveform_sample(waveform: Waveform, phase: f64, duty_cycl
         }
         Waveform::Noise => rng.next_noise_sample(),
     }
+}
+
+/// Process waveform samples using scalar (non-SIMD) operations.
+///
+/// Writes samples to `output`, advances `phase` by `phase_increment` per sample,
+/// and normalizes phase at the end.
+pub(crate) fn process_waveform_scalar<S: Sample>(
+    output: &mut [S],
+    waveform: Waveform,
+    phase: &mut f64,
+    phase_increment: f64,
+    rng: &mut XorShiftRng,
+    scale: f64,
+) {
+    for sample in output.iter_mut() {
+        let value = generate_waveform_sample(waveform, *phase, DEFAULT_DUTY_CYCLE, rng);
+        *sample = S::from_f64(value * scale);
+        *phase += phase_increment;
+    }
+    *phase = phase.rem_euclid(TWO_PI);
 }
 
 /// Generate 4 samples of a waveform at consecutive phases using SIMD.

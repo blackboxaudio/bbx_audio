@@ -13,6 +13,8 @@ A Rust workspace for audio DSP with C FFI bindings for JUCE plugin integration.
 
 `bbx_audio` provides a modular DSP graph system for building audio effects and synthesizers in Rust. The workspace includes blocks for oscillators, effects, and modulators that can be connected into processing graphs. For plugin developers, `bbx_plugin` provides C FFI bindings to integrate Rust DSP into JUCE audio plugins.
 
+Optional SIMD optimizations are available via the `simd` feature flag (requires nightly Rust).
+
 ## Crates
 
 | Crate | Description |

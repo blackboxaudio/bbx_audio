@@ -85,7 +85,6 @@ impl<S: Sample> Block<S> for GainBlock<S> {
                             unsafe { std::slice::from_raw_parts_mut(outputs[ch].as_mut_ptr() as *mut f32, len) };
                         apply_gain_f32(input_f32, output_f32, gain_f32);
                     }
-                    return;
                 } else if TypeId::of::<S>() == TypeId::of::<f64>() {
                     for ch in 0..num_channels {
                         let len = inputs[ch].len().min(outputs[ch].len());
@@ -94,17 +93,20 @@ impl<S: Sample> Block<S> for GainBlock<S> {
                             unsafe { std::slice::from_raw_parts_mut(outputs[ch].as_mut_ptr() as *mut f64, len) };
                         apply_gain_f64(input_f64, output_f64, gain);
                     }
-                    return;
                 }
+                return;
             }
 
-            for ch in 0..num_channels {
-                let len = inputs[ch].len().min(outputs[ch].len());
-                for i in 0..len {
-                    outputs[ch][i] = S::from_f64(inputs[ch][i].to_f64() * gain);
+            #[cfg(not(feature = "simd"))]
+            {
+                for ch in 0..num_channels {
+                    let len = inputs[ch].len().min(outputs[ch].len());
+                    for i in 0..len {
+                        outputs[ch][i] = S::from_f64(inputs[ch][i].to_f64() * gain);
+                    }
                 }
+                return;
             }
-            return;
         }
 
         // Smoothing path: compute smoothed values once, apply to all channels

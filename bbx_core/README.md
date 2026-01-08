@@ -25,6 +25,23 @@ enable_ftz_daz();
 
 This sets CPU flags to automatically flush denormal floats to zero, avoiding the 10-100x slowdowns they can cause. On x86/x86_64, this enables both FTZ and DAZ modes. On AArch64, only FTZ is available—use `flush_denormal_f64/f32` in feedback paths for full coverage. Recommended for production audio applications.
 
+### `simd`
+
+Enables SIMD-accelerated operations for common DSP tasks. Requires nightly Rust due to the unstable `portable_simd` feature.
+
+```toml
+[dependencies]
+bbx_core = { version = "...", features = ["simd"] }
+```
+
+Provides the `simd` module with vectorized operations:
+- `fill_f32/f64` - Fill buffers with a value
+- `apply_gain_f32/f64` - Apply gain to samples
+- `multiply_add_f32/f64` - Element-wise multiplication
+- `sin_f32/f64` - Vectorized sine
+
+Also enables SIMD-accelerated `flush_denormals_f32/f64_batch` functions in the `denormal` module.
+
 ## Modules
 
 ### `denormal`

@@ -12,7 +12,7 @@ use crate::{
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
-    waveform::{DEFAULT_DUTY_CYCLE, Waveform, generate_waveform_sample},
+    waveform::{Waveform, process_waveform_scalar},
 };
 
 /// A waveform oscillator for generating audio signals.
@@ -103,11 +103,12 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
 
         #[cfg(feature = "simd")]
         {
+            use crate::waveform::DEFAULT_DUTY_CYCLE;
+
             if !matches!(self.waveform, Waveform::Noise) {
                 let buffer_size = context.buffer_size;
                 let chunks = buffer_size / 4;
                 let remainder_start = chunks * 4;
-
                 let inc_4 = phase_increment * 4.0;
 
                 for chunk_idx in 0..chunks {
@@ -128,25 +129,37 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                     self.phase += inc_4;
                 }
 
-                for sample_index in remainder_start..buffer_size {
-                    let sample_value =
-                        generate_waveform_sample(self.waveform, self.phase, DEFAULT_DUTY_CYCLE, &mut self.rng);
-                    outputs[0][sample_index] = S::from_f64(sample_value);
-                    self.phase += phase_increment;
-                }
-
-                self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
-                return;
+                process_waveform_scalar(
+                    &mut outputs[0][remainder_start..],
+                    self.waveform,
+                    &mut self.phase,
+                    phase_increment,
+                    &mut self.rng,
+                    1.0,
+                );
+            } else {
+                process_waveform_scalar(
+                    outputs[0],
+                    self.waveform,
+                    &mut self.phase,
+                    phase_increment,
+                    &mut self.rng,
+                    1.0,
+                );
             }
         }
 
-        for sample_index in 0..context.buffer_size {
-            let sample_value = generate_waveform_sample(self.waveform, self.phase, DEFAULT_DUTY_CYCLE, &mut self.rng);
-            outputs[0][sample_index] = S::from_f64(sample_value);
-            self.phase += phase_increment;
+        #[cfg(not(feature = "simd"))]
+        {
+            process_waveform_scalar(
+                outputs[0],
+                self.waveform,
+                &mut self.phase,
+                phase_increment,
+                &mut self.rng,
+                1.0,
+            );
         }
-
-        self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
     }
 
     #[inline]
