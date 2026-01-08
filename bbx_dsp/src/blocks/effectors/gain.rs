@@ -1,5 +1,7 @@
 //! Gain control block with dB input.
 
+#[cfg(feature = "simd")]
+use crate::buffer::{apply_gain_f32, apply_gain_f64};
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
@@ -69,6 +71,33 @@ impl<S: Sample> Block<S> for GainBlock<S> {
         // Fast path: constant gain when not smoothing
         if !self.gain_smoother.is_smoothing() {
             let gain = self.gain_smoother.current().to_f64();
+
+            #[cfg(feature = "simd")]
+            {
+                use std::any::TypeId;
+
+                if TypeId::of::<S>() == TypeId::of::<f32>() {
+                    let gain_f32 = gain as f32;
+                    for ch in 0..num_channels {
+                        let len = inputs[ch].len().min(outputs[ch].len());
+                        let input_f32 = unsafe { std::slice::from_raw_parts(inputs[ch].as_ptr() as *const f32, len) };
+                        let output_f32 =
+                            unsafe { std::slice::from_raw_parts_mut(outputs[ch].as_mut_ptr() as *mut f32, len) };
+                        apply_gain_f32(input_f32, output_f32, gain_f32);
+                    }
+                    return;
+                } else if TypeId::of::<S>() == TypeId::of::<f64>() {
+                    for ch in 0..num_channels {
+                        let len = inputs[ch].len().min(outputs[ch].len());
+                        let input_f64 = unsafe { std::slice::from_raw_parts(inputs[ch].as_ptr() as *const f64, len) };
+                        let output_f64 =
+                            unsafe { std::slice::from_raw_parts_mut(outputs[ch].as_mut_ptr() as *mut f64, len) };
+                        apply_gain_f64(input_f64, output_f64, gain);
+                    }
+                    return;
+                }
+            }
+
             for ch in 0..num_channels {
                 let len = inputs[ch].len().min(outputs[ch].len());
                 for i in 0..len {

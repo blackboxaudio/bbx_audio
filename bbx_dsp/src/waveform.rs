@@ -2,6 +2,9 @@
 //!
 //! This module defines standard waveform shapes used by oscillators and LFOs.
 
+#[cfg(feature = "simd")]
+use std::simd::{StdFloat, cmp::SimdPartialOrd, f64x4};
+
 use bbx_core::random::XorShiftRng;
 
 /// Standard waveform shapes for oscillators and LFOs.
@@ -57,5 +60,60 @@ pub(crate) fn generate_waveform_sample(waveform: Waveform, phase: f64, duty_cycl
             if normalized_phase < duty_cycle { 1.0 } else { -1.0 }
         }
         Waveform::Noise => rng.next_noise_sample(),
+    }
+}
+
+/// Generate 4 samples of a waveform at consecutive phases using SIMD.
+///
+/// Returns `None` for Noise waveform (requires sequential RNG).
+/// For all other waveforms, returns the 4 samples as an array.
+#[cfg(feature = "simd")]
+pub(crate) fn generate_waveform_samples_simd(waveform: Waveform, phases: f64x4, duty_cycle: f64) -> Option<[f64; 4]> {
+    let two_pi = f64x4::splat(TWO_PI);
+    let inv_two_pi = f64x4::splat(INV_TWO_PI);
+
+    match waveform {
+        Waveform::Sine => Some(phases.sin().to_array()),
+
+        Waveform::Square => {
+            let sin_phases = phases.sin();
+            let zero = f64x4::splat(0.0);
+            let one = f64x4::splat(1.0);
+            let neg_one = f64x4::splat(-1.0);
+            let mask = sin_phases.simd_gt(zero);
+            Some(mask.select(one, neg_one).to_array())
+        }
+
+        Waveform::Sawtooth => {
+            let two = f64x4::splat(2.0);
+            let one = f64x4::splat(1.0);
+            let normalized = (phases % two_pi) * inv_two_pi;
+            Some((two * normalized - one).to_array())
+        }
+
+        Waveform::Triangle => {
+            let half = f64x4::splat(0.5);
+            let four = f64x4::splat(4.0);
+            let one = f64x4::splat(1.0);
+            let three = f64x4::splat(3.0);
+
+            let normalized = (phases % two_pi) * inv_two_pi;
+            let mask = normalized.simd_lt(half);
+            let rising = four * normalized - one;
+            let falling = three - four * normalized;
+            Some(mask.select(rising, falling).to_array())
+        }
+
+        Waveform::Pulse => {
+            let duty = f64x4::splat(duty_cycle);
+            let one = f64x4::splat(1.0);
+            let neg_one = f64x4::splat(-1.0);
+
+            let normalized = (phases % two_pi) * inv_two_pi;
+            let mask = normalized.simd_lt(duty);
+            Some(mask.select(one, neg_one).to_array())
+        }
+
+        Waveform::Noise => None,
     }
 }

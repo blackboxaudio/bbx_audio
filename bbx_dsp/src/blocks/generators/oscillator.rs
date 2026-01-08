@@ -1,7 +1,12 @@
 //! Waveform oscillator block.
 
+#[cfg(feature = "simd")]
+use std::simd::f64x4;
+
 use bbx_core::random::XorShiftRng;
 
+#[cfg(feature = "simd")]
+use crate::waveform::generate_waveform_samples_simd;
 use crate::{
     block::{Block, DEFAULT_GENERATOR_INPUT_COUNT, DEFAULT_GENERATOR_OUTPUT_COUNT},
     context::DspContext,
@@ -96,13 +101,51 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
 
         let phase_increment = freq.to_f64() / context.sample_rate * std::f64::consts::TAU;
 
+        #[cfg(feature = "simd")]
+        {
+            if !matches!(self.waveform, Waveform::Noise) {
+                let buffer_size = context.buffer_size;
+                let chunks = buffer_size / 4;
+                let remainder_start = chunks * 4;
+
+                let inc_4 = phase_increment * 4.0;
+
+                for chunk_idx in 0..chunks {
+                    let phases = f64x4::from_array([
+                        self.phase,
+                        self.phase + phase_increment,
+                        self.phase + phase_increment * 2.0,
+                        self.phase + phase_increment * 3.0,
+                    ]);
+
+                    if let Some(samples) = generate_waveform_samples_simd(self.waveform, phases, DEFAULT_DUTY_CYCLE) {
+                        let base = chunk_idx * 4;
+                        for i in 0..4 {
+                            outputs[0][base + i] = S::from_f64(samples[i]);
+                        }
+                    }
+
+                    self.phase += inc_4;
+                }
+
+                for sample_index in remainder_start..buffer_size {
+                    let sample_value =
+                        generate_waveform_sample(self.waveform, self.phase, DEFAULT_DUTY_CYCLE, &mut self.rng);
+                    outputs[0][sample_index] = S::from_f64(sample_value);
+                    self.phase += phase_increment;
+                }
+
+                self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
+                return;
+            }
+        }
+
         for sample_index in 0..context.buffer_size {
             let sample_value = generate_waveform_sample(self.waveform, self.phase, DEFAULT_DUTY_CYCLE, &mut self.rng);
             outputs[0][sample_index] = S::from_f64(sample_value);
             self.phase += phase_increment;
         }
 
-        // Wrap phase using modulo for efficiency (avoids while loop with extreme frequencies)
         self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
     }
 

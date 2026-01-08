@@ -24,10 +24,68 @@ pub fn flush_denormal_f64(x: f64) -> f64 {
     if x.abs() < DENORMAL_THRESHOLD_F64 { 0.0 } else { x }
 }
 
+/// Batch flush denormals in a slice of f64 values using SIMD.
+#[cfg(feature = "simd")]
+#[inline]
+pub fn flush_denormals_f64_batch(buffer: &mut [f64]) {
+    use std::simd::{cmp::SimdPartialOrd, f64x4, num::SimdFloat};
+
+    let threshold = f64x4::splat(DENORMAL_THRESHOLD_F64);
+    let zero = f64x4::splat(0.0);
+
+    let (chunks, remainder) = buffer.as_chunks_mut::<4>();
+    for chunk in chunks {
+        let v = f64x4::from_array(*chunk);
+        let mask = v.abs().simd_lt(threshold);
+        *chunk = mask.select(zero, v).to_array();
+    }
+    for sample in remainder {
+        *sample = flush_denormal_f64(*sample);
+    }
+}
+
+/// Batch flush denormals in a slice of f64 values (scalar fallback).
+#[cfg(not(feature = "simd"))]
+#[inline]
+pub fn flush_denormals_f64_batch(buffer: &mut [f64]) {
+    for sample in buffer {
+        *sample = flush_denormal_f64(*sample);
+    }
+}
+
 /// Flush a denormal f32 value to zero.
 #[inline]
 pub fn flush_denormal_f32(x: f32) -> f32 {
     if x.abs() < DENORMAL_THRESHOLD_F32 { 0.0 } else { x }
+}
+
+/// Batch flush denormals in a slice of f32 values using SIMD.
+#[cfg(feature = "simd")]
+#[inline]
+pub fn flush_denormals_f32_batch(buffer: &mut [f32]) {
+    use std::simd::{cmp::SimdPartialOrd, f32x4, num::SimdFloat};
+
+    let threshold = f32x4::splat(DENORMAL_THRESHOLD_F32);
+    let zero = f32x4::splat(0.0);
+
+    let (chunks, remainder) = buffer.as_chunks_mut::<4>();
+    for chunk in chunks {
+        let v = f32x4::from_array(*chunk);
+        let mask = v.abs().simd_lt(threshold);
+        *chunk = mask.select(zero, v).to_array();
+    }
+    for sample in remainder {
+        *sample = flush_denormal_f32(*sample);
+    }
+}
+
+/// Batch flush denormals in a slice of f32 values (scalar fallback).
+#[cfg(not(feature = "simd"))]
+#[inline]
+pub fn flush_denormals_f32_batch(buffer: &mut [f32]) {
+    for sample in buffer {
+        *sample = flush_denormal_f32(*sample);
+    }
 }
 
 /// Enable FTZ (Flush-To-Zero) and DAZ (Denormals-Are-Zero) modes on x86/x86_64.

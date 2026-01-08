@@ -17,7 +17,8 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-ftz-daz = ["bbx_core/ftz-daz"]
+ftz-daz = ["bbx_core/ftz-daz", "bbx_dsp/ftz-daz"]
+simd = ["bbx_core/simd", "bbx_dsp/simd"]
 
 [dependencies]
 bbx_core.workspace = true

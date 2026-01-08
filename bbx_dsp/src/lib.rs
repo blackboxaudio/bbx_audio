@@ -33,6 +33,8 @@
 //! let graph = builder.build();
 //! ```
 
+#![cfg_attr(feature = "simd", feature(portable_simd))]
+
 pub mod block;
 pub mod blocks;
 pub mod buffer;

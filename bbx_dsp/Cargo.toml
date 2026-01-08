@@ -11,6 +11,11 @@ readme = "README.md"
 keywords = ["audio", "dsp", "synthesis", "effects", "graph"]
 categories = ["multimedia::audio", "science"]
 
+[features]
+default = []
+ftz-daz = ["bbx_core/ftz-daz"]
+simd = ["bbx_core/simd"]
+
 [dependencies]
 bbx_core.workspace = true
 bbx_midi = { workspace = true, default-features = false }
