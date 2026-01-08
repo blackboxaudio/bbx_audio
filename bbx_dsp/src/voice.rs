@@ -78,6 +78,7 @@ impl VoiceState {
                 false // Don't release, just change pitch
             } else {
                 // No more notes held, release
+                self.active_note = None;
                 self.gate = false;
                 true // Trigger release
             }
