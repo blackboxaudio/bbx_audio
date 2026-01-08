@@ -2,6 +2,12 @@
 
 All notable changes to bbx_audio will be documented in this file.
 
+## [Unreleased]
+
+### Bug Fixes
+
+- Fix synth voice state not being reset properly
+
 ## [0.3.0] - 2026-01-08
 
 ### Added
