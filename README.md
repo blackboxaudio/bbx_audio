@@ -1,8 +1,8 @@
 # `bbx_audio`
 
-[![Clippy](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml)
 [![Test](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.test.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.test.yml)
-[![Version: v0.2.0](https://img.shields.io/badge/Version-v0.2.0-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
+[![Clippy](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml)
+[![Version: v0.2.1](https://img.shields.io/badge/Version-v0.2.1-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](https://github.com/blackboxaudio/bbx_audio/blob/develop/LICENSE)
 
 A Rust workspace for audio DSP with C FFI bindings for JUCE plugin integration.
@@ -18,7 +18,7 @@ A Rust workspace for audio DSP with C FFI bindings for JUCE plugin integration.
 | Crate | Description |
 |-------|-------------|
 | [`bbx_core`](./bbx_core) | Error types and foundational utilities |
-| [`bbx_draw`](./bbx_draw) | Audio visualization primitives for nannou |
+| [`bbx_draw`](./bbx_draw) | Audio visualization primitives for `nannou` |
 | [`bbx_dsp`](./bbx_dsp) | DSP graph system, blocks, and `PluginDsp` trait |
 | [`bbx_file`](./bbx_file) | Audio file I/O (WAV/MP3) |
 | [`bbx_midi`](./bbx_midi) | MIDI messages, events, and streaming |

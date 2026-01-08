@@ -5,7 +5,7 @@ use nannou::{App, Frame, event::Update};
 /// Trait for nannou sketches that can be discovered and run.
 ///
 /// Implementing this trait allows sketches to be registered and managed
-/// by the `SketchRegistry`.
+/// by the `Sketchbook`.
 pub trait Sketch: Sized {
     /// The display name of this sketch.
     fn name(&self) -> &str;

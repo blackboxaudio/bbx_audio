@@ -1,4 +1,4 @@
-//! Sketch discovery and registry.
+//! Sketch discovery and management.
 
 use std::{fs, io, path::PathBuf, time::SystemTime};
 
@@ -18,14 +18,14 @@ pub struct SketchMetadata {
     pub last_modified: SystemTime,
 }
 
-/// Registry for discovering and caching sketch metadata.
-pub struct SketchRegistry {
+/// Collection for discovering and caching sketch metadata.
+pub struct Sketchbook {
     cache_dir: PathBuf,
     entries: Vec<SketchMetadata>,
 }
 
-impl SketchRegistry {
-    /// Create a new sketch registry.
+impl Sketchbook {
+    /// Create a new sketchbook.
     ///
     /// Uses the platform's cache directory (~/.cache/bbx_draw/sketches on Linux,
     /// ~/Library/Caches/bbx_draw/sketches on macOS, etc.).
@@ -46,7 +46,7 @@ impl SketchRegistry {
         Ok(registry)
     }
 
-    /// Create a registry with a custom cache directory.
+    /// Create a sketchbook with a custom cache directory.
     pub fn with_cache_dir(cache_dir: PathBuf) -> io::Result<Self> {
         fs::create_dir_all(&cache_dir)?;
 
@@ -64,7 +64,7 @@ impl SketchRegistry {
         &self.cache_dir
     }
 
-    /// Discover sketches in a directory and update the registry.
+    /// Discover sketches in a directory and update the sketchbook.
     pub fn discover(&mut self, search_dir: &PathBuf) -> io::Result<usize> {
         let mut discovered = 0;
 
@@ -99,7 +99,7 @@ impl SketchRegistry {
         self.entries.iter().find(|e| e.name == name)
     }
 
-    /// Remove a sketch from the registry.
+    /// Remove a sketch from the sketchbook.
     pub fn remove(&mut self, name: &str) -> Option<SketchMetadata> {
         if let Some(pos) = self.entries.iter().position(|e| e.name == name) {
             let removed = self.entries.remove(pos);
@@ -110,7 +110,7 @@ impl SketchRegistry {
         }
     }
 
-    /// Add or update a sketch in the registry.
+    /// Add or update a sketch in the sketchbook.
     pub fn register(&mut self, metadata: SketchMetadata) -> io::Result<()> {
         if let Some(existing) = self.entries.iter_mut().find(|e| e.name == metadata.name) {
             *existing = metadata;
@@ -211,14 +211,14 @@ mod tests {
 
 use something;
 "#;
-        let desc = SketchRegistry::extract_doc_comment(content);
+        let desc = Sketchbook::extract_doc_comment(content);
         assert_eq!(desc, Some("This is a test sketch. It does something cool.".to_string()));
     }
 
     #[test]
     fn test_extract_no_doc_comment() {
         let content = "use something;\nfn main() {}";
-        let desc = SketchRegistry::extract_doc_comment(content);
+        let desc = Sketchbook::extract_doc_comment(content);
         assert_eq!(desc, None);
     }
 }

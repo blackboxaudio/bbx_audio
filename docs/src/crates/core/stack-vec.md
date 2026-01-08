@@ -21,8 +21,10 @@ use bbx_core::StackVec;
 // Create an empty stack vector with capacity for 8 f32s
 let mut vec: StackVec<f32, 8> = StackVec::new();
 
-// Create from an array
-let vec = StackVec::from([1.0, 2.0, 3.0]);
+// Elements must be added via push
+let _ = vec.push(1.0);
+let _ = vec.push(2.0);
+let _ = vec.push(3.0);
 ```
 
 ### Adding Elements
@@ -32,14 +34,13 @@ use bbx_core::StackVec;
 
 let mut vec: StackVec<f32, 4> = StackVec::new();
 
-// Push returns Ok if there's space
+// Push returns Ok if there's space, Err(value) if full
 assert!(vec.push(1.0).is_ok());
 assert!(vec.push(2.0).is_ok());
 
-// Or use try_push for fallible insertion
-if vec.try_push(3.0).is_some() {
-    // Element was added
-}
+// For performance-critical code, use push_unchecked
+// (panics in debug mode if full, silently ignores in release)
+vec.push_unchecked(3.0);
 ```
 
 ### Removing Elements
@@ -47,7 +48,10 @@ if vec.try_push(3.0).is_some() {
 ```rust
 use bbx_core::StackVec;
 
-let mut vec: StackVec<f32, 4> = StackVec::from([1.0, 2.0, 3.0]);
+let mut vec: StackVec<f32, 4> = StackVec::new();
+let _ = vec.push(1.0);
+let _ = vec.push(2.0);
+let _ = vec.push(3.0);
 
 // Pop from the end
 assert_eq!(vec.pop(), Some(3.0));
@@ -63,7 +67,10 @@ assert!(vec.is_empty());
 ```rust
 use bbx_core::StackVec;
 
-let mut vec: StackVec<f32, 4> = StackVec::from([1.0, 2.0, 3.0]);
+let mut vec: StackVec<f32, 4> = StackVec::new();
+let _ = vec.push(1.0);
+let _ = vec.push(2.0);
+let _ = vec.push(3.0);
 
 // Index access
 assert_eq!(vec[0], 1.0);
@@ -75,6 +82,10 @@ if let Some(value) = vec.get(1) {
 
 // Mutable access
 vec[0] = 10.0;
+
+// Slice access
+let slice: &[f32] = vec.as_slice();
+let mut_slice: &mut [f32] = vec.as_mut_slice();
 ```
 
 ### Iteration
@@ -82,7 +93,10 @@ vec[0] = 10.0;
 ```rust
 use bbx_core::StackVec;
 
-let vec: StackVec<f32, 4> = StackVec::from([1.0, 2.0, 3.0]);
+let mut vec: StackVec<f32, 4> = StackVec::new();
+let _ = vec.push(1.0);
+let _ = vec.push(2.0);
+let _ = vec.push(3.0);
 
 // Immutable iteration
 for value in &vec {
@@ -90,7 +104,6 @@ for value in &vec {
 }
 
 // Mutable iteration
-let mut vec = vec;
 for value in &mut vec {
     *value *= 2.0;
 }

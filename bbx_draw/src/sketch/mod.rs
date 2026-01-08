@@ -1,10 +1,10 @@
-//! Sketch trait and registry system.
+//! Sketch trait and sketchbook system.
 
 mod traits;
 
 #[cfg(feature = "sketchbook")]
-mod registry;
+mod sketchbook;
 
 #[cfg(feature = "sketchbook")]
-pub use registry::{SketchMetadata, SketchRegistry};
+pub use sketchbook::{SketchMetadata, Sketchbook};
 pub use traits::Sketch;

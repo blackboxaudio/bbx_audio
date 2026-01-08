@@ -11,11 +11,14 @@
 # Tutorials
 
 - [Your First DSP Graph](tutorials/first-graph.md)
+- [Building a Terminal Synthesizer](tutorials/terminal-synth.md)
 - [Creating a Simple Oscillator](tutorials/oscillator.md)
 - [Adding Effects](tutorials/effects.md)
 - [Parameter Modulation with LFOs](tutorials/modulation.md)
 - [Working with Audio Files](tutorials/audio-files.md)
 - [MIDI Integration](tutorials/midi.md)
+- [Real-Time Visualization](tutorials/visualization.md)
+- [Sketch Discovery](tutorials/sketchbook.md)
 
 # JUCE Plugin Integration
 
@@ -96,6 +99,7 @@
     - [Stack Allocation Strategy](architecture/stack-allocation.md)
     - [Denormal Prevention](architecture/denormals.md)
     - [Lock-Free Patterns](architecture/lock-free.md)
+    - [Visualization Threading](architecture/visualization-threading.md)
 - [Modulation System](architecture/modulation.md)
     - [Parameter<S> Type](architecture/parameter-type.md)
     - [Modulation Value Collection](architecture/modulation-values.md)

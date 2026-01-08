@@ -99,6 +99,7 @@ let mut graph = GraphBuilder::new()
 
 ## Next Steps
 
+- [Building a Terminal Synthesizer](../tutorials/terminal-synth.md) - Listen to your DSP graph
 - [Creating a Simple Oscillator](../tutorials/oscillator.md) - Explore oscillator waveforms
 - [Adding Effects](../tutorials/effects.md) - Learn about effect blocks
 - [Parameter Modulation](../tutorials/modulation.md) - Use LFOs to modulate parameters

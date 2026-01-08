@@ -79,7 +79,7 @@ cargo run --example spectrum_analyzer -p bbx_draw
 
 ## Features
 
-- `sketchbook` (default) - Enables sketch discovery and caching via `SketchRegistry`
+- `sketchbook` (default) - Enables sketch discovery and caching via `Sketchbook`
 
 ## Threading Model
 
