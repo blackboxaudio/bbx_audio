@@ -33,7 +33,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bbx_dsp = "0.2.1"
+bbx_dsp = "0.3.0"
 rodio = "0.20.1"
 ```
 

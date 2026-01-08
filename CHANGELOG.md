@@ -2,11 +2,11 @@
 
 All notable changes to bbx_audio will be documented in this file.
 
-## [Unreleased]
+## [0.3.0] - 2026-01-08
 
 ### Added
 
-- Add `bbx_draw` crate for audio visualization primitives (#45) ([#45](https://github.com/blackboxaudio/bbx_audio/pull/45))
+- Add `bbx_draw` crate for audio visualizations (#45) ([#45](https://github.com/blackboxaudio/bbx_audio/pull/45))
 
 ## [0.2.1] - 2026-01-08
 
@@ -16,7 +16,6 @@ All notable changes to bbx_audio will be documented in this file.
 
 ### Features
 
-- Add support for embedding into JUCE projects (#37) ([#37](https://github.com/blackboxaudio/bbx_audio/pull/37))
 - Add basic synthesizer support (#43) ([#43](https://github.com/blackboxaudio/bbx_audio/pull/43))
 
 ### Miscellaneous
@@ -26,7 +25,6 @@ All notable changes to bbx_audio will be documented in this file.
 
 ### Refactor
 
-- New lib design (#33) ([#33](https://github.com/blackboxaudio/bbx_audio/pull/33))
 - Improve parameter initialization (#41) ([#41](https://github.com/blackboxaudio/bbx_audio/pull/41))
 
 ## [0.2.0] - 2025-12-30
