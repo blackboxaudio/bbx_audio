@@ -121,7 +121,7 @@ If publishing fails after some crates are published:
 
 You cannot overwrite a published version. You must:
 
-1. Bump to a new patch version (e.g., 0.2.1)
+1. Bump to a new patch version (e.g., 0.3.0)
 2. Create a new tag
 
 ### crates.io Index Propagation

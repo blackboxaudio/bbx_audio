@@ -186,14 +186,14 @@ dependencies = [
 
 [[package]]
 name = "bbx_core"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "loom",
 ]
 
 [[package]]
 name = "bbx_draw"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "bbx_core",
  "bbx_dsp",
@@ -208,7 +208,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_dsp"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "bbx_core",
  "bbx_midi",
@@ -216,7 +216,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_file"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "bbx_dsp",
  "hound",
@@ -226,14 +226,14 @@ dependencies = [
 
 [[package]]
 name = "bbx_midi"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "midir",
 ]
 
 [[package]]
 name = "bbx_plugin"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "bbx_core",
  "bbx_dsp",
@@ -244,7 +244,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_sandbox"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "bbx_dsp",
  "bbx_file",
