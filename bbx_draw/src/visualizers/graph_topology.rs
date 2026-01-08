@@ -185,15 +185,41 @@ impl GraphTopologyVisualizer {
             let offset_x = bounds.left() + bounds.w() / 2.0;
             let offset_y = bounds.bottom() + bounds.h() / 2.0;
 
-            let start = Point2::new(from.x + offset_x + self.config.block_width / 2.0, from.y + offset_y);
-            let end = Point2::new(
-                to.x + offset_x - self.config.block_width / 2.0,
-                to.y + offset_y - self.config.block_height * 0.25,
-            );
+            let from_center = Point2::new(from.x + offset_x, from.y + offset_y);
+            let to_center = Point2::new(to.x + offset_x, to.y + offset_y);
 
-            let control_offset = (end.x - start.x) * 0.4;
-            let control1 = Point2::new(start.x + control_offset, start.y);
-            let control2 = Point2::new(end.x - control_offset, end.y);
+            let (start, end, control1, control2, label_pos) = if (from.x - to.x).abs() < 1.0 {
+                let start = Point2::new(
+                    from_center.x - self.config.block_width / 2.0,
+                    from_center.y - self.config.block_height / 2.0,
+                );
+                let end = Point2::new(
+                    to_center.x - self.config.block_width / 2.0,
+                    to_center.y + self.config.block_height / 2.0,
+                );
+                let curve_offset = self.config.horizontal_spacing * 0.5;
+                let control1 = Point2::new(start.x - curve_offset, start.y);
+                let control2 = Point2::new(end.x - curve_offset, end.y);
+                let label_pos = Point2::new(
+                    start.x - curve_offset - 5.0,
+                    (start.y + end.y) / 2.0,
+                );
+                (start, end, control1, control2, label_pos)
+            } else {
+                let start = Point2::new(
+                    from_center.x + self.config.block_width / 2.0,
+                    from_center.y,
+                );
+                let end = Point2::new(
+                    to_center.x - self.config.block_width / 2.0,
+                    to_center.y - self.config.block_height * 0.25,
+                );
+                let control_offset = (end.x - start.x).abs() * 0.4;
+                let control1 = Point2::new(start.x + control_offset, start.y);
+                let control2 = Point2::new(end.x - control_offset, end.y);
+                let label_pos = Point2::new(end.x + 5.0, end.y);
+                (start, end, control1, control2, label_pos)
+            };
 
             let points = bezier_points(start, control1, control2, end, 40);
             let dashed = dashed_bezier_points(&points, self.config.dash_length, self.config.dash_gap);
@@ -218,12 +244,11 @@ impl GraphTopologyVisualizer {
                 );
             }
 
-            let label_pos = Point2::new(end.x + 5.0, end.y);
             draw.text(&conn.parameter_name)
                 .xy(label_pos)
                 .color(self.config.modulation_connection_color)
                 .font_size(10)
-                .left_justify();
+                .right_justify();
         }
     }
 }
