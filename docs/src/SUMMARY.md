@@ -11,11 +11,14 @@
 # Tutorials
 
 - [Your First DSP Graph](tutorials/first-graph.md)
+- [Building a Terminal Synthesizer](tutorials/terminal-synth.md)
 - [Creating a Simple Oscillator](tutorials/oscillator.md)
 - [Adding Effects](tutorials/effects.md)
 - [Parameter Modulation with LFOs](tutorials/modulation.md)
 - [Working with Audio Files](tutorials/audio-files.md)
 - [MIDI Integration](tutorials/midi.md)
+- [Real-Time Visualization](tutorials/visualization.md)
+- [Sketch Discovery](tutorials/sketchbook.md)
 
 # JUCE Plugin Integration
 
@@ -42,6 +45,13 @@
     - [Stack Vector](crates/core/stack-vec.md)
     - [Random Number Generation](crates/core/random.md)
     - [Error Types](crates/core/error.md)
+- [bbx_draw](crates/bbx-draw.md)
+    - [Visualizer Trait](crates/draw/visualizer.md)
+    - [Audio Bridge](crates/draw/audio-bridge.md)
+    - [Graph Topology Visualizer](crates/draw/graph-topology.md)
+    - [Waveform Visualizer](crates/draw/waveform.md)
+    - [Spectrum Analyzer](crates/draw/spectrum.md)
+    - [MIDI Activity Visualizer](crates/draw/midi-activity.md)
 - [bbx_dsp](crates/bbx-dsp.md)
     - [Graph and GraphBuilder](crates/dsp/graph.md)
     - [Block Trait](crates/dsp/block-trait.md)
@@ -89,6 +99,7 @@
     - [Stack Allocation Strategy](architecture/stack-allocation.md)
     - [Denormal Prevention](architecture/denormals.md)
     - [Lock-Free Patterns](architecture/lock-free.md)
+    - [Visualization Threading](architecture/visualization-threading.md)
 - [Modulation System](architecture/modulation.md)
     - [Parameter<S> Type](architecture/parameter-type.md)
     - [Modulation Value Collection](architecture/modulation-values.md)

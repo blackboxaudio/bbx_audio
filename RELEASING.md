@@ -36,6 +36,12 @@ bbx_midi = { version = "0.2.0", path = "bbx_midi" }
 bbx_plugin = { version = "0.2.0", path = "bbx_plugin" }
 ```
 
+Update the version in the root `README.md`:
+
+```markdown
+[![Version: v0.2.0](https://img.shields.io/badge/Version-v0.2.0-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
+```
+
 ### 3. Update Changelog
 
 Generate changelog entries:
