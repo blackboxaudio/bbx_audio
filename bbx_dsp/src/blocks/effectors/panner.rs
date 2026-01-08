@@ -73,7 +73,6 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
             let l = left_in[i].to_f64();
             let r = if inputs.len() > 1 { right_in[i].to_f64() } else { l };
 
-            // Apply pan gains
             let l_out = l * left_gain;
             let r_out = r * right_gain;
 

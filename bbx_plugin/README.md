@@ -63,9 +63,10 @@ impl PluginDsp for MyPlugin {
         &mut self,
         inputs: &[&[f32]],
         outputs: &mut [&mut [f32]],
+        midi_events: &[MidiEvent],
         context: &DspContext,
     ) {
-        // Audio processing
+        // Audio processing (midi_events for synthesizers)
     }
 }
 
@@ -88,7 +89,7 @@ The `bbx_plugin_ffi!` macro generates:
 - `bbx_prepare(handle, sample_rate, buffer_size, channels)` - Prepare for playback
 - `bbx_reset(handle)` - Reset state
 - `bbx_apply_parameters(handle, params, count)` - Update parameters
-- `bbx_process(handle, inputs, outputs, channels, samples)` - Process audio
+- `bbx_process(handle, inputs, outputs, midi_events, midi_count, channels, samples)` - Process audio with MIDI
 
 ### JUCE Integration
 

@@ -57,6 +57,11 @@ impl<S: Sample> OscillatorBlock<S> {
     pub fn clear_midi_frequency(&mut self) {
         self.midi_frequency = None;
     }
+
+    /// Set the waveform type.
+    pub fn set_waveform(&mut self, waveform: Waveform) {
+        self.waveform = waveform;
+    }
 }
 
 impl<S: Sample> Block<S> for OscillatorBlock<S> {

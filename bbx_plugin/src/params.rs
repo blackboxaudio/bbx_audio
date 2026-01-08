@@ -99,7 +99,10 @@ pub fn generate_rust_indices_from_defs(params: &[ParamDef]) -> String {
         code.push_str(&format!("pub const PARAM_{}: usize = {};\n", param.id, index));
     }
 
-    code.push_str(&format!("\npub const PARAM_COUNT: usize = {};\n", params.len()));
+    code.push_str(&format!(
+        "\n#[allow(dead_code)]\npub const PARAM_COUNT: usize = {};\n",
+        params.len()
+    ));
 
     code
 }
@@ -213,7 +216,7 @@ impl ParamsFile {
         }
 
         code.push_str(&format!(
-            "\npub const PARAM_COUNT: usize = {};\n",
+            "\n#[allow(dead_code)]\npub const PARAM_COUNT: usize = {};\n",
             self.parameters.len()
         ));
 
@@ -284,6 +287,7 @@ mod tests {
         let code = generate_rust_indices_from_defs(PARAMS);
         assert!(code.contains("pub const PARAM_GAIN: usize = 0;"));
         assert!(code.contains("pub const PARAM_MONO: usize = 1;"));
+        assert!(code.contains("#[allow(dead_code)]"));
         assert!(code.contains("pub const PARAM_COUNT: usize = 2;"));
     }
 

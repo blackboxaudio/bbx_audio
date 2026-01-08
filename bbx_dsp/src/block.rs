@@ -6,8 +6,8 @@
 use crate::{
     blocks::{
         effectors::{
-            channel_router::ChannelRouterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock, overdrive::OverdriveBlock,
-            panner::PannerBlock,
+            channel_router::ChannelRouterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock,
+            low_pass_filter::LowPassFilterBlock, overdrive::OverdriveBlock, panner::PannerBlock,
         },
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
@@ -93,6 +93,8 @@ pub enum BlockType<S: Sample> {
     DcBlocker(DcBlockerBlock<S>),
     /// Adjusts signal level in decibels.
     Gain(GainBlock<S>),
+    /// SVF-based low-pass filter.
+    LowPassFilter(LowPassFilterBlock<S>),
     /// Asymmetric soft-clipping distortion.
     Overdrive(OverdriveBlock<S>),
     /// Stereo panning with equal-power law.
@@ -128,6 +130,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::ChannelRouter(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::DcBlocker(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Gain(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::LowPassFilter(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Overdrive(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Panner(block) => block.process(inputs, outputs, modulation_values, context),
 
@@ -153,6 +156,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::ChannelRouter(block) => block.input_count(),
             BlockType::DcBlocker(block) => block.input_count(),
             BlockType::Gain(block) => block.input_count(),
+            BlockType::LowPassFilter(block) => block.input_count(),
             BlockType::Overdrive(block) => block.input_count(),
             BlockType::Panner(block) => block.input_count(),
 
@@ -178,6 +182,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::ChannelRouter(block) => block.output_count(),
             BlockType::DcBlocker(block) => block.output_count(),
             BlockType::Gain(block) => block.output_count(),
+            BlockType::LowPassFilter(block) => block.output_count(),
             BlockType::Overdrive(block) => block.output_count(),
             BlockType::Panner(block) => block.output_count(),
 
@@ -203,6 +208,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::ChannelRouter(block) => block.modulation_outputs(),
             BlockType::DcBlocker(block) => block.modulation_outputs(),
             BlockType::Gain(block) => block.modulation_outputs(),
+            BlockType::LowPassFilter(block) => block.modulation_outputs(),
             BlockType::Overdrive(block) => block.modulation_outputs(),
             BlockType::Panner(block) => block.modulation_outputs(),
 
@@ -242,6 +248,17 @@ impl<S: Sample> BlockType<S> {
                     Ok(())
                 }
                 _ => Err(format!("Unknown gain parameter: {parameter_name}")),
+            },
+            BlockType::LowPassFilter(block) => match parameter_name.to_lowercase().as_str() {
+                "cutoff" | "frequency" => {
+                    block.cutoff = parameter;
+                    Ok(())
+                }
+                "resonance" | "q" => {
+                    block.resonance = parameter;
+                    Ok(())
+                }
+                _ => Err(format!("Unknown low-pass filter parameter: {parameter_name}")),
             },
             BlockType::Overdrive(block) => match parameter_name.to_lowercase().as_str() {
                 "drive" => {

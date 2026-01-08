@@ -98,6 +98,8 @@ macro_rules! bbx_plugin_ffi {
             num_samples: u32,
             params: *const f32,
             num_params: u32,
+            midi_events: *const $crate::midi::MidiEvent,
+            num_midi_events: u32,
         ) {
             $crate::process_audio::<$dsp_type>(
                 handle,
@@ -107,6 +109,8 @@ macro_rules! bbx_plugin_ffi {
                 num_samples,
                 params,
                 num_params,
+                midi_events,
+                num_midi_events,
             );
         }
     };

@@ -10,7 +10,13 @@ pub trait PluginDsp: Default + Send + 'static {
     fn prepare(&mut self, context: &DspContext);
     fn reset(&mut self);
     fn apply_parameters(&mut self, params: &[f32]);
-    fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], context: &DspContext);
+    fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], midi_events: &[MidiEvent], context: &DspContext);
+
+    // Optional MIDI callbacks (default no-ops)
+    fn note_on(&mut self, _note: u8, _velocity: u8) {}
+    fn note_off(&mut self, _note: u8) {}
+    fn control_change(&mut self, _cc: u8, _value: u8) {}
+    fn pitch_bend(&mut self, _value: i16) {}
 }
 ```
 
@@ -77,15 +83,26 @@ fn apply_parameters(&mut self, params: &[f32]) {
 
 ### process
 
-Process audio buffers:
+Process audio buffers with MIDI events:
 
 ```rust
 fn process(
     &mut self,
     inputs: &[&[f32]],
     outputs: &mut [&mut [f32]],
+    midi_events: &[MidiEvent],
     context: &DspContext,
 ) {
+    // Handle MIDI for synthesizers
+    for event in midi_events {
+        match event.message.get_status() {
+            MidiMessageStatus::NoteOn => self.note_on(event.message.get_note().unwrap(), event.message.get_velocity().unwrap()),
+            MidiMessageStatus::NoteOff => self.note_off(event.message.get_note().unwrap()),
+            _ => {}
+        }
+    }
+
+    // Process audio
     for ch in 0..inputs.len().min(outputs.len()) {
         for i in 0..context.buffer_size {
             outputs[ch][i] = inputs[ch][i] * self.gain;
@@ -128,6 +145,7 @@ The plugin may be moved between threads. Use:
 
 ```rust
 use bbx_plugin::{PluginDsp, DspContext, bbx_plugin_ffi};
+use bbx_midi::MidiEvent;
 
 const PARAM_GAIN: usize = 0;
 const PARAM_PAN: usize = 1;
@@ -163,6 +181,7 @@ impl PluginDsp for StereoGain {
         &mut self,
         inputs: &[&[f32]],
         outputs: &mut [&mut [f32]],
+        _midi_events: &[MidiEvent],
         context: &DspContext,
     ) {
         let pan_rad = self.pan * std::f32::consts::FRAC_PI_4;

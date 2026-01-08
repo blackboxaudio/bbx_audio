@@ -21,6 +21,7 @@ A block-based audio DSP system for building signal processing graphs.
 - `PannerBlock` - Stereo panning with constant power law
 - `DcBlockerBlock` - DC offset removal
 - `ChannelRouterBlock` - Channel routing and manipulation
+- `LowPassFilterBlock` - SVF-based TPT low-pass filter with cutoff/resonance
 
 ### Modulators
 - `LfoBlock` - Low-frequency oscillator for parameter modulation
@@ -30,6 +31,12 @@ A block-based audio DSP system for building signal processing graphs.
 - `FileInputBlock` - Read audio from files
 - `FileOutputBlock` - Write audio to files (non-blocking I/O)
 - `OutputBlock` - Terminal graph output
+
+## PluginDsp Trait
+
+For plugin integration, implement `PluginDsp` with optional MIDI support:
+- `process()` receives `midi_events: &[MidiEvent]` parameter
+- Override `note_on()`, `note_off()`, `control_change()`, `pitch_bend()` for MIDI handling
 
 ## Usage
 

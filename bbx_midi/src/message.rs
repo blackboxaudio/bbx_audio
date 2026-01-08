@@ -43,6 +43,28 @@ pub enum MidiMessageStatus {
     PitchWheel = 7,
 }
 
+/// A MIDI event with sample-accurate timing for audio buffer processing.
+///
+/// Combines a MIDI message with a sample offset indicating when the event
+/// should be processed within the current audio buffer.
+///
+/// Uses `#[repr(C)]` for C-compatible memory layout, enabling FFI usage.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct MidiEvent {
+    /// The MIDI message data.
+    pub message: MidiMessage,
+    /// Sample offset within the current buffer (0 to buffer_size - 1).
+    pub sample_offset: u32,
+}
+
+impl MidiEvent {
+    /// Create a new MIDI event with the given message and sample offset.
+    pub fn new(message: MidiMessage, sample_offset: u32) -> Self {
+        Self { message, sample_offset }
+    }
+}
+
 impl From<u8> for MidiMessageStatus {
     fn from(byte: u8) -> Self {
         match byte {

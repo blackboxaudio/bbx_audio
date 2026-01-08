@@ -70,6 +70,7 @@
     - [OverdriveBlock](blocks/effectors/overdrive.md)
     - [DcBlockerBlock](blocks/effectors/dc-blocker.md)
     - [ChannelRouterBlock](blocks/effectors/channel-router.md)
+    - [LowPassFilterBlock](blocks/effectors/low-pass-filter.md)
 - [Modulators](blocks/modulators.md)
     - [LfoBlock](blocks/modulators/lfo.md)
     - [EnvelopeBlock](blocks/modulators/envelope.md)

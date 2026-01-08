@@ -131,8 +131,7 @@ impl<S: Sample> Block<S> for EnvelopeBlock<S> {
                 EnvelopeStage::Release => {
                     let release_progress = self.stage_time / release_time;
                     self.level = self.release_level * (1.0 - release_progress);
-                    // Use threshold comparison for reliable termination
-                    // (avoids floating-point precision issues with exact zero comparison)
+                    // Avoids floating-point precision issues with exact zero comparison
                     if self.level <= Self::ENVELOPE_FLOOR {
                         self.level = 0.0;
                         self.stage = EnvelopeStage::Idle;
