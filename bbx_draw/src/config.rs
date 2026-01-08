@@ -23,12 +23,24 @@ pub struct GraphTopologyConfig {
     pub modulator_color: Rgb,
     /// Color for I/O blocks.
     pub io_color: Rgb,
-    /// Color for connection lines.
-    pub connection_color: Rgb,
+    /// Color for audio connection lines.
+    pub audio_connection_color: Rgb,
+    /// Color for modulation connection lines.
+    pub modulation_connection_color: Rgb,
     /// Color for block label text.
     pub text_color: Rgb,
-    /// Connection line weight.
-    pub connection_weight: f32,
+    /// Audio connection line weight.
+    pub audio_connection_weight: f32,
+    /// Modulation connection line weight.
+    pub modulation_connection_weight: f32,
+    /// Whether to show directional arrows on connections.
+    pub show_arrows: bool,
+    /// Size of the arrow head.
+    pub arrow_size: f32,
+    /// Dash length for modulation connections.
+    pub dash_length: f32,
+    /// Gap length between dashes for modulation connections.
+    pub dash_gap: f32,
 }
 
 impl Default for GraphTopologyConfig {
@@ -42,9 +54,15 @@ impl Default for GraphTopologyConfig {
             effector_color: to_rgb(Palette::effector()),
             modulator_color: to_rgb(Palette::modulator()),
             io_color: to_rgb(Palette::io()),
-            connection_color: to_rgb(Palette::connection()),
+            audio_connection_color: to_rgb(Palette::audio_connection()),
+            modulation_connection_color: to_rgb(Palette::modulation_connection()),
             text_color: to_rgb(Palette::text()),
-            connection_weight: 2.0,
+            audio_connection_weight: 2.0,
+            modulation_connection_weight: 1.5,
+            show_arrows: true,
+            arrow_size: 8.0,
+            dash_length: 8.0,
+            dash_gap: 4.0,
         }
     }
 }

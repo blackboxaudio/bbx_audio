@@ -39,25 +39,24 @@ fn model(app: &App) -> Model {
     thread::spawn(move || {
         let sample_rate = 44100;
         let frequency = 440.0;
-        let buffer_size = 256;
+        const BUFFER_SIZE: usize = 256;
         let mut phase = 0.0f32;
+        let mut samples = [0.0f32; BUFFER_SIZE];
 
         while running_clone.load(Ordering::Relaxed) {
-            let mut samples = Vec::with_capacity(buffer_size);
-
-            for _ in 0..buffer_size {
-                samples.push((phase * 2.0 * PI).sin());
+            for i in 0..BUFFER_SIZE {
+                samples[i] = (phase * 2.0 * PI).sin();
                 phase += frequency / sample_rate as f32;
                 if phase >= 1.0 {
                     phase -= 1.0;
                 }
             }
 
-            let frame = AudioFrame::new(samples, sample_rate, 1);
+            let frame = AudioFrame::new(&samples, sample_rate, 1);
             let _ = producer.try_send(frame);
 
             thread::sleep(Duration::from_micros(
-                (1_000_000 * buffer_size as u64) / sample_rate as u64,
+                (1_000_000 * BUFFER_SIZE as u64) / sample_rate as u64,
             ));
         }
     });

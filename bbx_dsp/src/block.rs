@@ -372,4 +372,83 @@ impl<S: Sample> BlockType<S> {
             BlockType::Lfo(_) => "LFO",
         }
     }
+
+    /// Returns all modulated parameters and their source block IDs.
+    ///
+    /// Returns a list of (parameter_name, source_block_id) for each parameter
+    /// that is modulated by another block.
+    pub fn get_modulated_parameters(&self) -> Vec<(&'static str, BlockId)> {
+        let mut result = Vec::new();
+
+        match self {
+            BlockType::FileInput(_) | BlockType::FileOutput(_) | BlockType::Output(_) => {}
+
+            BlockType::Oscillator(block) => {
+                if let Parameter::Modulated(id) = &block.frequency {
+                    result.push(("frequency", *id));
+                }
+                if let Parameter::Modulated(id) = &block.pitch_offset {
+                    result.push(("pitch_offset", *id));
+                }
+            }
+
+            BlockType::ChannelRouter(_) | BlockType::DcBlocker(_) => {}
+
+            BlockType::Gain(block) => {
+                if let Parameter::Modulated(id) = &block.level_db {
+                    result.push(("level", *id));
+                }
+            }
+
+            BlockType::LowPassFilter(block) => {
+                if let Parameter::Modulated(id) = &block.cutoff {
+                    result.push(("cutoff", *id));
+                }
+                if let Parameter::Modulated(id) = &block.resonance {
+                    result.push(("resonance", *id));
+                }
+            }
+
+            BlockType::Overdrive(block) => {
+                if let Parameter::Modulated(id) = &block.drive {
+                    result.push(("drive", *id));
+                }
+                if let Parameter::Modulated(id) = &block.level {
+                    result.push(("level", *id));
+                }
+            }
+
+            BlockType::Panner(block) => {
+                if let Parameter::Modulated(id) = &block.position {
+                    result.push(("position", *id));
+                }
+            }
+
+            BlockType::Envelope(block) => {
+                if let Parameter::Modulated(id) = &block.attack {
+                    result.push(("attack", *id));
+                }
+                if let Parameter::Modulated(id) = &block.decay {
+                    result.push(("decay", *id));
+                }
+                if let Parameter::Modulated(id) = &block.sustain {
+                    result.push(("sustain", *id));
+                }
+                if let Parameter::Modulated(id) = &block.release {
+                    result.push(("release", *id));
+                }
+            }
+
+            BlockType::Lfo(block) => {
+                if let Parameter::Modulated(id) = &block.frequency {
+                    result.push(("frequency", *id));
+                }
+                if let Parameter::Modulated(id) = &block.depth {
+                    result.push(("depth", *id));
+                }
+            }
+        }
+
+        result
+    }
 }

@@ -79,12 +79,12 @@ impl WaveformVisualizer {
 
 impl Visualizer for WaveformVisualizer {
     fn update(&mut self) {
-        let frames = self.consumer.drain();
-        for frame in frames {
-            let channel_samples = frame.channel_samples(0);
-            for sample in channel_samples {
-                self.sample_buffer[self.write_position] = sample;
-                self.write_position = (self.write_position + 1) % self.sample_buffer.len();
+        while let Some(frame) = self.consumer.try_pop() {
+            if let Some(channel_iter) = frame.channel_samples(0) {
+                for sample in channel_iter {
+                    self.sample_buffer[self.write_position] = sample;
+                    self.write_position = (self.write_position + 1) % self.sample_buffer.len();
+                }
             }
         }
     }

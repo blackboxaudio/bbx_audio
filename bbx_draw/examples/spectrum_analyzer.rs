@@ -38,31 +38,30 @@ fn model(app: &App) -> Model {
 
     thread::spawn(move || {
         let sample_rate = 44100;
-        let buffer_size = 512;
+        const BUFFER_SIZE: usize = 512;
         let frequencies = [220.0, 440.0, 880.0, 1760.0];
         let mut phases = [0.0f32; 4];
+        let mut samples = [0.0f32; BUFFER_SIZE];
 
         while running_clone.load(Ordering::Relaxed) {
-            let mut samples = Vec::with_capacity(buffer_size);
-
-            for _ in 0..buffer_size {
+            for i in 0..BUFFER_SIZE {
                 let mut sample = 0.0;
-                for (i, &freq) in frequencies.iter().enumerate() {
-                    let amplitude = 1.0 / (i as f32 + 1.0);
-                    sample += amplitude * (phases[i] * 2.0 * PI).sin();
-                    phases[i] += freq / sample_rate as f32;
-                    if phases[i] >= 1.0 {
-                        phases[i] -= 1.0;
+                for (j, &freq) in frequencies.iter().enumerate() {
+                    let amplitude = 1.0 / (j as f32 + 1.0);
+                    sample += amplitude * (phases[j] * 2.0 * PI).sin();
+                    phases[j] += freq / sample_rate as f32;
+                    if phases[j] >= 1.0 {
+                        phases[j] -= 1.0;
                     }
                 }
-                samples.push(sample / 2.0);
+                samples[i] = sample / 2.0;
             }
 
-            let frame = AudioFrame::new(samples, sample_rate, 1);
+            let frame = AudioFrame::new(&samples, sample_rate, 1);
             let _ = producer.try_send(frame);
 
             thread::sleep(Duration::from_micros(
-                (1_000_000 * buffer_size as u64) / sample_rate as u64,
+                (1_000_000 * BUFFER_SIZE as u64) / sample_rate as u64,
             ));
         }
     });

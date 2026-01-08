@@ -127,15 +127,15 @@ impl SpectrumAnalyzer {
 
 impl Visualizer for SpectrumAnalyzer {
     fn update(&mut self) {
-        let frames = self.consumer.drain();
         let mut has_data = false;
 
-        for frame in frames {
-            let channel_samples = frame.channel_samples(0);
-            for sample in channel_samples {
-                self.sample_buffer[self.write_position] = sample;
-                self.write_position = (self.write_position + 1) % self.config.fft_size;
-                has_data = true;
+        while let Some(frame) = self.consumer.try_pop() {
+            if let Some(channel_iter) = frame.channel_samples(0) {
+                for sample in channel_iter {
+                    self.sample_buffer[self.write_position] = sample;
+                    self.write_position = (self.write_position + 1) % self.config.fft_size;
+                    has_data = true;
+                }
             }
         }
 

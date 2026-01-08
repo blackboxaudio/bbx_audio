@@ -32,9 +32,12 @@ pub mod config;
 pub mod sketch;
 pub mod visualizers;
 
+pub use bbx_dsp::{Frame, MAX_FRAME_SAMPLES};
+
+/// Type alias for `Frame` to avoid confusion with visual frames in nannou.
+pub type AudioFrame = Frame;
 pub use bridge::{
-    AudioBridgeConsumer, AudioBridgeProducer, AudioFrame, MidiBridgeConsumer, MidiBridgeProducer, audio_bridge,
-    midi_bridge,
+    AudioBridgeConsumer, AudioBridgeProducer, MidiBridgeConsumer, MidiBridgeProducer, audio_bridge, midi_bridge,
 };
 use nannou::geom::Rect;
 pub use visualizers::{GraphTopologyVisualizer, MidiActivityVisualizer, SpectrumAnalyzer, WaveformVisualizer};

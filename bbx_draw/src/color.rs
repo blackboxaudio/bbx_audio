@@ -28,9 +28,14 @@ impl Palette {
         Srgb::new(251, 140, 0)
     }
 
-    /// Connection line color (gray).
-    pub fn connection() -> Srgb<u8> {
+    /// Audio connection line color (gray).
+    pub fn audio_connection() -> Srgb<u8> {
         Srgb::new(158, 158, 158)
+    }
+
+    /// Modulation connection line color (pink/magenta).
+    pub fn modulation_connection() -> Srgb<u8> {
+        Srgb::new(233, 30, 99)
     }
 
     /// Primary text color (white).

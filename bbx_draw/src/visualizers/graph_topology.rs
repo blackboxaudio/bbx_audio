@@ -2,11 +2,11 @@
 
 use bbx_dsp::{
     BlockCategory,
-    graph::{BlockSnapshot, ConnectionSnapshot, GraphTopologySnapshot},
+    graph::{BlockSnapshot, ConnectionSnapshot, GraphTopologySnapshot, ModulationConnectionSnapshot},
 };
 use nannou::{
     Draw,
-    geom::{Point2, Rect},
+    geom::{Point2, Rect, Vec2},
 };
 
 use crate::{Visualizer, config::GraphTopologyConfig};
@@ -140,7 +140,7 @@ impl GraphTopologyVisualizer {
             .font_size(12);
     }
 
-    fn draw_connection(&self, draw: &Draw, conn: &ConnectionSnapshot, bounds: Rect) {
+    fn draw_audio_connection(&self, draw: &Draw, conn: &ConnectionSnapshot, bounds: Rect) {
         let from_pos = self.block_positions.get(conn.from_block);
         let to_pos = self.block_positions.get(conn.to_block);
 
@@ -155,11 +155,75 @@ impl GraphTopologyVisualizer {
             let control1 = Point2::new(start.x + control_offset, start.y);
             let control2 = Point2::new(end.x - control_offset, end.y);
 
+            let points = bezier_points(start, control1, control2, end, 20);
+
             draw.path()
                 .stroke()
-                .weight(self.config.connection_weight)
-                .color(self.config.connection_color)
-                .points(bezier_points(start, control1, control2, end, 20));
+                .weight(self.config.audio_connection_weight)
+                .color(self.config.audio_connection_color)
+                .points(points.clone());
+
+            if self.config.show_arrows && points.len() >= 2 {
+                let arrow_end = points[points.len() - 1];
+                let arrow_prev = points[points.len() - 2];
+                draw_arrow_head(
+                    draw,
+                    arrow_prev,
+                    arrow_end,
+                    self.config.arrow_size,
+                    self.config.audio_connection_color,
+                );
+            }
+        }
+    }
+
+    fn draw_modulation_connection(&self, draw: &Draw, conn: &ModulationConnectionSnapshot, bounds: Rect) {
+        let from_pos = self.block_positions.get(conn.from_block);
+        let to_pos = self.block_positions.get(conn.to_block);
+
+        if let (Some(&from), Some(&to)) = (from_pos, to_pos) {
+            let offset_x = bounds.left() + bounds.w() / 2.0;
+            let offset_y = bounds.bottom() + bounds.h() / 2.0;
+
+            let start = Point2::new(from.x + offset_x + self.config.block_width / 2.0, from.y + offset_y);
+            let end = Point2::new(
+                to.x + offset_x - self.config.block_width / 2.0,
+                to.y + offset_y - self.config.block_height * 0.25,
+            );
+
+            let control_offset = (end.x - start.x) * 0.4;
+            let control1 = Point2::new(start.x + control_offset, start.y);
+            let control2 = Point2::new(end.x - control_offset, end.y);
+
+            let points = bezier_points(start, control1, control2, end, 40);
+            let dashed = dashed_bezier_points(&points, self.config.dash_length, self.config.dash_gap);
+
+            for segment in &dashed {
+                draw.path()
+                    .stroke()
+                    .weight(self.config.modulation_connection_weight)
+                    .color(self.config.modulation_connection_color)
+                    .points(segment.clone());
+            }
+
+            if self.config.show_arrows && points.len() >= 2 {
+                let arrow_end = points[points.len() - 1];
+                let arrow_prev = points[points.len() - 2];
+                draw_arrow_head(
+                    draw,
+                    arrow_prev,
+                    arrow_end,
+                    self.config.arrow_size * 0.8,
+                    self.config.modulation_connection_color,
+                );
+            }
+
+            let label_pos = Point2::new(end.x + 5.0, end.y);
+            draw.text(&conn.parameter_name)
+                .xy(label_pos)
+                .color(self.config.modulation_connection_color)
+                .font_size(10)
+                .left_justify();
         }
     }
 }
@@ -169,7 +233,11 @@ impl Visualizer for GraphTopologyVisualizer {
 
     fn draw(&self, draw: &Draw, bounds: Rect) {
         for conn in &self.topology.connections {
-            self.draw_connection(draw, conn, bounds);
+            self.draw_audio_connection(draw, conn, bounds);
+        }
+
+        for conn in &self.topology.modulation_connections {
+            self.draw_modulation_connection(draw, conn, bounds);
         }
 
         for (idx, block) in self.topology.blocks.iter().enumerate() {
@@ -198,6 +266,60 @@ fn bezier_points(p0: Point2, p1: Point2, p2: Point2, p3: Point2, segments: usize
         .collect()
 }
 
+fn draw_arrow_head(draw: &Draw, from: Point2, to: Point2, size: f32, color: nannou::color::Rgb) {
+    let dir = Vec2::new(to.x - from.x, to.y - from.y);
+    let len = (dir.x * dir.x + dir.y * dir.y).sqrt();
+    if len < 0.001 {
+        return;
+    }
+
+    let dir = Vec2::new(dir.x / len, dir.y / len);
+    let perp = Vec2::new(-dir.y, dir.x);
+
+    let tip = to;
+    let left = Point2::new(
+        tip.x - dir.x * size + perp.x * size * 0.5,
+        tip.y - dir.y * size + perp.y * size * 0.5,
+    );
+    let right = Point2::new(
+        tip.x - dir.x * size - perp.x * size * 0.5,
+        tip.y - dir.y * size - perp.y * size * 0.5,
+    );
+
+    draw.tri().points(tip, left, right).color(color);
+}
+
+fn dashed_bezier_points(points: &[Point2], dash_length: f32, gap_length: f32) -> Vec<Vec<Point2>> {
+    let mut segments = Vec::new();
+    let mut current_segment = Vec::new();
+    let mut distance_in_pattern = 0.0;
+    let pattern_length = dash_length + gap_length;
+
+    for i in 0..points.len() {
+        let is_dash = (distance_in_pattern % pattern_length) < dash_length;
+
+        if is_dash {
+            current_segment.push(points[i]);
+        } else if !current_segment.is_empty() {
+            segments.push(current_segment);
+            current_segment = Vec::new();
+        }
+
+        if i + 1 < points.len() {
+            let dx = points[i + 1].x - points[i].x;
+            let dy = points[i + 1].y - points[i].y;
+            let dist = (dx * dx + dy * dy).sqrt();
+            distance_in_pattern += dist;
+        }
+    }
+
+    if !current_segment.is_empty() {
+        segments.push(current_segment);
+    }
+
+    segments
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,6 +329,7 @@ mod tests {
         let topology = GraphTopologySnapshot {
             blocks: vec![],
             connections: vec![],
+            modulation_connections: vec![],
         };
         let visualizer = GraphTopologyVisualizer::new(topology);
         assert!(visualizer.block_positions.is_empty());
@@ -223,6 +346,7 @@ mod tests {
                 output_count: 1,
             }],
             connections: vec![],
+            modulation_connections: vec![],
         };
         let visualizer = GraphTopologyVisualizer::new(topology);
         assert_eq!(visualizer.block_positions.len(), 1);
@@ -269,6 +393,7 @@ mod tests {
                     to_input: 0,
                 },
             ],
+            modulation_connections: vec![],
         };
         let visualizer = GraphTopologyVisualizer::new(topology);
         assert_eq!(visualizer.depths[0], 0);

@@ -78,6 +78,17 @@ pub struct ConnectionSnapshot {
     pub to_input: usize,
 }
 
+/// Snapshot of a modulation connection for visualization.
+#[derive(Debug, Clone)]
+pub struct ModulationConnectionSnapshot {
+    /// Source modulator block ID.
+    pub from_block: usize,
+    /// Target block ID.
+    pub to_block: usize,
+    /// Name of the modulated parameter on the target block.
+    pub parameter_name: String,
+}
+
 /// Snapshot of a graph's topology for visualization.
 ///
 /// Contains all block metadata and connections at a point in time.
@@ -86,8 +97,10 @@ pub struct ConnectionSnapshot {
 pub struct GraphTopologySnapshot {
     /// All blocks in the graph.
     pub blocks: Vec<BlockSnapshot>,
-    /// All connections between blocks.
+    /// All audio connections between blocks.
     pub connections: Vec<ConnectionSnapshot>,
+    /// All modulation connections from modulators to block parameters.
+    pub modulation_connections: Vec<ModulationConnectionSnapshot>,
 }
 
 /// A directed acyclic graph of connected DSP blocks.
@@ -520,7 +533,28 @@ impl<S: Sample> GraphBuilder<S> {
             })
             .collect();
 
-        GraphTopologySnapshot { blocks, connections }
+        let modulation_connections = self
+            .graph
+            .blocks
+            .iter()
+            .enumerate()
+            .flat_map(|(target_id, block)| {
+                block
+                    .get_modulated_parameters()
+                    .into_iter()
+                    .map(move |(param_name, source_id)| ModulationConnectionSnapshot {
+                        from_block: source_id.0,
+                        to_block: target_id,
+                        parameter_name: param_name.to_string(),
+                    })
+            })
+            .collect();
+
+        GraphTopologySnapshot {
+            blocks,
+            connections,
+            modulation_connections,
+        }
     }
 
     /// Prepare the final DSP `Graph`.
