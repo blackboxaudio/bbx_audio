@@ -56,7 +56,6 @@ unsafe impl<T: Send> Sync for SpscRingBufferInner<T> {}
 
 impl<T> SpscRingBufferInner<T> {
     fn new(capacity: usize) -> Self {
-        // Round up to next power of 2
         let capacity = capacity.next_power_of_two().max(1);
         let mask = capacity - 1;
 

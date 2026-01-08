@@ -73,8 +73,7 @@ impl<S: Sample> OverdriveBlock<S> {
 
     #[inline]
     fn soft_clip(&self, x: f64) -> f64 {
-        // Hyperbolic tangent function provides smooth saturation.
-        // The 1.5 factor adjusts the "knee" of the saturation curve.
+        // The 1.5 factor adjusts the "knee" of the saturation curve
         (x * 1.5).tanh() / 1.5
     }
 }

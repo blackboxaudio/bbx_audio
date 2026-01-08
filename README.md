@@ -36,18 +36,18 @@ bbx_dsp = { git = "https://github.com/blackboxaudio/bbx_audio" }
 Build a simple DSP graph:
 
 ```rust
-use bbx_dsp::{GraphBuilder, blocks::{OscillatorBlock, GainBlock, OutputBlock, Waveform}};
+use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
 
-let graph = GraphBuilder::new()
-    .add_block(OscillatorBlock::new(440.0, Waveform::Sine))
-    .add_block(GainBlock::new(-6.0))
-    .add_block(OutputBlock::new(2))
-    .connect(0, 0, 1, 0)?  // Oscillator -> Gain
-    .connect(1, 0, 2, 0)?  // Gain -> Output
-    .build()?;
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let drive = builder.add_overdrive(5.0, 1.0, 1.0, 44100.0);
+builder.connect(osc, 0, drive, 0);
+
+let graph = builder.build();
 ```
 
-See the [Quick Start Guide](https://blackboxaudio.github.io/bbx_audio/getting-started/quick-start.html) for a complete example.
+See [`bbx_sandbox/examples/`](./bbx_sandbox/examples/) for working examples, or the [Quick Start Guide](https://blackboxaudio.github.io/bbx_audio/getting-started/quick-start.html) for a complete walkthrough.
 
 ### Linux Dependencies
 

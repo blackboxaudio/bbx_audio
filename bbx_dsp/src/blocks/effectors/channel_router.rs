@@ -100,7 +100,6 @@ impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
                 l_sample
             };
 
-            // Apply channel mode
             let (mut l_out, mut r_out) = match self.mode {
                 ChannelMode::Stereo => (l_sample, r_sample),
                 ChannelMode::Left => (l_sample, l_sample),
@@ -108,14 +107,12 @@ impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
                 ChannelMode::Swap => (r_sample, l_sample),
             };
 
-            // Apply mono summing
             if self.mono {
                 let mono = (l_out + r_out) * 0.5;
                 l_out = mono;
                 r_out = mono;
             }
 
-            // Apply phase inversion
             if self.invert_left {
                 l_out = -l_out;
             }
