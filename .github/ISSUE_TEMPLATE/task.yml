@@ -3,40 +3,34 @@ description: Create a new development task
 title: '️🛠 - '
 
 body:
-  - type: markdown
-    attributes:
-      value: '## Creating a Task'
-
-  - type: markdown
-    attributes:
-        value: |
-          This form should be used by only official maintainers to create new development tasks. If applicable, please assign to a milestone and/or task management project. 
-
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: Please describe the task that needs to be completed.
+      description: Describe the task that needs to be completed. Be sure to provide relevant information and / or resources.
     validations:
       required: true
 
   - type: textarea
-    id: requirements
+    id: open-questions
     attributes:
-      label: Requirements
-      description: Please create a list of requirements necessary to complete this task.
+      label: Open questions
+      description: List any unknowns, ambiguities, or decisions that need to be resolved.
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: Define the conditions that must be met for this task to be considered complete.
     validations:
       required: true
 
-  - type: checkboxes
-    id: checklist
+  - type: textarea
+    id: tasks
     attributes:
-      label: Checklist
-      description: Please tick the following boxes before submitting this task.
-      options:
-        - label: I have linked the correct milestone and/or project(s)
-          required: true
-        - label: I have added the appropriate labels
-          required: true
-        - label: I have assigned this task to the correct people
-          required: false
+      label: Tasks
+      description: List the work items necessary to complete this task.
+    validations:
+      required: true
