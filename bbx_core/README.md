@@ -63,8 +63,8 @@ A fixed-capacity vector that stores elements on the stack, avoiding heap allocat
 use bbx_core::StackVec;
 
 let mut vec: StackVec<f32, 8> = StackVec::new();
-vec.push(1.0);
-vec.push(2.0);
+let _ = vec.push(1.0);
+let _ = vec.push(2.0);
 ```
 
 ### `random`

@@ -36,6 +36,12 @@ bbx_midi = { version = "0.2.0", path = "bbx_midi" }
 bbx_plugin = { version = "0.2.0", path = "bbx_plugin" }
 ```
 
+Update the version in the root `README.md`:
+
+```markdown
+[![Version: v0.2.0](https://img.shields.io/badge/Version-v0.2.0-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
+```
+
 ### 3. Update Changelog
 
 Generate changelog entries:
@@ -115,7 +121,7 @@ If publishing fails after some crates are published:
 
 You cannot overwrite a published version. You must:
 
-1. Bump to a new patch version (e.g., 0.2.1)
+1. Bump to a new patch version (e.g., 0.3.0)
 2. Create a new tag
 
 ### crates.io Index Propagation

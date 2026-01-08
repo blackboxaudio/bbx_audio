@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use bbx_core::StackVec;
 
 use crate::{
-    block::{BlockId, BlockType},
+    block::{BlockCategory, BlockId, BlockType},
     blocks::{
         effectors::overdrive::OverdriveBlock,
         generators::oscillator::OscillatorBlock,
@@ -46,6 +46,61 @@ pub struct Connection {
     pub to: BlockId,
     /// Input port index on the destination block.
     pub to_input: usize,
+}
+
+/// Snapshot of a block's metadata for visualization.
+///
+/// Contains owned data suitable for cross-thread transfer.
+#[derive(Debug, Clone)]
+pub struct BlockSnapshot {
+    /// The block's unique identifier.
+    pub id: usize,
+    /// Display name of the block type.
+    pub name: String,
+    /// Category of the block.
+    pub category: BlockCategory,
+    /// Number of input ports.
+    pub input_count: usize,
+    /// Number of output ports.
+    pub output_count: usize,
+}
+
+/// Snapshot of a connection for visualization.
+#[derive(Debug, Clone)]
+pub struct ConnectionSnapshot {
+    /// Source block ID.
+    pub from_block: usize,
+    /// Source output port index.
+    pub from_output: usize,
+    /// Destination block ID.
+    pub to_block: usize,
+    /// Destination input port index.
+    pub to_input: usize,
+}
+
+/// Snapshot of a modulation connection for visualization.
+#[derive(Debug, Clone)]
+pub struct ModulationConnectionSnapshot {
+    /// Source modulator block ID.
+    pub from_block: usize,
+    /// Target block ID.
+    pub to_block: usize,
+    /// Name of the modulated parameter on the target block.
+    pub parameter_name: String,
+}
+
+/// Snapshot of a graph's topology for visualization.
+///
+/// Contains all block metadata and connections at a point in time.
+/// This is an owned snapshot suitable for cross-thread transfer.
+#[derive(Debug, Clone)]
+pub struct GraphTopologySnapshot {
+    /// All blocks in the graph.
+    pub blocks: Vec<BlockSnapshot>,
+    /// All audio connections between blocks.
+    pub connections: Vec<ConnectionSnapshot>,
+    /// All modulation connections from modulators to block parameters.
+    pub modulation_connections: Vec<ModulationConnectionSnapshot>,
 }
 
 /// A directed acyclic graph of connected DSP blocks.
@@ -444,6 +499,62 @@ impl<S: Sample> GraphBuilder<S> {
             eprintln!("Modulation error: {e}");
         }
         self
+    }
+
+    /// Capture a snapshot of the current graph topology for visualization.
+    ///
+    /// Returns owned data suitable for cross-thread transfer to a visualization
+    /// thread. Call this before `build()` to capture the user-defined topology
+    /// (the output block is added during build).
+    pub fn capture_topology(&self) -> GraphTopologySnapshot {
+        let blocks = self
+            .graph
+            .blocks
+            .iter()
+            .enumerate()
+            .map(|(id, block)| BlockSnapshot {
+                id,
+                name: block.name().to_string(),
+                category: block.category(),
+                input_count: block.input_count(),
+                output_count: block.output_count(),
+            })
+            .collect();
+
+        let connections = self
+            .graph
+            .connections
+            .iter()
+            .map(|conn| ConnectionSnapshot {
+                from_block: conn.from.0,
+                from_output: conn.from_output,
+                to_block: conn.to.0,
+                to_input: conn.to_input,
+            })
+            .collect();
+
+        let modulation_connections = self
+            .graph
+            .blocks
+            .iter()
+            .enumerate()
+            .flat_map(|(target_id, block)| {
+                block
+                    .get_modulated_parameters()
+                    .into_iter()
+                    .map(move |(param_name, source_id)| ModulationConnectionSnapshot {
+                        from_block: source_id.0,
+                        to_block: target_id,
+                        parameter_name: param_name.to_string(),
+                    })
+            })
+            .collect();
+
+        GraphTopologySnapshot {
+            blocks,
+            connections,
+            modulation_connections,
+        }
     }
 
     /// Prepare the final DSP `Graph`.
