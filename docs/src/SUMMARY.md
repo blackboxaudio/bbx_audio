@@ -117,6 +117,7 @@
 - [Code Style](contributing/code-style.md)
 - [Adding New Blocks](contributing/new-blocks.md)
 - [Testing](contributing/testing.md)
+- [Benchmarking](contributing/benchmarking.md)
 - [Release Process](contributing/releasing.md)
 
 # Appendix

@@ -11,6 +11,9 @@ readme = "README.md"
 keywords = ["audio", "dsp", "synthesis", "effects", "graph"]
 categories = ["multimedia::audio", "science"]
 
+[lib]
+bench = false
+
 [features]
 default = []
 ftz-daz = ["bbx_core/ftz-daz"]
@@ -19,3 +22,14 @@ simd = ["bbx_core/simd"]
 [dependencies]
 bbx_core.workspace = true
 bbx_midi = { workspace = true, default-features = false }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "simd_blocks"
+harness = false
+
+[[bench]]
+name = "simd_graphs"
+harness = false
