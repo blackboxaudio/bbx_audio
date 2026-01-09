@@ -5,6 +5,8 @@
 
 use std::simd::{StdFloat, f32x4, f64x4};
 
+use crate::sample::{SIMD_LANES, Sample};
+
 pub const F32_LANES: usize = 4;
 pub const F64_LANES: usize = 4;
 
@@ -151,6 +153,95 @@ pub fn sin_f64(input: &[f64], output: &mut [f64]) {
 
     for i in remainder_start..len {
         output[i] = input[i].sin();
+    }
+}
+
+// =============================================================================
+// Generic SIMD operations using Sample trait
+// =============================================================================
+
+/// Fill a slice with a constant value using SIMD.
+#[inline]
+pub fn fill<S: Sample>(slice: &mut [S], value: S) {
+    let vec = S::simd_splat(value);
+    let chunks = slice.len() / SIMD_LANES;
+    let remainder_start = chunks * SIMD_LANES;
+
+    for i in 0..chunks {
+        let offset = i * SIMD_LANES;
+        slice[offset..offset + SIMD_LANES].copy_from_slice(&S::simd_to_array(vec));
+    }
+    slice[remainder_start..].fill(value);
+}
+
+/// Apply a gain value to an input slice and write to output using SIMD.
+#[inline]
+pub fn apply_gain<S: Sample>(input: &[S], output: &mut [S], gain: S)
+where
+    S::Simd: std::ops::Mul<Output = S::Simd>,
+{
+    debug_assert!(input.len() <= output.len());
+
+    let gain_vec = S::simd_splat(gain);
+    let len = input.len();
+    let chunks = len / SIMD_LANES;
+    let remainder_start = chunks * SIMD_LANES;
+
+    for i in 0..chunks {
+        let offset = i * SIMD_LANES;
+        let in_chunk = S::simd_from_slice(&input[offset..]);
+        let result = in_chunk * gain_vec;
+        output[offset..offset + SIMD_LANES].copy_from_slice(&S::simd_to_array(result));
+    }
+
+    for i in remainder_start..len {
+        output[i] = input[i] * gain;
+    }
+}
+
+/// Element-wise multiply two slices and write to output using SIMD.
+#[inline]
+pub fn multiply_add<S: Sample>(a: &[S], b: &[S], output: &mut [S])
+where
+    S::Simd: std::ops::Mul<Output = S::Simd>,
+{
+    debug_assert!(a.len() == b.len());
+    debug_assert!(a.len() <= output.len());
+
+    let len = a.len();
+    let chunks = len / SIMD_LANES;
+    let remainder_start = chunks * SIMD_LANES;
+
+    for i in 0..chunks {
+        let offset = i * SIMD_LANES;
+        let a_chunk = S::simd_from_slice(&a[offset..]);
+        let b_chunk = S::simd_from_slice(&b[offset..]);
+        let result = a_chunk * b_chunk;
+        output[offset..offset + SIMD_LANES].copy_from_slice(&S::simd_to_array(result));
+    }
+
+    for i in remainder_start..len {
+        output[i] = a[i] * b[i];
+    }
+}
+
+/// Compute sine of each element using SIMD.
+pub fn sin<S: Sample>(input: &[S], output: &mut [S]) {
+    debug_assert!(input.len() <= output.len());
+
+    let len = input.len();
+    let chunks = len / SIMD_LANES;
+    let remainder_start = chunks * SIMD_LANES;
+
+    for i in 0..chunks {
+        let offset = i * SIMD_LANES;
+        let in_chunk = S::simd_from_slice(&input[offset..]);
+        let result = in_chunk.sin();
+        output[offset..offset + SIMD_LANES].copy_from_slice(&S::simd_to_array(result));
+    }
+
+    for i in remainder_start..len {
+        output[i] = S::from_f64(input[i].to_f64().sin());
     }
 }
 

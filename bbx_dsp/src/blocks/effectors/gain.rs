@@ -1,7 +1,8 @@
 //! Gain control block with dB input.
 
 #[cfg(feature = "simd")]
-use crate::buffer::apply_gain_f64;
+use bbx_core::simd::apply_gain;
+
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
@@ -74,21 +75,10 @@ impl<S: Sample> Block<S> for GainBlock<S> {
 
             #[cfg(feature = "simd")]
             {
+                let gain_s = S::from_f64(gain);
                 for ch in 0..num_channels {
-                    let len = inputs[ch].len().min(outputs[ch].len()).min(MAX_BUFFER_SIZE);
-
-                    let mut input_temp: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
-                    let mut output_temp: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
-
-                    for i in 0..len {
-                        input_temp[i] = inputs[ch][i].to_f64();
-                    }
-
-                    apply_gain_f64(&input_temp[..len], &mut output_temp[..len], gain);
-
-                    for i in 0..len {
-                        outputs[ch][i] = S::from_f64(output_temp[i]);
-                    }
+                    let len = inputs[ch].len().min(outputs[ch].len());
+                    apply_gain(&inputs[ch][..len], &mut outputs[ch][..len], gain_s);
                 }
                 return;
             }

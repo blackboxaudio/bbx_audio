@@ -1,12 +1,11 @@
 //! Low-frequency oscillator (LFO) block for parameter modulation.
 
-#[cfg(feature = "simd")]
-use std::simd::f64x4;
-
 use bbx_core::random::XorShiftRng;
 
 #[cfg(feature = "simd")]
-use crate::waveform::generate_waveform_samples_simd;
+use crate::sample::SIMD_LANES;
+#[cfg(feature = "simd")]
+use crate::waveform::generate_waveform_samples_simd_generic;
 use crate::{
     block::{Block, DEFAULT_MODULATOR_INPUT_COUNT, DEFAULT_MODULATOR_OUTPUT_COUNT},
     context::DspContext,
@@ -62,26 +61,32 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
 
             if !matches!(self.waveform, Waveform::Noise) {
                 let buffer_size = context.buffer_size;
-                let chunks = buffer_size / 4;
-                let remainder_start = chunks * 4;
-                let inc_4 = phase_increment * 4.0;
+                let chunks = buffer_size / SIMD_LANES;
+                let remainder_start = chunks * SIMD_LANES;
+                let inc_lanes = phase_increment * SIMD_LANES as f64;
+                let depth_s = S::from_f64(depth);
+                let depth_vec = S::simd_splat(depth_s);
 
                 for chunk_idx in 0..chunks {
-                    let phases = f64x4::from_array([
-                        self.phase,
-                        self.phase + phase_increment,
-                        self.phase + phase_increment * 2.0,
-                        self.phase + phase_increment * 3.0,
-                    ]);
+                    // Build phase array in f64, then convert to S::Simd
+                    let phase_arr: [S; SIMD_LANES] = [
+                        S::from_f64(self.phase),
+                        S::from_f64(self.phase + phase_increment),
+                        S::from_f64(self.phase + phase_increment * 2.0),
+                        S::from_f64(self.phase + phase_increment * 3.0),
+                    ];
+                    let phases = S::simd_from_slice(&phase_arr);
+                    let duty = S::from_f64(DEFAULT_DUTY_CYCLE);
 
-                    if let Some(samples) = generate_waveform_samples_simd(self.waveform, phases, DEFAULT_DUTY_CYCLE) {
-                        let base = chunk_idx * 4;
-                        for i in 0..4 {
-                            outputs[0][base + i] = S::from_f64(samples[i] * depth);
-                        }
+                    if let Some(samples) = generate_waveform_samples_simd_generic::<S>(self.waveform, phases, duty) {
+                        // Apply depth scaling using SIMD
+                        let samples_vec = S::simd_from_slice(&samples);
+                        let scaled = samples_vec * depth_vec;
+                        let base = chunk_idx * SIMD_LANES;
+                        outputs[0][base..base + SIMD_LANES].copy_from_slice(&S::simd_to_array(scaled));
                     }
 
-                    self.phase += inc_4;
+                    self.phase += inc_lanes;
                 }
 
                 process_waveform_scalar(

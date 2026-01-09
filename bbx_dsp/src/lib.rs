@@ -45,7 +45,12 @@ pub mod parameter;
 pub mod plugin;
 pub mod prelude;
 pub mod reader;
-pub mod sample;
+pub mod sample {
+    //! Audio sample type abstraction.
+    //!
+    //! Re-exported from `bbx_core` for convenience.
+    pub use bbx_core::sample::*;
+}
 pub mod smoothing;
 pub mod voice;
 pub mod waveform;

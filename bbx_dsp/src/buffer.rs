@@ -7,11 +7,6 @@ use std::ops::{Index, IndexMut};
 
 use crate::sample::Sample;
 
-#[cfg(feature = "simd")]
-pub(crate) fn apply_gain_f64(input: &[f64], output: &mut [f64], gain: f64) {
-    bbx_core::simd::apply_gain_f64(input, output, gain);
-}
-
 /// A generic buffer interface for DSP operations.
 ///
 /// Provides common operations for buffers used throughout the DSP system.

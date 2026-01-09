@@ -103,8 +103,7 @@ pub unsafe fn process_audio<D: PluginDsp>(
             for ch in 0..channels_to_process {
                 let input_ptr = *inputs.add(ch);
                 if !input_ptr.is_null() {
-                    input_slices_storage[ch] =
-                        std::slice::from_raw_parts(input_ptr, samples_to_process);
+                    input_slices_storage[ch] = std::slice::from_raw_parts(input_ptr, samples_to_process);
                 }
             }
         }

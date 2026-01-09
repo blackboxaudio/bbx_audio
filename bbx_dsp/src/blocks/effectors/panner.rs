@@ -3,6 +3,8 @@
 #[cfg(feature = "simd")]
 use std::simd::{StdFloat, f64x4, num::SimdFloat};
 
+#[cfg(feature = "simd")]
+use crate::sample::SIMD_LANES;
 use crate::{
     block::Block,
     context::DspContext,
@@ -81,8 +83,9 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
             *position = self.position_smoother.get_next_value().to_f64();
         }
 
-        let mut left_gains: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
-        let mut right_gains: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
+        // Compute gains in f64 for precision, then convert to S for SIMD sample processing
+        let mut left_gains: [S; MAX_BUFFER_SIZE] = [S::ZERO; MAX_BUFFER_SIZE];
+        let mut right_gains: [S; MAX_BUFFER_SIZE] = [S::ZERO; MAX_BUFFER_SIZE];
 
         #[cfg(feature = "simd")]
         {
@@ -98,14 +101,18 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
 
                 let angle = normalized * f64x4::splat(std::f64::consts::FRAC_PI_2);
 
-                left_gains[offset..offset + 4].copy_from_slice(&angle.cos().to_array());
-                right_gains[offset..offset + 4].copy_from_slice(&angle.sin().to_array());
+                let l_arr = angle.cos().to_array();
+                let r_arr = angle.sin().to_array();
+                for i in 0..4 {
+                    left_gains[offset + i] = S::from_f64(l_arr[i]);
+                    right_gains[offset + i] = S::from_f64(r_arr[i]);
+                }
             }
 
             for i in remainder_start..num_samples {
                 let (l, r) = self.calculate_gains(positions[i]);
-                left_gains[i] = l;
-                right_gains[i] = r;
+                left_gains[i] = S::from_f64(l);
+                right_gains[i] = S::from_f64(r);
             }
         }
 
@@ -113,61 +120,42 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
         {
             for i in 0..num_samples {
                 let (l, r) = self.calculate_gains(positions[i]);
-                left_gains[i] = l;
-                right_gains[i] = r;
+                left_gains[i] = S::from_f64(l);
+                right_gains[i] = S::from_f64(r);
             }
         }
 
+        // Apply gains to samples using generic SIMD
         #[cfg(feature = "simd")]
         {
-            let chunks = num_samples / 4;
-            let remainder_start = chunks * 4;
+            let chunks = num_samples / SIMD_LANES;
+            let remainder_start = chunks * SIMD_LANES;
 
             for chunk_idx in 0..chunks {
-                let offset = chunk_idx * 4;
+                let offset = chunk_idx * SIMD_LANES;
 
-                let l_in = f64x4::from_array([
-                    left_in[offset].to_f64(),
-                    left_in[offset + 1].to_f64(),
-                    left_in[offset + 2].to_f64(),
-                    left_in[offset + 3].to_f64(),
-                ]);
-                let l_gain = f64x4::from_slice(&left_gains[offset..]);
+                let l_in = S::simd_from_slice(&left_in[offset..]);
+                let l_gain = S::simd_from_slice(&left_gains[offset..]);
                 let l_out = l_in * l_gain;
+                outputs[0][offset..offset + SIMD_LANES].copy_from_slice(&S::simd_to_array(l_out));
 
-                let r_in = if has_stereo_input {
-                    f64x4::from_array([
-                        right_in[offset].to_f64(),
-                        right_in[offset + 1].to_f64(),
-                        right_in[offset + 2].to_f64(),
-                        right_in[offset + 3].to_f64(),
-                    ])
-                } else {
-                    l_in
-                };
-                let r_gain = f64x4::from_slice(&right_gains[offset..]);
-                let r_out = r_in * r_gain;
-
-                let l_arr = l_out.to_array();
-                let r_arr = r_out.to_array();
-
-                for i in 0..4 {
-                    outputs[0][offset + i] = S::from_f64(l_arr[i]);
-                }
                 if has_stereo_output {
-                    for i in 0..4 {
-                        outputs[1][offset + i] = S::from_f64(r_arr[i]);
-                    }
+                    let r_in = if has_stereo_input {
+                        S::simd_from_slice(&right_in[offset..])
+                    } else {
+                        l_in
+                    };
+                    let r_gain = S::simd_from_slice(&right_gains[offset..]);
+                    let r_out = r_in * r_gain;
+                    outputs[1][offset..offset + SIMD_LANES].copy_from_slice(&S::simd_to_array(r_out));
                 }
             }
 
             for i in remainder_start..num_samples {
-                let l = left_in[i].to_f64();
-                let r = if has_stereo_input { right_in[i].to_f64() } else { l };
-
-                outputs[0][i] = S::from_f64(l * left_gains[i]);
+                outputs[0][i] = left_in[i] * left_gains[i];
                 if has_stereo_output {
-                    outputs[1][i] = S::from_f64(r * right_gains[i]);
+                    let r = if has_stereo_input { right_in[i] } else { left_in[i] };
+                    outputs[1][i] = r * right_gains[i];
                 }
             }
         }
@@ -175,12 +163,10 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
         #[cfg(not(feature = "simd"))]
         {
             for i in 0..num_samples {
-                let l = left_in[i].to_f64();
-                let r = if has_stereo_input { right_in[i].to_f64() } else { l };
-
-                outputs[0][i] = S::from_f64(l * left_gains[i]);
+                outputs[0][i] = left_in[i] * left_gains[i];
                 if has_stereo_output {
-                    outputs[1][i] = S::from_f64(r * right_gains[i]);
+                    let r = if has_stereo_input { right_in[i] } else { left_in[i] };
+                    outputs[1][i] = r * right_gains[i];
                 }
             }
         }
