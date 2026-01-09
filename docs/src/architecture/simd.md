@@ -41,6 +41,53 @@ Additionally, the `denormal` module provides SIMD-accelerated batch denormal flu
 - `flush_denormals_f32_batch`
 - `flush_denormals_f64_batch`
 
+## Sample Trait SIMD Methods
+
+The [`Sample`](../crates/core/sample.md) trait includes built-in SIMD support when the `simd` feature is enabled. This allows writing generic SIMD code that works for both `f32` and `f64`.
+
+### Associated Type
+
+Each `Sample` implementation has an associated SIMD type:
+
+| Sample Type | SIMD Type |
+|-------------|-----------|
+| `f32` | `f32x4` |
+| `f64` | `f64x4` |
+
+### SIMD Methods
+
+| Method | Description |
+|--------|-------------|
+| `simd_splat(value)` | Create a vector with all lanes set to `value` |
+| `simd_from_slice(slice)` | Load 4 samples from a slice |
+| `simd_to_array(simd)` | Convert a SIMD vector to `[Self; 4]` |
+| `simd_select_gt(a, b, if_true, if_false)` | Per-lane selection where `a > b` |
+| `simd_select_lt(a, b, if_true, if_false)` | Per-lane selection where `a < b` |
+
+### Example: Generic SIMD Code
+
+```rust
+use bbx_core::sample::{Sample, SIMD_LANES};
+
+fn apply_gain_simd<S: Sample>(output: &mut [S], gain: S) {
+    let gain_vec = S::simd_splat(gain);
+    let (chunks, remainder) = output.as_chunks_mut::<SIMD_LANES>();
+
+    for chunk in chunks {
+        let samples = S::simd_from_slice(chunk);
+        let result = samples * gain_vec;
+        chunk.copy_from_slice(&S::simd_to_array(result));
+    }
+
+    // Scalar fallback for remainder
+    for sample in remainder {
+        *sample = *sample * gain;
+    }
+}
+```
+
+This single implementation works for both `f32` and `f64` without code duplication.
+
 ## Optimized Blocks
 
 The following blocks use SIMD when the feature is enabled:

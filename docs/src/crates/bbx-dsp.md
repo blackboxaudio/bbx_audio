@@ -25,7 +25,7 @@ bbx_dsp = "0.1"
 | [Graph](dsp/graph.md) | Block graph and builder |
 | [Block Trait](dsp/block-trait.md) | Interface for DSP blocks |
 | [BlockType](dsp/block-type.md) | Enum wrapping all blocks |
-| [Sample](dsp/sample.md) | Generic sample type trait |
+| Sample | Re-exported from [bbx_core](bbx-core.md) |
 | [DspContext](dsp/context.md) | Processing context |
 | [Parameters](dsp/parameters.md) | Modulation system |
 
