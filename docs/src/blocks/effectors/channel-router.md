@@ -9,13 +9,28 @@ Flexible channel routing and manipulation.
 ## Creating a Router
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
-use bbx_dsp::blocks::ChannelMode;
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{ChannelMode, ChannelRouterBlock},
+    graph::GraphBuilder,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let router = builder.add_channel_router(ChannelMode::Stereo);
+// Constructor: new(mode, mono, invert_left, invert_right)
+let router = builder.add_block(BlockType::ChannelRouter(
+    ChannelRouterBlock::new(ChannelMode::Stereo, false, false, false)
+));
 ```
+
+## Constructor Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| mode | ChannelMode | Channel routing mode |
+| mono | bool | Sum to mono (L+R)/2 on both channels |
+| invert_left | bool | Invert left channel phase |
+| invert_right | bool | Invert right channel phase |
 
 ## Channel Modes
 
@@ -53,8 +68,18 @@ ChannelMode::Swap      // Swap left and right
 For mono compatibility checking:
 
 ```rust
-// Route left to both channels (or right)
-let mono = builder.add_channel_router(ChannelMode::Left);
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{ChannelMode, ChannelRouterBlock},
+    graph::GraphBuilder,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Route left to both channels
+let mono = builder.add_block(BlockType::ChannelRouter(
+    ChannelRouterBlock::new(ChannelMode::Left, false, false, false)
+));
 ```
 
 ### Swap Channels
@@ -62,30 +87,75 @@ let mono = builder.add_channel_router(ChannelMode::Left);
 For correcting reversed cables:
 
 ```rust
-let swap = builder.add_channel_router(ChannelMode::Swap);
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{ChannelMode, ChannelRouterBlock},
+    graph::GraphBuilder,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let swap = builder.add_block(BlockType::ChannelRouter(
+    ChannelRouterBlock::new(ChannelMode::Swap, false, false, false)
+));
 ```
 
-### In Effect Chain
+### Phase Inversion
+
+For polarity correction or creative effects:
 
 ```rust
-let stereo_source = /* ... */;
-let router = builder.add_channel_router(ChannelMode::Stereo);
-let pan = builder.add_panner(0.0);
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{ChannelMode, ChannelRouterBlock},
+    graph::GraphBuilder,
+};
 
-builder.connect(stereo_source, 0, router, 0);  // Left
-builder.connect(stereo_source, 1, router, 1);  // Right
-builder.connect(router, 0, pan, 0);
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Invert left channel phase only
+let phase_flip = builder.add_block(BlockType::ChannelRouter(
+    ChannelRouterBlock::new(ChannelMode::Stereo, false, true, false)
+));
 ```
 
-## Extended Features
+### True Mono Sum
 
-Some implementations support additional options:
+Sum both channels to mono output:
 
-- **Invert Phase**: Flip polarity of one or both channels
-- **Mono Sum**: Mix L+R to mono
-- **Mid/Side**: Convert between L/R and M/S
+```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{ChannelMode, ChannelRouterBlock},
+    graph::GraphBuilder,
+};
 
-Check documentation for available features in your version.
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Enable mono summing
+let mono_sum = builder.add_block(BlockType::ChannelRouter(
+    ChannelRouterBlock::new(ChannelMode::Stereo, true, false, false)
+));
+```
+
+### Default Passthrough
+
+For a simple stereo passthrough with no modifications:
+
+```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::ChannelRouterBlock,
+    graph::GraphBuilder,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Use default_new() for stereo passthrough
+let passthrough = builder.add_block(BlockType::ChannelRouter(
+    ChannelRouterBlock::default_new()
+));
+```
 
 ## Implementation Notes
 

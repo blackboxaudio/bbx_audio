@@ -32,14 +32,19 @@ bbx_dsp = "0.1"
 ## Quick Example
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 // Create a graph: 44.1kHz, 512 samples, stereo
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Add blocks
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_gain(-6.0);
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 
 // Connect: oscillator -> gain
 builder.connect(osc, 0, gain, 0);

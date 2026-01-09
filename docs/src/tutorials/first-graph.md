@@ -41,7 +41,8 @@ fn main() {
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
     // Add a 440 Hz sine wave oscillator
-    // The third parameter is an optional LFO for frequency modulation
+    // The third parameter is an optional seed for the random number generator
+    // (used by the Noise waveform for deterministic output)
     let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 
     let graph = builder.build();
@@ -80,14 +81,19 @@ fn main() {
 Blocks are connected using the `connect` method:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 fn main() {
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
     // Add blocks
     let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-    let gain = builder.add_gain(-6.0);  // -6 dB
+    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));  // -6 dB
 
     // Connect oscillator output 0 to gain input 0
     builder.connect(osc, 0, gain, 0);
@@ -101,9 +107,9 @@ fn main() {
 Each block added to the graph gets a unique `BlockId`:
 
 ```rust
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);   // Block 0
-let gain = builder.add_gain(-6.0);                                // Block 1
-let pan = builder.add_panner(0.0);                                // Block 2
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);                     // Block 0
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));               // Block 1
+let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));             // Block 2
 ```
 
 Use these IDs when connecting blocks:
@@ -115,7 +121,12 @@ builder.connect(from_block, from_port, to_block, to_port);
 ## Complete Example
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{GainBlock, PannerBlock},
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 fn main() {
     // Create builder
@@ -123,8 +134,8 @@ fn main() {
 
     // Build a simple synth chain
     let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
-    let gain = builder.add_gain(-12.0);
-    let pan = builder.add_panner(0.25);  // Slightly right
+    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-12.0)));
+    let pan = builder.add_block(BlockType::Panner(PannerBlock::new(25.0)));  // Slightly right
 
     // Connect: Osc -> Gain -> Panner
     builder.connect(osc, 0, gain, 0);

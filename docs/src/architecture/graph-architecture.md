@@ -33,11 +33,20 @@ pub struct Graph<S: Sample> {
 Fluent API for construction:
 
 ```rust
-let graph = GraphBuilder::new(44100.0, 512, 2)
-    .add_oscillator(440.0, Waveform::Sine, None)
-    .add_gain(-6.0)
-    .connect(0, 0, 1, 0)
-    .build();
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+
+builder.connect(osc, 0, gain, 0);
+let graph = builder.build();
 ```
 
 ### Connection

@@ -4,7 +4,7 @@ A waveform generator supporting multiple wave shapes.
 
 ## Overview
 
-`OscillatorBlock` generates audio waveforms at a specified frequency with optional frequency modulation.
+`OscillatorBlock` generates audio waveforms at a specified frequency with optional frequency modulation via the `modulate()` method.
 
 ## Creating an Oscillator
 
@@ -13,13 +13,11 @@ use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-// Basic oscillator
-let osc = builder.add_oscillator(
-    440.0,           // Frequency in Hz
-    Waveform::Sine,  // Waveform type
-    None,            // No frequency modulation
-);
+// Parameters: frequency (Hz), waveform, optional seed for noise
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 ```
+
+The third parameter is an optional seed (`Option<u64>`) for deterministic random number generation, used by the Noise waveform.
 
 ## Waveforms
 
@@ -45,19 +43,14 @@ Waveform::Noise     // White noise
 | Pulse | Variable | Nasal, reedy |
 | Noise | All frequencies | Airy, percussive |
 
-## Frequency Modulation
+## Parameters
 
-Use an LFO for vibrato:
+| Parameter | Type | Range | Default | Description |
+|-----------|------|-------|---------|-------------|
+| frequency | f64 | 0.01 - 20000 Hz | 440 | Base frequency |
+| pitch_offset | f64 | -24 to +24 semitones | 0 | Pitch offset from base |
 
-```rust
-let lfo = builder.add_lfo(5.0, Waveform::Sine);  // 5 Hz vibrato
-
-let osc = builder.add_oscillator(
-    440.0,
-    Waveform::Sine,
-    Some(lfo),  // LFO modulates frequency
-);
-```
+Both parameters can be modulated using the `modulate()` method.
 
 ## Port Layout
 
@@ -65,12 +58,31 @@ let osc = builder.add_oscillator(
 |------|-----------|-------------|
 | 0 | Output | Audio signal |
 
-## Parameters
+## Frequency Modulation
 
-| Parameter | Type | Range | Default |
-|-----------|------|-------|---------|
-| Frequency | f64 | 0.01 - 20000 Hz | 440 |
-| Waveform | enum | See above | Sine |
+Use an LFO for vibrato via the `modulate()` method:
+
+```rust
+use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Create LFO for vibrato (5 Hz, moderate depth)
+let lfo = builder.add_lfo(5.0, 0.3, None);
+
+// Create oscillator
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+
+// Connect LFO to modulate frequency
+builder.modulate(lfo, osc, "frequency");
+```
+
+You can also modulate the pitch_offset parameter:
+
+```rust
+// Modulate pitch offset instead of frequency
+builder.modulate(lfo, osc, "pitch_offset");
+```
 
 ## Usage Examples
 
@@ -95,8 +107,19 @@ let main = builder.add_oscillator(440.0, Waveform::Saw, None);
 let sub = builder.add_oscillator(220.0, Waveform::Sine, None);  // One octave down
 ```
 
+### Deterministic Noise
+
+For reproducible noise output:
+
+```rust
+// Same seed produces same noise pattern
+let noise1 = builder.add_oscillator(0.0, Waveform::Noise, Some(12345));
+let noise2 = builder.add_oscillator(0.0, Waveform::Noise, Some(12345));  // Same as noise1
+```
+
 ## Implementation Notes
 
 - Phase accumulator runs continuously
 - No anti-aliasing (naive waveforms)
 - Noise is sample-and-hold (per-sample random)
+- Frequency is ignored for Noise waveform

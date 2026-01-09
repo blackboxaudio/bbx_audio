@@ -45,7 +45,11 @@ let graph = builder.build();
 ### File Processing
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+};
 use bbx_file::{readers::wav::WavFileReader, writers::wav::WavFileWriter};
 
 // Set up I/O
@@ -56,7 +60,7 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Create graph: Input -> Effect -> Output
 let file_in = builder.add_file_input(Box::new(reader));
-let gain = builder.add_gain(-6.0);
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 let file_out = builder.add_file_output(Box::new(writer));
 
 builder.connect(file_in, 0, gain, 0);
@@ -83,6 +87,8 @@ graph.finalize();
 For real-time (plugin, live), use OutputBlock implicitly:
 
 ```rust
+use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);

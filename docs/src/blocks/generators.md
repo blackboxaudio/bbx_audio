@@ -18,7 +18,12 @@ Generators have:
 ## Usage Pattern
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -26,7 +31,7 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 
 // Connect to effects or output
-let gain = builder.add_gain(-6.0);
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 builder.connect(osc, 0, gain, 0);
 ```
 
@@ -35,13 +40,22 @@ builder.connect(osc, 0, gain, 0);
 Create multiple generators for polyphonic sounds:
 
 ```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
 // Three oscillators for a chord
 let c4 = builder.add_oscillator(261.63, Waveform::Sine, None);
 let e4 = builder.add_oscillator(329.63, Waveform::Sine, None);
 let g4 = builder.add_oscillator(392.00, Waveform::Sine, None);
 
 // Mix them
-let mixer = builder.add_gain(-9.0);
+let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-9.0)));
 builder.connect(c4, 0, mixer, 0);
 builder.connect(e4, 0, mixer, 0);
 builder.connect(g4, 0, mixer, 0);

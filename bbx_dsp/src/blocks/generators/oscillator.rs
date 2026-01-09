@@ -129,6 +129,8 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                     self.phase += inc_lanes;
                 }
 
+                self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
+
                 process_waveform_scalar(
                     &mut outputs[0][remainder_start..],
                     self.waveform,

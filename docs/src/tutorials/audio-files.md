@@ -42,7 +42,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 Add a file input to your DSP graph:
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+};
 use bbx_file::readers::wav::WavFileReader;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -55,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_input = builder.add_file_input(Box::new(reader));
 
     // Connect to effects
-    let gain = builder.add_gain(-6.0);
+    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
     builder.connect(file_input, 0, gain, 0);
 
     let graph = builder.build();
@@ -130,7 +134,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 Combine file input and output for offline processing:
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{GainBlock, PannerBlock},
+    graph::GraphBuilder,
+};
 use bbx_file::{
     readers::wav::WavFileReader,
     writers::wav::WavFileWriter,
@@ -149,8 +157,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_in = builder.add_file_input(Box::new(reader));
 
     // Process: add some effects
-    let gain = builder.add_gain(-3.0);
-    let pan = builder.add_panner(0.25);
+    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-3.0)));
+    let pan = builder.add_block(BlockType::Panner(PannerBlock::new(25.0)));
 
     builder.connect(file_in, 0, gain, 0);
     builder.connect(gain, 0, pan, 0);

@@ -108,10 +108,13 @@ fn play(graph: Graph<f32>, seconds: u64) {
 // === Your Synthesizer ===
 
 fn create_graph() -> Graph<f32> {
+    use bbx_dsp::block::BlockType;
+    use bbx_dsp::blocks::GainBlock;
+
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
     let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-    let gain = builder.add_gain(-6.0);
+    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 
     builder.connect(osc, 0, gain, 0);
     builder.build()
@@ -161,8 +164,8 @@ let osc = builder.add_oscillator(440.0, Waveform::Square, None); // Hollow, wood
 
 **Adjust the volume**:
 ```rust
-let gain = builder.add_gain(-12.0);  // Quieter (-12dB)
-let gain = builder.add_gain(0.0);    // Full volume (0dB)
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-12.0)));  // Quieter
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(0.0)));    // Full volume
 ```
 
 **Play longer** (press Ctrl+C to stop):

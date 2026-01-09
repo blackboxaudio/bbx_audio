@@ -20,16 +20,40 @@ let mut builder = GraphBuilder::<f32>::new(
 
 ### Adding Blocks
 
-Each `add_*` method returns a `BlockId`:
+The builder provides convenience methods for common blocks:
 
 ```rust
 use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
+// Oscillator: frequency, waveform, seed
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_gain(-6.0);
-let pan = builder.add_panner(0.0);
+
+// Overdrive: drive, level, tone, sample_rate
+let overdrive = builder.add_overdrive(3.0, 1.0, 0.8, 44100.0);
+
+// LFO: frequency, depth, seed
+let lfo = builder.add_lfo(5.0, 0.5, None);
+
+// Envelope: attack, decay, sustain, release
+let env = builder.add_envelope(0.01, 0.1, 0.7, 0.3);
+```
+
+For other blocks, use `add_block()` with direct construction:
+
+```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{GainBlock, PannerBlock, DcBlockerBlock},
+    graph::GraphBuilder,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
+let dc = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
 ```
 
 ### Connecting Blocks
@@ -40,6 +64,16 @@ Connect block outputs to inputs:
 // connect(from_block, from_port, to_block, to_port)
 builder.connect(osc, 0, gain, 0);
 builder.connect(gain, 0, pan, 0);
+```
+
+### Modulation
+
+Use `modulate()` to connect modulators to parameters:
+
+```rust
+// modulate(source, target, parameter_name)
+builder.modulate(lfo, osc, "frequency");
+builder.modulate(lfo, gain, "level");
 ```
 
 ### Building the Graph
@@ -70,22 +104,13 @@ graph.process_buffers(&mut outputs);
 
 ### Preparing for Playback
 
-Call `prepare()` when audio specs change:
+Call `prepare_for_playback()` before processing:
 
 ```rust
-use bbx_dsp::context::DspContext;
-
-let context = DspContext::new(48000.0, 1024, 2);
-graph.prepare(&context);
+graph.prepare_for_playback();
 ```
 
-### Resetting State
-
-Clear all DSP state (filters, delay lines, etc.):
-
-```rust
-graph.reset();
-```
+Note: `GraphBuilder::build()` calls this automatically.
 
 ### Finalization
 
@@ -118,7 +143,12 @@ let osc: BlockId = builder.add_oscillator(440.0, Waveform::Sine, None);
 ## Example: Complex Graph
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{DcBlockerBlock, GainBlock, PannerBlock},
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -127,14 +157,14 @@ let osc1 = builder.add_oscillator(440.0, Waveform::Saw, None);
 let osc2 = builder.add_oscillator(441.0, Waveform::Saw, None);  // Slight detune
 
 // Mix them
-let mixer = builder.add_gain(-6.0);
+let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 builder.connect(osc1, 0, mixer, 0);
 builder.connect(osc2, 0, mixer, 0);
 
 // Add effects
 let overdrive = builder.add_overdrive(3.0, 1.0, 0.8, 44100.0);
-let dc_blocker = builder.add_dc_blocker();
-let pan = builder.add_panner(0.0);
+let dc_blocker = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
+let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
 
 // Chain effects
 builder.connect(mixer, 0, overdrive, 0);

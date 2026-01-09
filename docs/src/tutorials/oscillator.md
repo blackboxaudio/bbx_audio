@@ -80,12 +80,14 @@ use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-// Add an LFO for vibrato
-let lfo = builder.add_lfo(5.0, Waveform::Sine);  // 5 Hz vibrato
+// Add an LFO for vibrato (5 Hz, moderate depth)
+let lfo = builder.add_lfo(5.0, 0.3, None);
 
-// Oscillator with frequency modulation
-// The LFO will modulate the frequency ±10%
-let osc = builder.add_oscillator(440.0, Waveform::Sine, Some(lfo));
+// Create oscillator
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+
+// Connect LFO to modulate frequency
+builder.modulate(lfo, osc, "frequency");
 
 let graph = builder.build();
 ```
@@ -95,7 +97,12 @@ let graph = builder.build();
 Create multiple oscillators for polyphonic sounds:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -105,7 +112,7 @@ let e4 = builder.add_oscillator(329.63, Waveform::Sine, None);
 let g4 = builder.add_oscillator(392.00, Waveform::Sine, None);
 
 // Mix them together with a gain block
-let mixer = builder.add_gain(-9.0);  // -9 dB for headroom
+let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-9.0)));  // -9 dB for headroom
 
 builder.connect(c4, 0, mixer, 0);
 builder.connect(e4, 0, mixer, 0);
@@ -119,7 +126,12 @@ let graph = builder.build();
 Create a thicker sound with detuned oscillators:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -132,11 +144,11 @@ let freq_up = base_freq * detune_factor;
 let freq_down = base_freq / detune_factor;
 
 // Three oscillators: center, up, down
-let osc_center = builder.add_oscillator(base_freq, Waveform::Saw, None);
-let osc_up = builder.add_oscillator(freq_up, Waveform::Saw, None);
-let osc_down = builder.add_oscillator(freq_down, Waveform::Saw, None);
+let osc_center = builder.add_oscillator(base_freq as f64, Waveform::Saw, None);
+let osc_up = builder.add_oscillator(freq_up as f64, Waveform::Saw, None);
+let osc_down = builder.add_oscillator(freq_down as f64, Waveform::Saw, None);
 
-let mixer = builder.add_gain(-9.0);
+let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-9.0)));
 builder.connect(osc_center, 0, mixer, 0);
 builder.connect(osc_up, 0, mixer, 0);
 builder.connect(osc_down, 0, mixer, 0);
