@@ -3,6 +3,8 @@
 //! This module provides the generic audio processing function that bridges
 //! JUCE's processBlock to the Rust effects chain using zero-copy buffer handling.
 
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
 use bbx_dsp::PluginDsp;
 use bbx_midi::MidiEvent;
 
@@ -47,7 +49,7 @@ pub unsafe fn process_audio<D: PluginDsp>(
         return;
     }
 
-    unsafe {
+    let result = catch_unwind(AssertUnwindSafe(|| unsafe {
         let inner = graph_from_handle::<D>(handle);
 
         let num_channels = num_channels as usize;
@@ -138,6 +140,18 @@ pub unsafe fn process_audio<D: PluginDsp>(
                 midi_slice,
                 &inner.context,
             );
+        }
+    }));
+
+    // On panic, zero all outputs to produce silence instead of crashing the host
+    if result.is_err() {
+        unsafe {
+            for i in 0..num_channels as usize {
+                let output_ptr = *outputs.add(i);
+                if !output_ptr.is_null() {
+                    std::ptr::write_bytes(output_ptr, 0, num_samples as usize * size_of::<f32>());
+                }
+            }
         }
     }
 }

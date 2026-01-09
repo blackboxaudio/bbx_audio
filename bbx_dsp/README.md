@@ -32,11 +32,41 @@ A block-based audio DSP system for building signal processing graphs.
 - `FileOutputBlock` - Write audio to files (non-blocking I/O)
 - `OutputBlock` - Terminal graph output
 
+## Cargo Features
+
+### `simd`
+
+Enables SIMD optimizations for supported blocks. Requires nightly Rust.
+
+```toml
+[dependencies]
+bbx_dsp = { version = "...", features = ["simd"] }
+```
+
+Optimized blocks:
+- `OscillatorBlock` - Vectorized waveform generation
+- `LfoBlock` - Vectorized modulation signal generation
+- `GainBlock` - Vectorized gain application
+
 ## PluginDsp Trait
 
 For plugin integration, implement `PluginDsp` with optional MIDI support:
 - `process()` receives `midi_events: &[MidiEvent]` parameter
 - Override `note_on()`, `note_off()`, `control_change()`, `pitch_bend()` for MIDI handling
+
+## Benchmarking
+
+Run performance benchmarks to measure SIMD optimization effectiveness:
+
+```bash
+# Scalar baseline
+cargo bench --benches -p bbx_dsp -- --save-baseline scalar
+
+# SIMD comparison (requires nightly)
+cargo +nightly bench --benches -p bbx_dsp --features simd -- --save-baseline scalar
+```
+
+HTML reports are generated in `target/criterion/`. See the [full documentation](https://docs.rs/bbx_dsp) for details.
 
 ## Usage
 

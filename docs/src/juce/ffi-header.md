@@ -61,6 +61,49 @@ typedef struct BbxGraph BbxGraph;
 
 Never dereference or inspect this pointer - it's an opaque handle.
 
+### BbxMidiStatus
+
+MIDI message status types:
+
+```c
+typedef enum BbxMidiStatus {
+    BBX_MIDI_STATUS_UNKNOWN = 0,
+    BBX_MIDI_STATUS_NOTE_OFF = 1,
+    BBX_MIDI_STATUS_NOTE_ON = 2,
+    BBX_MIDI_STATUS_POLYPHONIC_AFTERTOUCH = 3,
+    BBX_MIDI_STATUS_CONTROL_CHANGE = 4,
+    BBX_MIDI_STATUS_PROGRAM_CHANGE = 5,
+    BBX_MIDI_STATUS_CHANNEL_AFTERTOUCH = 6,
+    BBX_MIDI_STATUS_PITCH_WHEEL = 7,
+} BbxMidiStatus;
+```
+
+### BbxMidiMessage
+
+MIDI message structure (matches Rust `MidiMessage` with `repr(C)`):
+
+```c
+typedef struct BbxMidiMessage {
+    uint8_t channel;       // MIDI channel (0-15)
+    BbxMidiStatus status;  // Message type
+    uint8_t data_1;        // First data byte (e.g., note number)
+    uint8_t data_2;        // Second data byte (e.g., velocity)
+} BbxMidiMessage;
+```
+
+### BbxMidiEvent
+
+MIDI event with sample-accurate timing:
+
+```c
+typedef struct BbxMidiEvent {
+    BbxMidiMessage message;   // The MIDI message
+    uint32_t sample_offset;   // Sample offset within the buffer
+} BbxMidiEvent;
+```
+
+The `sample_offset` allows sample-accurate MIDI timing within a buffer.
+
 ## Functions
 
 ### bbx_graph_create
@@ -155,11 +198,13 @@ void bbx_graph_process(
     uint32_t num_channels,
     uint32_t num_samples,
     const float* params,
-    uint32_t num_params
+    uint32_t num_params,
+    const BbxMidiEvent* midi_events,
+    uint32_t num_midi_events
 );
 ```
 
-Process a block of audio.
+Process a block of audio with optional MIDI events.
 
 **Parameters**:
 - `handle` - Effects chain handle
@@ -169,10 +214,29 @@ Process a block of audio.
 - `num_samples` - Number of samples per channel
 - `params` - Pointer to flat array of parameter values
 - `num_params` - Number of parameters
+- `midi_events` - Pointer to array of MIDI events (may be `NULL` for effects)
+- `num_midi_events` - Number of MIDI events in the array
 
 **Usage**:
 ```c
 float params[PARAM_COUNT] = { gainValue, panValue, ... };
+
+// For effects (no MIDI):
+bbx_graph_process(
+    handle,
+    inputPtrs,
+    outputPtrs,
+    numChannels,
+    numSamples,
+    params,
+    PARAM_COUNT,
+    NULL,
+    0
+);
+
+// For synthesizers (with MIDI):
+BbxMidiEvent midiEvents[16];
+uint32_t numMidiEvents = convertJuceMidi(midiBuffer, midiEvents, 16);
 
 bbx_graph_process(
     handle,
@@ -181,7 +245,9 @@ bbx_graph_process(
     numChannels,
     numSamples,
     params,
-    PARAM_COUNT
+    PARAM_COUNT,
+    midiEvents,
+    numMidiEvents
 );
 ```
 

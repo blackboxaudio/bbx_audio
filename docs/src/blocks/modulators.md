@@ -20,7 +20,7 @@ Modulators have:
 
 | Aspect | Audio | Modulation |
 |--------|-------|------------|
-| Rate | Sample rate | Per-block |
+| Rate | Sample rate | Per-block (control rate) |
 | Range | -1.0 to 1.0 | -1.0 to 1.0 |
 | Purpose | Listening | Parameter control |
 
@@ -31,24 +31,42 @@ use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-// Create modulator
-let lfo = builder.add_lfo(5.0, Waveform::Sine);
+// Create modulator (frequency, depth, seed)
+let lfo = builder.add_lfo(5.0, 0.5, None);
 
-// Use it to modulate an oscillator
-let osc = builder.add_oscillator(440.0, Waveform::Sine, Some(lfo));
+// Create oscillator
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+
+// Connect modulation using the modulate() method
+builder.modulate(lfo, osc, "frequency");
 ```
 
 ## Modulation Routing
 
-Modulators connect differently than audio blocks:
+Modulators connect using the `modulate()` builder method:
 
 ```rust
-// Audio connection
-builder.connect(audio_block, output_port, target_block, input_port);
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
-// Modulation is specified at block creation
-let osc = builder.add_oscillator(freq, waveform, Some(modulator_id));
-let gain = builder.add_gain_with_modulation(level, Some(modulator_id));
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Create LFO
+let lfo = builder.add_lfo(6.0, 1.0, None);
+
+// Create oscillator and gain
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+
+// Audio connection
+builder.connect(osc, 0, gain, 0);
+
+// Modulation connection (source, target, parameter_name)
+builder.modulate(lfo, gain, "level");
 ```
 
 ## Combining Modulators
@@ -56,13 +74,40 @@ let gain = builder.add_gain_with_modulation(level, Some(modulator_id));
 Layer multiple modulation sources:
 
 ```rust
-// Slow sweep
-let slow_lfo = builder.add_lfo(0.1, Waveform::Sine);
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
-// Fast vibrato
-let fast_lfo = builder.add_lfo(6.0, Waveform::Sine);
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-// Use for different parameters
-let osc = builder.add_oscillator(440.0, Waveform::Sine, Some(fast_lfo));
-let gain = builder.add_gain_with_modulation(-6.0, Some(slow_lfo));
+// Slow sweep for amplitude
+let slow_lfo = builder.add_lfo(0.1, 0.5, None);
+
+// Fast vibrato for pitch
+let fast_lfo = builder.add_lfo(6.0, 0.3, None);
+
+// Oscillator with vibrato
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+builder.modulate(fast_lfo, osc, "frequency");
+
+// Gain with tremolo
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+builder.connect(osc, 0, gain, 0);
+builder.modulate(slow_lfo, gain, "level");
 ```
+
+## Modulatable Parameters
+
+Common parameters that can be modulated:
+
+| Block | Parameter | Effect |
+|-------|-----------|--------|
+| Oscillator | "frequency" | Vibrato |
+| Oscillator | "pitch_offset" | Pitch shift |
+| Gain | "level" | Tremolo |
+| Panner | "position" | Auto-pan |
+| LowPassFilter | "cutoff" | Filter sweep |
+| Overdrive | "drive" | Drive intensity |

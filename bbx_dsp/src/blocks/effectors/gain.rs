@@ -1,5 +1,8 @@
 //! Gain control block with dB input.
 
+#[cfg(feature = "simd")]
+use bbx_core::simd::apply_gain;
+
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
@@ -69,13 +72,27 @@ impl<S: Sample> Block<S> for GainBlock<S> {
         // Fast path: constant gain when not smoothing
         if !self.gain_smoother.is_smoothing() {
             let gain = self.gain_smoother.current().to_f64();
-            for ch in 0..num_channels {
-                let len = inputs[ch].len().min(outputs[ch].len());
-                for i in 0..len {
-                    outputs[ch][i] = S::from_f64(inputs[ch][i].to_f64() * gain);
+
+            #[cfg(feature = "simd")]
+            {
+                let gain_s = S::from_f64(gain);
+                for ch in 0..num_channels {
+                    let len = inputs[ch].len().min(outputs[ch].len());
+                    apply_gain(&inputs[ch][..len], &mut outputs[ch][..len], gain_s);
                 }
+                return;
             }
-            return;
+
+            #[cfg(not(feature = "simd"))]
+            {
+                for ch in 0..num_channels {
+                    let len = inputs[ch].len().min(outputs[ch].len());
+                    for i in 0..len {
+                        outputs[ch][i] = S::from_f64(inputs[ch][i].to_f64() * gain);
+                    }
+                }
+                return;
+            }
         }
 
         // Smoothing path: compute smoothed values once, apply to all channels

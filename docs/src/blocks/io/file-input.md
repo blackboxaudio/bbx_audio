@@ -31,27 +31,31 @@ let file_in = builder.add_file_input(Box::new(reader));
 ### Basic File Playback
 
 ```rust
+use bbx_dsp::{block::BlockType, blocks::GainBlock, graph::GraphBuilder};
+
 let reader = WavFileReader::from_path("audio.wav")?;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let file_in = builder.add_file_input(Box::new(reader));
 
 // Process through effects
-let gain = builder.add_gain(-6.0);
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 builder.connect(file_in, 0, gain, 0);
 ```
 
 ### Stereo File
 
 ```rust
+use bbx_dsp::{block::BlockType, blocks::{GainBlock, PannerBlock}, graph::GraphBuilder};
+
 let reader = WavFileReader::from_path("stereo.wav")?;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let file_in = builder.add_file_input(Box::new(reader));
 
 // Connect both channels
-let gain = builder.add_gain(-6.0);
-let pan = builder.add_panner(0.0);
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
 
 // Left channel
 builder.connect(file_in, 0, gain, 0);

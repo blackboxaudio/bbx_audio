@@ -10,7 +10,14 @@ pub trait PluginDsp: Default + Send + 'static {
     fn prepare(&mut self, context: &DspContext);
     fn reset(&mut self);
     fn apply_parameters(&mut self, params: &[f32]);
-    fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], context: &DspContext);
+    fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]],
+               midi_events: &[MidiEvent], context: &DspContext);
+
+    // Optional MIDI callbacks (default no-ops, suitable for effects)
+    fn note_on(&mut self, note: u8, velocity: u8, sample_offset: u32) {}
+    fn note_off(&mut self, note: u8, sample_offset: u32) {}
+    fn control_change(&mut self, cc: u8, value: u8, sample_offset: u32) {}
+    fn pitch_bend(&mut self, value: i16, sample_offset: u32) {}
 }
 ```
 
@@ -75,19 +82,37 @@ fn apply_parameters(&mut self, params: &[f32]) {
 
 ### process()
 
-Process audio through your DSP chain.
+Process audio through your DSP chain with MIDI events.
 
 ```rust
 fn process(
     &mut self,
     inputs: &[&[f32]],
     outputs: &mut [&mut [f32]],
+    midi_events: &[MidiEvent],
     context: &DspContext,
 ) {
     // inputs[channel][sample] - Input audio
     // outputs[channel][sample] - Output audio (write here)
+    // midi_events - MIDI events sorted by sample_offset
 
-    // Example: copy input to output with gain
+    // Handle MIDI (for synthesizers)
+    for event in midi_events {
+        match event.message.get_status() {
+            MidiMessageStatus::NoteOn => {
+                let note = event.message.get_note().unwrap();
+                let vel = event.message.get_velocity().unwrap();
+                self.note_on(note, vel, event.sample_offset);
+            }
+            MidiMessageStatus::NoteOff => {
+                let note = event.message.get_note().unwrap();
+                self.note_off(note, event.sample_offset);
+            }
+            _ => {}
+        }
+    }
+
+    // Process audio
     for ch in 0..context.num_channels {
         for i in 0..context.buffer_size {
             outputs[ch][i] = inputs[ch][i] * self.gain.multiplier();
@@ -101,6 +126,7 @@ fn process(
 ```rust
 use bbx_plugin::{PluginDsp, DspContext, bbx_plugin_ffi};
 use bbx_plugin::blocks::{GainBlock, PannerBlock, DcBlockerBlock};
+use bbx_midi::MidiEvent;
 
 // Parameter indices (generated or manual)
 const PARAM_GAIN: usize = 0;
@@ -148,6 +174,7 @@ impl PluginDsp for PluginGraph {
         &mut self,
         inputs: &[&[f32]],
         outputs: &mut [&mut [f32]],
+        _midi_events: &[MidiEvent],
         context: &DspContext,
     ) {
         let num_channels = context.num_channels.min(inputs.len()).min(outputs.len());

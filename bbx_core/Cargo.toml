@@ -14,6 +14,7 @@ categories = ["multimedia::audio", "data-structures", "no-std"]
 [features]
 default = []
 ftz-daz = []
+simd = []
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }

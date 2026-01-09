@@ -42,6 +42,8 @@ Update the version in the root `README.md`:
 [![Version: v0.2.0](https://img.shields.io/badge/Version-v0.2.0-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
 ```
 
+Manually scan through the `docs/` directory and other documentation files to ensure all version references are updated accordingly.
+
 ### 3. Update Changelog
 
 Generate changelog entries:
@@ -73,35 +75,40 @@ git commit -m "chore(release): prepare v0.2.0"
 git push origin release/v0.2.0
 ```
 
-### 6. Create Pull Request to Main
+### 6. Create Pull Request to Develop
 
-1. Create PR: `release/v0.2.0` -> `main`
+1. Create PR: `release/v0.2.0` -> `develop`
 2. Title: `chore(release): v0.2.0`
 3. Wait for CI to pass
 4. Get approval and merge (squash merge)
 
-### 7. Create and Push Tag
+### 7. Automated: Tag Creation
 
-```bash
-git checkout main
-git pull origin main
-git tag v0.2.0
-git push origin v0.2.0
-```
+When the release PR is merged to `develop`, the CI automatically:
 
-### 8. Merge Back to Develop
+1. Extracts the version from the branch name (`release/v0.2.0` → `v0.2.0`)
+2. Verifies the version matches `Cargo.toml`
+3. Creates and pushes the git tag
 
-```bash
-git checkout develop
-git merge main
-git push origin develop
-```
+This triggers the publish workflow.
+
+### 8. Automated: Sync Main PR
+
+The CI also automatically creates a PR to sync `develop` → `main`:
+
+1. PR is created with title: `chore: sync main with v0.2.0 release`
+2. Review and merge the PR (can be fast-forward if main hasn't diverged)
 
 ## What Happens Automatically
 
+When a `release/v*` PR is merged to `develop`:
+
+1. **Create tag job** extracts version, verifies Cargo.toml, creates and pushes the tag
+2. **Sync main job** creates a PR from `develop` to `main`
+
 When the tag is pushed:
 
-1. **Validate job** runs tests and dry-run publish
+1. **Validate job** runs tests and verifies version
 2. **Publish job** publishes crates to crates.io in dependency order
 3. **GitHub Release** is created with auto-generated changelog
 

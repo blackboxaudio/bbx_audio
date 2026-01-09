@@ -1,5 +1,7 @@
 //! State Variable Filter (SVF) based low-pass filter block.
 
+use bbx_core::flush_denormal_f64;
+
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
@@ -95,8 +97,8 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
                 output[i] = S::from_f64(v2);
             }
 
-            self.ic1eq[ch] = ic1;
-            self.ic2eq[ch] = ic2;
+            self.ic1eq[ch] = flush_denormal_f64(ic1);
+            self.ic2eq[ch] = flush_denormal_f64(ic2);
         }
     }
 

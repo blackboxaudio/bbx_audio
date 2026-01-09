@@ -40,6 +40,7 @@
 # Crate Reference
 
 - [bbx_core](crates/bbx-core.md)
+    - [Sample Trait](crates/core/sample.md)
     - [Denormal Handling](crates/core/denormal.md)
     - [SPSC Ring Buffer](crates/core/spsc.md)
     - [Stack Vector](crates/core/stack-vec.md)
@@ -56,7 +57,6 @@
     - [Graph and GraphBuilder](crates/dsp/graph.md)
     - [Block Trait](crates/dsp/block-trait.md)
     - [BlockType Enum](crates/dsp/block-type.md)
-    - [Sample Trait](crates/dsp/sample.md)
     - [DspContext](crates/dsp/context.md)
     - [Parameter System](crates/dsp/parameters.md)
 - [bbx_plugin](crates/bbx-plugin.md)
@@ -109,7 +109,7 @@
 - [Performance Considerations](architecture/performance.md)
     - [Zero-Allocation Processing](architecture/zero-allocation.md)
     - [Cache Efficiency](architecture/cache-efficiency.md)
-    - [SIMD Opportunities](architecture/simd.md)
+    - [SIMD Optimizations](architecture/simd.md)
 
 # Contributing
 
@@ -117,6 +117,7 @@
 - [Code Style](contributing/code-style.md)
 - [Adding New Blocks](contributing/new-blocks.md)
 - [Testing](contributing/testing.md)
+- [Benchmarking](contributing/benchmarking.md)
 - [Release Process](contributing/releasing.md)
 
 # Appendix

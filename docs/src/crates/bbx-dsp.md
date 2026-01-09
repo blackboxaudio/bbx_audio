@@ -25,21 +25,26 @@ bbx_dsp = "0.1"
 | [Graph](dsp/graph.md) | Block graph and builder |
 | [Block Trait](dsp/block-trait.md) | Interface for DSP blocks |
 | [BlockType](dsp/block-type.md) | Enum wrapping all blocks |
-| [Sample](dsp/sample.md) | Generic sample type trait |
+| Sample | Re-exported from [bbx_core](bbx-core.md) |
 | [DspContext](dsp/context.md) | Processing context |
 | [Parameters](dsp/parameters.md) | Modulation system |
 
 ## Quick Example
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 // Create a graph: 44.1kHz, 512 samples, stereo
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Add blocks
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_gain(-6.0);
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 
 // Connect: oscillator -> gain
 builder.connect(osc, 0, gain, 0);

@@ -9,31 +9,23 @@ Low-frequency oscillator for parameter modulation.
 ## Creating an LFO
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::graph::GraphBuilder;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let lfo = builder.add_lfo(
-    5.0,            // Rate in Hz
-    Waveform::Sine, // Waveform
-);
+// Parameters: frequency (Hz), depth (0.0-1.0), optional seed
+let lfo = builder.add_lfo(5.0, 0.5, None);
 ```
 
 ## Parameters
 
 | Parameter | Type | Range | Default |
 |-----------|------|-------|---------|
-| Rate | f64 | 0.01 - 100 Hz | 1.0 |
-| Waveform | enum | See below | Sine |
+| frequency | f64 | 0.01 - max* | 1.0 |
+| depth | f64 | 0.0 - 1.0 | 1.0 |
+| seed | Option\<u64\> | Any | None |
 
-## Waveforms
-
-| Waveform | Output Range | Character |
-|----------|--------------|-----------|
-| Sine | -1.0 to 1.0 | Smooth, natural |
-| Triangle | -1.0 to 1.0 | Linear sweeps |
-| Square | -1.0 and 1.0 | On/off switching |
-| Saw | -1.0 to 1.0 | Ramp up, reset |
+*Max frequency is `sample_rate / (2 * buffer_size)` due to control-rate operation (~43 Hz at 44.1 kHz with 512-sample buffers).
 
 ## Port Layout
 
@@ -41,27 +33,81 @@ let lfo = builder.add_lfo(
 |------|-----------|-------------|
 | 0 | Modulation Output | Control signal |
 
+## Modulation Output
+
+The LFO output ranges from -1.0 to 1.0 (scaled by depth). The receiving block interprets this:
+
+- **Pitch**: Maps to frequency deviation
+- **Amplitude**: Maps to gain change
+- **Pan**: Maps to position change
+
 ## Usage Examples
 
 ### Vibrato (Pitch Modulation)
 
 ```rust
-let lfo = builder.add_lfo(5.0, Waveform::Sine);
-let osc = builder.add_oscillator(440.0, Waveform::Sine, Some(lfo));
+use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// LFO for vibrato (5 Hz, moderate depth)
+let lfo = builder.add_lfo(5.0, 0.3, None);
+
+// Oscillator
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+
+// Modulate oscillator frequency
+builder.modulate(lfo, osc, "frequency");
 ```
 
 ### Tremolo (Amplitude Modulation)
 
 ```rust
-let lfo = builder.add_lfo(6.0, Waveform::Sine);
-let gain = builder.add_gain_with_modulation(-6.0, Some(lfo));
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+
+// LFO for tremolo (6 Hz, full depth)
+let lfo = builder.add_lfo(6.0, 1.0, None);
+
+// Gain block
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+builder.connect(osc, 0, gain, 0);
+
+// Modulate gain level
+builder.modulate(lfo, gain, "level");
 ```
 
 ### Auto-Pan
 
 ```rust
-let lfo = builder.add_lfo(0.25, Waveform::Sine);  // Slow
-let pan = builder.add_panner_with_modulation(0.0, Some(lfo));
+use bbx_dsp::{
+    block::BlockType,
+    blocks::PannerBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+
+// Slow LFO for pan sweep
+let lfo = builder.add_lfo(0.25, 1.0, None);
+
+// Panner
+let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
+builder.connect(osc, 0, pan, 0);
+
+// Modulate pan position
+builder.modulate(lfo, pan, "position");
 ```
 
 ## Rate Guidelines
@@ -74,16 +120,9 @@ let pan = builder.add_panner_with_modulation(0.0, Some(lfo));
 | Wobble bass | 1-4 Hz |
 | Sweep | 0.05-0.5 Hz |
 
-## Output Scaling
-
-LFO output is -1.0 to 1.0. The receiving block interprets this:
-
-- **Pitch**: Maps to frequency deviation
-- **Amplitude**: Maps to gain change
-- **Pan**: Maps to position change
-
 ## Implementation Notes
 
-- Generates per-block (not per-sample)
+- Generates per-block (control-rate, not per-sample)
 - Phase is continuous across blocks
-- Rate can be modulated (for complex modulation)
+- Waveform is fixed to Sine
+- Uses deterministic random when seed is provided

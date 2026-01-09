@@ -2,12 +2,16 @@
 
 use bbx_core::random::XorShiftRng;
 
+#[cfg(feature = "simd")]
+use crate::sample::SIMD_LANES;
+#[cfg(feature = "simd")]
+use crate::waveform::generate_waveform_samples_simd_generic;
 use crate::{
     block::{Block, DEFAULT_GENERATOR_INPUT_COUNT, DEFAULT_GENERATOR_OUTPUT_COUNT},
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
-    waveform::{DEFAULT_DUTY_CYCLE, Waveform, generate_waveform_sample},
+    waveform::{Waveform, process_waveform_scalar},
 };
 
 /// A waveform oscillator for generating audio signals.
@@ -96,14 +100,69 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
 
         let phase_increment = freq.to_f64() / context.sample_rate * std::f64::consts::TAU;
 
-        for sample_index in 0..context.buffer_size {
-            let sample_value = generate_waveform_sample(self.waveform, self.phase, DEFAULT_DUTY_CYCLE, &mut self.rng);
-            outputs[0][sample_index] = S::from_f64(sample_value);
-            self.phase += phase_increment;
+        #[cfg(feature = "simd")]
+        {
+            use crate::waveform::DEFAULT_DUTY_CYCLE;
+
+            if !matches!(self.waveform, Waveform::Noise) {
+                let buffer_size = context.buffer_size;
+                let chunks = buffer_size / SIMD_LANES;
+                let remainder_start = chunks * SIMD_LANES;
+                let chunk_phase_step = phase_increment * SIMD_LANES as f64;
+
+                let base_phase = S::simd_splat(S::from_f64(self.phase));
+                let sample_inc_simd = S::simd_splat(S::from_f64(phase_increment));
+                let mut phases = base_phase + S::simd_lane_offsets() * sample_inc_simd;
+                let chunk_inc_simd = S::simd_splat(S::from_f64(chunk_phase_step));
+                let duty = S::from_f64(DEFAULT_DUTY_CYCLE);
+                let two_pi = S::simd_splat(S::from_f64(std::f64::consts::TAU));
+                let inv_two_pi = S::simd_splat(S::from_f64(1.0 / std::f64::consts::TAU));
+
+                for chunk_idx in 0..chunks {
+                    if let Some(samples) =
+                        generate_waveform_samples_simd_generic::<S>(self.waveform, phases, duty, two_pi, inv_two_pi)
+                    {
+                        let base = chunk_idx * SIMD_LANES;
+                        outputs[0][base..base + SIMD_LANES].copy_from_slice(&samples);
+                    }
+
+                    phases = phases + chunk_inc_simd;
+                }
+
+                self.phase += chunk_phase_step * chunks as f64;
+                self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
+
+                process_waveform_scalar(
+                    &mut outputs[0][remainder_start..],
+                    self.waveform,
+                    &mut self.phase,
+                    phase_increment,
+                    &mut self.rng,
+                    1.0,
+                );
+            } else {
+                process_waveform_scalar(
+                    outputs[0],
+                    self.waveform,
+                    &mut self.phase,
+                    phase_increment,
+                    &mut self.rng,
+                    1.0,
+                );
+            }
         }
 
-        // Wrap phase using modulo for efficiency (avoids while loop with extreme frequencies)
-        self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
+        #[cfg(not(feature = "simd"))]
+        {
+            process_waveform_scalar(
+                outputs[0],
+                self.waveform,
+                &mut self.phase,
+                phase_increment,
+                &mut self.rng,
+                1.0,
+            );
+        }
     }
 
     #[inline]

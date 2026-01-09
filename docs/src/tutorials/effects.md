@@ -9,18 +9,24 @@ This tutorial covers the effect blocks available in bbx_audio.
 - `OverdriveBlock` - Soft-clipping distortion
 - `DcBlockerBlock` - DC offset removal
 - `ChannelRouterBlock` - Channel routing/manipulation
+- `LowPassFilterBlock` - SVF-based low-pass filter
 
 ## GainBlock
 
 Control signal level in decibels:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_gain(-6.0);  // -6 dB (half amplitude)
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));  // -6 dB
 
 builder.connect(osc, 0, gain, 0);
 
@@ -38,12 +44,17 @@ Common gain values:
 Position audio in the stereo field:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::PannerBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let pan = builder.add_panner(0.0);  // Center
+let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));  // Center
 
 builder.connect(osc, 0, pan, 0);
 
@@ -51,9 +62,9 @@ let graph = builder.build();
 ```
 
 Pan values:
-- `-1.0` = Hard left
+- `-100.0` = Hard left
 - `0.0` = Center
-- `+1.0` = Hard right
+- `+100.0` = Hard right
 
 The panner uses constant-power panning for natural-sounding transitions.
 
@@ -68,11 +79,11 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 
-// Overdrive with drive amount, input gain, output gain
+// Overdrive with drive, level, tone, sample_rate
 let overdrive = builder.add_overdrive(
     5.0,      // Drive amount (higher = more distortion)
-    1.0,      // Input gain
-    0.7,      // Output gain (compensate for level increase)
+    1.0,      // Output level
+    0.7,      // Tone (0.0-1.0, higher = brighter)
     44100.0   // Sample rate
 );
 
@@ -86,12 +97,17 @@ let graph = builder.build();
 Remove DC offset from signals:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::DcBlockerBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let dc_blocker = builder.add_dc_blocker();
+let dc_blocker = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
 
 builder.connect(osc, 0, dc_blocker, 0);
 
@@ -108,7 +124,12 @@ Use DC blockers after:
 Chain multiple effects together:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{DcBlockerBlock, GainBlock, PannerBlock},
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -117,9 +138,9 @@ let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
 
 // Effect chain
 let overdrive = builder.add_overdrive(3.0, 1.0, 0.8, 44100.0);
-let dc_blocker = builder.add_dc_blocker();
-let gain = builder.add_gain(-6.0);
-let pan = builder.add_panner(0.0);
+let dc_blocker = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
 
 // Connect: Osc -> Overdrive -> DC Blocker -> Gain -> Pan
 builder.connect(osc, 0, overdrive, 0);
@@ -135,18 +156,23 @@ let graph = builder.build();
 Route signals to multiple effects in parallel:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
 
 // Two parallel paths
-let clean_gain = builder.add_gain(-6.0);
+let clean_gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 let dirty_overdrive = builder.add_overdrive(8.0, 1.0, 0.5, 44100.0);
 
 // Mix them back together
-let mix = builder.add_gain(-3.0);
+let mix = builder.add_block(BlockType::Gain(GainBlock::new(-3.0)));
 
 // Split to both paths
 builder.connect(osc, 0, clean_gain, 0);
@@ -172,7 +198,7 @@ General guidelines:
 1. **Gain staging** - Control levels before distortion
 2. **Distortion** - Apply saturation
 3. **DC blocking** - Remove offset after distortion
-4. **EQ/Filtering** - Shape the tone (when available)
+4. **EQ/Filtering** - Shape the tone
 5. **Panning** - Position in stereo field
 6. **Final gain** - Set output level
 

@@ -10,15 +10,18 @@ pub trait PluginDsp: Default + Send + 'static {
     fn prepare(&mut self, context: &DspContext);
     fn reset(&mut self);
     fn apply_parameters(&mut self, params: &[f32]);
-    fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]], midi_events: &[MidiEvent], context: &DspContext);
+    fn process(&mut self, inputs: &[&[f32]], outputs: &mut [&mut [f32]],
+               midi_events: &[MidiEvent], context: &DspContext);
 
-    // Optional MIDI callbacks (default no-ops)
-    fn note_on(&mut self, _note: u8, _velocity: u8) {}
-    fn note_off(&mut self, _note: u8) {}
-    fn control_change(&mut self, _cc: u8, _value: u8) {}
-    fn pitch_bend(&mut self, _value: i16) {}
+    // Optional MIDI callbacks with sample-accurate timing (default no-ops)
+    fn note_on(&mut self, note: u8, velocity: u8, sample_offset: u32) {}
+    fn note_off(&mut self, note: u8, sample_offset: u32) {}
+    fn control_change(&mut self, cc: u8, value: u8, sample_offset: u32) {}
+    fn pitch_bend(&mut self, value: i16, sample_offset: u32) {}
 }
 ```
+
+The `sample_offset` parameter in MIDI callbacks indicates the sample position within the current buffer where the event occurs, enabling sample-accurate MIDI timing.
 
 ## Trait Bounds
 
