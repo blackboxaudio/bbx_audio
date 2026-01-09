@@ -110,22 +110,23 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                 let remainder_start = chunks * SIMD_LANES;
                 let inc_lanes = phase_increment * SIMD_LANES as f64;
 
-                for chunk_idx in 0..chunks {
-                    // Build phase array in f64, then convert to S::Simd
-                    let phase_arr: [S; SIMD_LANES] = [
-                        S::from_f64(self.phase),
-                        S::from_f64(self.phase + phase_increment),
-                        S::from_f64(self.phase + phase_increment * 2.0),
-                        S::from_f64(self.phase + phase_increment * 3.0),
-                    ];
-                    let phases = S::simd_from_slice(&phase_arr);
-                    let duty = S::from_f64(DEFAULT_DUTY_CYCLE);
+                let phase_arr: [S; SIMD_LANES] = [
+                    S::from_f64(self.phase),
+                    S::from_f64(self.phase + phase_increment),
+                    S::from_f64(self.phase + phase_increment * 2.0),
+                    S::from_f64(self.phase + phase_increment * 3.0),
+                ];
+                let mut phases = S::simd_from_slice(&phase_arr);
+                let inc_simd = S::simd_splat(S::from_f64(inc_lanes));
+                let duty = S::from_f64(DEFAULT_DUTY_CYCLE);
 
+                for chunk_idx in 0..chunks {
                     if let Some(samples) = generate_waveform_samples_simd_generic::<S>(self.waveform, phases, duty) {
                         let base = chunk_idx * SIMD_LANES;
                         outputs[0][base..base + SIMD_LANES].copy_from_slice(&samples);
                     }
 
+                    phases = phases + inc_simd;
                     self.phase += inc_lanes;
                 }
 
