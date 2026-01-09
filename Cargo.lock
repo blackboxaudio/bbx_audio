@@ -241,6 +241,7 @@ dependencies = [
 name = "bbx_midi"
 version = "0.3.0"
 dependencies = [
+ "bbx_core",
  "midir",
 ]
 
