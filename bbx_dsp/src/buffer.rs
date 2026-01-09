@@ -5,29 +5,11 @@
 
 use std::ops::{Index, IndexMut};
 
-#[cfg(feature = "simd")]
-use bbx_core::simd;
-
 use crate::sample::Sample;
 
 #[cfg(feature = "simd")]
-pub(crate) fn fill_f32(slice: &mut [f32], value: f32) {
-    simd::fill_f32(slice, value);
-}
-
-#[cfg(feature = "simd")]
-pub(crate) fn fill_f64(slice: &mut [f64], value: f64) {
-    simd::fill_f64(slice, value);
-}
-
-#[cfg(feature = "simd")]
-pub(crate) fn apply_gain_f32(input: &[f32], output: &mut [f32], gain: f32) {
-    simd::apply_gain_f32(input, output, gain);
-}
-
-#[cfg(feature = "simd")]
 pub(crate) fn apply_gain_f64(input: &[f64], output: &mut [f64], gain: f64) {
-    simd::apply_gain_f64(input, output, gain);
+    bbx_core::simd::apply_gain_f64(input, output, gain);
 }
 
 /// A generic buffer interface for DSP operations.

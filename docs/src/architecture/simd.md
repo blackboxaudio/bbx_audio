@@ -50,6 +50,7 @@ The following blocks use SIMD when the feature is enabled:
 | `OscillatorBlock` | Vectorized waveform generation (4 samples at a time) |
 | `LfoBlock` | Vectorized modulation signal generation |
 | `GainBlock` | Vectorized gain application |
+| `PannerBlock` | Vectorized sin/cos gain calculation |
 
 ## Feature Propagation
 

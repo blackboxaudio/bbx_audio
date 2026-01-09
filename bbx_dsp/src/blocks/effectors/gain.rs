@@ -1,7 +1,7 @@
 //! Gain control block with dB input.
 
 #[cfg(feature = "simd")]
-use crate::buffer::{apply_gain_f32, apply_gain_f64};
+use crate::buffer::apply_gain_f64;
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
@@ -74,24 +74,20 @@ impl<S: Sample> Block<S> for GainBlock<S> {
 
             #[cfg(feature = "simd")]
             {
-                use std::any::TypeId;
+                for ch in 0..num_channels {
+                    let len = inputs[ch].len().min(outputs[ch].len()).min(MAX_BUFFER_SIZE);
 
-                if TypeId::of::<S>() == TypeId::of::<f32>() {
-                    let gain_f32 = gain as f32;
-                    for ch in 0..num_channels {
-                        let len = inputs[ch].len().min(outputs[ch].len());
-                        let input_f32 = unsafe { std::slice::from_raw_parts(inputs[ch].as_ptr() as *const f32, len) };
-                        let output_f32 =
-                            unsafe { std::slice::from_raw_parts_mut(outputs[ch].as_mut_ptr() as *mut f32, len) };
-                        apply_gain_f32(input_f32, output_f32, gain_f32);
+                    let mut input_temp: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
+                    let mut output_temp: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
+
+                    for i in 0..len {
+                        input_temp[i] = inputs[ch][i].to_f64();
                     }
-                } else if TypeId::of::<S>() == TypeId::of::<f64>() {
-                    for ch in 0..num_channels {
-                        let len = inputs[ch].len().min(outputs[ch].len());
-                        let input_f64 = unsafe { std::slice::from_raw_parts(inputs[ch].as_ptr() as *const f64, len) };
-                        let output_f64 =
-                            unsafe { std::slice::from_raw_parts_mut(outputs[ch].as_mut_ptr() as *mut f64, len) };
-                        apply_gain_f64(input_f64, output_f64, gain);
+
+                    apply_gain_f64(&input_temp[..len], &mut output_temp[..len], gain);
+
+                    for i in 0..len {
+                        outputs[ch][i] = S::from_f64(output_temp[i]);
                     }
                 }
                 return;
