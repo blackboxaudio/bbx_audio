@@ -91,15 +91,17 @@ pub(crate) fn process_waveform_scalar<S: Sample>(
 ///
 /// This version works with any `Sample` type, using f32x4 for f32 and f64x4 for f64.
 /// Returns `None` for Noise waveform (requires sequential RNG).
+///
+/// The `two_pi` and `inv_two_pi` parameters should be pre-computed once per process()
+/// call to avoid redundant SIMD splat operations in the hot loop.
 #[cfg(feature = "simd")]
 pub(crate) fn generate_waveform_samples_simd_generic<S: Sample>(
     waveform: Waveform,
     phases: S::Simd,
     duty_cycle: S,
+    two_pi: S::Simd,
+    inv_two_pi: S::Simd,
 ) -> Option<[S; SIMD_LANES]> {
-    let two_pi = S::simd_splat(S::from_f64(TWO_PI));
-    let inv_two_pi = S::simd_splat(S::from_f64(INV_TWO_PI));
-
     match waveform {
         Waveform::Sine => Some(S::simd_to_array(phases.sin())),
 

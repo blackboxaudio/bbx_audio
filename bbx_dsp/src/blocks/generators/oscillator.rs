@@ -108,28 +108,28 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                 let buffer_size = context.buffer_size;
                 let chunks = buffer_size / SIMD_LANES;
                 let remainder_start = chunks * SIMD_LANES;
-                let inc_lanes = phase_increment * SIMD_LANES as f64;
+                let chunk_phase_step = phase_increment * SIMD_LANES as f64;
 
-                let phase_arr: [S; SIMD_LANES] = [
-                    S::from_f64(self.phase),
-                    S::from_f64(self.phase + phase_increment),
-                    S::from_f64(self.phase + phase_increment * 2.0),
-                    S::from_f64(self.phase + phase_increment * 3.0),
-                ];
-                let mut phases = S::simd_from_slice(&phase_arr);
-                let inc_simd = S::simd_splat(S::from_f64(inc_lanes));
+                let base_phase = S::simd_splat(S::from_f64(self.phase));
+                let sample_inc_simd = S::simd_splat(S::from_f64(phase_increment));
+                let mut phases = base_phase + S::simd_lane_offsets() * sample_inc_simd;
+                let chunk_inc_simd = S::simd_splat(S::from_f64(chunk_phase_step));
                 let duty = S::from_f64(DEFAULT_DUTY_CYCLE);
+                let two_pi = S::simd_splat(S::from_f64(std::f64::consts::TAU));
+                let inv_two_pi = S::simd_splat(S::from_f64(1.0 / std::f64::consts::TAU));
 
                 for chunk_idx in 0..chunks {
-                    if let Some(samples) = generate_waveform_samples_simd_generic::<S>(self.waveform, phases, duty) {
+                    if let Some(samples) =
+                        generate_waveform_samples_simd_generic::<S>(self.waveform, phases, duty, two_pi, inv_two_pi)
+                    {
                         let base = chunk_idx * SIMD_LANES;
                         outputs[0][base..base + SIMD_LANES].copy_from_slice(&samples);
                     }
 
-                    phases = phases + inc_simd;
-                    self.phase += inc_lanes;
+                    phases = phases + chunk_inc_simd;
                 }
 
+                self.phase += chunk_phase_step * chunks as f64;
                 self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
 
                 process_waveform_scalar(

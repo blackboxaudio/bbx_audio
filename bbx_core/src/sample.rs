@@ -89,6 +89,10 @@ pub trait Sample:
     /// Returns `if_true[i]` where `a[i] < b[i]`, otherwise `if_false[i]`.
     #[cfg(feature = "simd")]
     fn simd_select_lt(a: Self::Simd, b: Self::Simd, if_true: Self::Simd, if_false: Self::Simd) -> Self::Simd;
+
+    /// Returns a SIMD vector with lane offsets [0.0, 1.0, 2.0, 3.0].
+    #[cfg(feature = "simd")]
+    fn simd_lane_offsets() -> Self::Simd;
 }
 
 impl Sample for f32 {
@@ -137,6 +141,12 @@ impl Sample for f32 {
     fn simd_select_lt(a: Self::Simd, b: Self::Simd, if_true: Self::Simd, if_false: Self::Simd) -> Self::Simd {
         a.simd_lt(b).select(if_true, if_false)
     }
+
+    #[cfg(feature = "simd")]
+    #[inline]
+    fn simd_lane_offsets() -> Self::Simd {
+        f32x4::from_array([0.0, 1.0, 2.0, 3.0])
+    }
 }
 
 impl Sample for f64 {
@@ -184,5 +194,11 @@ impl Sample for f64 {
     #[inline]
     fn simd_select_lt(a: Self::Simd, b: Self::Simd, if_true: Self::Simd, if_false: Self::Simd) -> Self::Simd {
         a.simd_lt(b).select(if_true, if_false)
+    }
+
+    #[cfg(feature = "simd")]
+    #[inline]
+    fn simd_lane_offsets() -> Self::Simd {
+        f64x4::from_array([0.0, 1.0, 2.0, 3.0])
     }
 }
