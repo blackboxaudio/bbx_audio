@@ -183,10 +183,14 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                         let phases_array = S::simd_to_array(phases);
                         let inv_tau = S::from_f64(1.0 / std::f64::consts::TAU);
                         let phases_normalized: [S; SIMD_LANES] = [
-                            (phases_array[0] * inv_tau) - S::from_f64((phases_array[0].to_f64() / std::f64::consts::TAU).floor()),
-                            (phases_array[1] * inv_tau) - S::from_f64((phases_array[1].to_f64() / std::f64::consts::TAU).floor()),
-                            (phases_array[2] * inv_tau) - S::from_f64((phases_array[2].to_f64() / std::f64::consts::TAU).floor()),
-                            (phases_array[3] * inv_tau) - S::from_f64((phases_array[3].to_f64() / std::f64::consts::TAU).floor()),
+                            (phases_array[0] * inv_tau)
+                                - S::from_f64((phases_array[0].to_f64() / std::f64::consts::TAU).floor()),
+                            (phases_array[1] * inv_tau)
+                                - S::from_f64((phases_array[1].to_f64() / std::f64::consts::TAU).floor()),
+                            (phases_array[2] * inv_tau)
+                                - S::from_f64((phases_array[2].to_f64() / std::f64::consts::TAU).floor()),
+                            (phases_array[3] * inv_tau)
+                                - S::from_f64((phases_array[3].to_f64() / std::f64::consts::TAU).floor()),
                         ];
 
                         let result = generate_waveform_samples_simd_antialiased::<S>(

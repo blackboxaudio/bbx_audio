@@ -10,10 +10,11 @@
 //! All functions are generic over the `Sample` trait for efficient f32/f64 processing.
 
 #[cfg(feature = "simd")]
+use std::simd::StdFloat;
+
+#[cfg(feature = "simd")]
 use crate::sample::SIMD_LANES;
 use crate::sample::Sample;
-#[cfg(feature = "simd")]
-use std::simd::StdFloat;
 
 /// Anti-aliasing mode for waveform generation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -155,9 +156,9 @@ pub fn polyblep_square<S: Sample>(phase: S, phase_inc: S) -> S {
     let half = S::from_f64(0.5);
     let naive = if phase < half { S::ONE } else { -S::ONE };
     let mut out = naive;
-    out = out + poly_blep(phase, phase_inc);
+    out += poly_blep(phase, phase_inc);
     let falling_phase = fract(phase + half);
-    out = out - poly_blep(falling_phase, phase_inc);
+    out -= poly_blep(falling_phase, phase_inc);
     out
 }
 
@@ -171,9 +172,9 @@ pub fn polyblep_square<S: Sample>(phase: S, phase_inc: S) -> S {
 pub fn polyblep_pulse<S: Sample>(phase: S, phase_inc: S, duty_cycle: S) -> S {
     let naive = if phase < duty_cycle { S::ONE } else { -S::ONE };
     let mut out = naive;
-    out = out + poly_blep(phase, phase_inc);
+    out += poly_blep(phase, phase_inc);
     let falling_phase = fract(phase - duty_cycle + S::ONE);
-    out = out - poly_blep(falling_phase, phase_inc);
+    out -= poly_blep(falling_phase, phase_inc);
     out
 }
 
@@ -196,8 +197,8 @@ pub fn polyblamp_triangle<S: Sample>(phase: S, phase_inc: S) -> S {
     };
 
     let mut out = naive;
-    out = out + eight * poly_blamp(phase, phase_inc);
-    out = out - eight * poly_blamp(fract(phase + half), phase_inc);
+    out += eight * poly_blamp(phase, phase_inc);
+    out -= eight * poly_blamp(fract(phase + half), phase_inc);
     out
 }
 
@@ -239,11 +240,7 @@ impl<S: Sample> PolyBlepState<S> {
 ///
 /// Uses branchless SIMD for efficient vectorized correction.
 #[cfg(feature = "simd")]
-pub fn apply_polyblep_saw<S: Sample>(
-    samples: &mut [S; SIMD_LANES],
-    phases: [S; SIMD_LANES],
-    phase_inc: S,
-) {
+pub fn apply_polyblep_saw<S: Sample>(samples: &mut [S; SIMD_LANES], phases: [S; SIMD_LANES], phase_inc: S) {
     let samples_simd = S::simd_from_slice(samples);
     let phases_simd = S::simd_from_slice(&phases);
     let phase_inc_simd = S::simd_splat(phase_inc);
@@ -256,11 +253,7 @@ pub fn apply_polyblep_saw<S: Sample>(
 ///
 /// Uses branchless SIMD for both rising (phase=0) and falling (phase=0.5) edges.
 #[cfg(feature = "simd")]
-pub fn apply_polyblep_square<S: Sample>(
-    samples: &mut [S; SIMD_LANES],
-    phases: [S; SIMD_LANES],
-    phase_inc: S,
-) {
+pub fn apply_polyblep_square<S: Sample>(samples: &mut [S; SIMD_LANES], phases: [S; SIMD_LANES], phase_inc: S) {
     let samples_simd = S::simd_from_slice(samples);
     let phases_simd = S::simd_from_slice(&phases);
     let phase_inc_simd = S::simd_splat(phase_inc);
@@ -308,11 +301,7 @@ pub fn apply_polyblep_pulse<S: Sample>(
 ///
 /// Uses branchless SIMD for slope changes at phase=0 and phase=0.5.
 #[cfg(feature = "simd")]
-pub fn apply_polyblamp_triangle<S: Sample>(
-    samples: &mut [S; SIMD_LANES],
-    phases: [S; SIMD_LANES],
-    phase_inc: S,
-) {
+pub fn apply_polyblamp_triangle<S: Sample>(samples: &mut [S; SIMD_LANES], phases: [S; SIMD_LANES], phase_inc: S) {
     let samples_simd = S::simd_from_slice(samples);
     let phases_simd = S::simd_from_slice(&phases);
     let phase_inc_simd = S::simd_splat(phase_inc);
@@ -348,12 +337,18 @@ mod tests {
 
         // Just after discontinuity (phase near 0)
         let correction_after = poly_blep(0.05, dt);
-        assert!(correction_after != 0.0, "Should have correction just after discontinuity");
+        assert!(
+            correction_after != 0.0,
+            "Should have correction just after discontinuity"
+        );
         assert!(correction_after < 0.0, "Correction should be negative just after");
 
         // Just before discontinuity (phase near 1)
         let correction_before = poly_blep(0.95, dt);
-        assert!(correction_before != 0.0, "Should have correction just before discontinuity");
+        assert!(
+            correction_before != 0.0,
+            "Should have correction just before discontinuity"
+        );
         assert!(correction_before > 0.0, "Correction should be positive just before");
     }
 
@@ -420,7 +415,10 @@ mod tests {
         // Just after falling edge at phase = 0.5
         let at_falling = polyblep_square(0.505, phase_inc);
         // Should be close to -1.0 but with some correction
-        assert!(at_falling < -0.5 && at_falling > -1.5, "Falling edge should be negative");
+        assert!(
+            at_falling < -0.5 && at_falling > -1.5,
+            "Falling edge should be negative"
+        );
 
         // Middle of high section (no edges nearby)
         let middle_high = polyblep_square(0.25, phase_inc);
@@ -444,17 +442,11 @@ mod tests {
 
         // Middle of high section (phase < duty_cycle, away from edges)
         let high = polyblep_pulse(0.125, phase_inc, duty_cycle);
-        assert!(
-            (high - 1.0).abs() < 1e-10,
-            "Should be 1.0 in high section"
-        );
+        assert!((high - 1.0).abs() < 1e-10, "Should be 1.0 in high section");
 
         // Middle of low section (phase > duty_cycle, away from edges)
         let low = polyblep_pulse(0.6, phase_inc, duty_cycle);
-        assert!(
-            (low - (-1.0)).abs() < 1e-10,
-            "Should be -1.0 in low section"
-        );
+        assert!((low - (-1.0)).abs() < 1e-10, "Should be -1.0 in low section");
     }
 
     #[test]
@@ -570,11 +562,11 @@ mod tests {
 
             // Test various phase combinations including near discontinuities
             let test_cases: [[f64; SIMD_LANES]; 5] = [
-                [0.25, 0.5, 0.75, 0.9],           // Middle phases (no correction)
-                [0.005, 0.5, 0.75, 0.995],        // Near discontinuities
-                [0.0, 0.01, 0.99, 1.0],           // At boundaries
-                [0.001, 0.002, 0.003, 0.004],     // All near start
-                [0.996, 0.997, 0.998, 0.999],     // All near end
+                [0.25, 0.5, 0.75, 0.9],       // Middle phases (no correction)
+                [0.005, 0.5, 0.75, 0.995],    // Near discontinuities
+                [0.0, 0.01, 0.99, 1.0],       // At boundaries
+                [0.001, 0.002, 0.003, 0.004], // All near start
+                [0.996, 0.997, 0.998, 0.999], // All near end
             ];
 
             for phases in test_cases {
@@ -714,10 +706,26 @@ mod tests {
 
             // Generate naive samples and apply SIMD correction
             let mut samples: [f64; SIMD_LANES] = [
-                if phases[0] < 0.5 { 4.0 * phases[0] - 1.0 } else { 3.0 - 4.0 * phases[0] },
-                if phases[1] < 0.5 { 4.0 * phases[1] - 1.0 } else { 3.0 - 4.0 * phases[1] },
-                if phases[2] < 0.5 { 4.0 * phases[2] - 1.0 } else { 3.0 - 4.0 * phases[2] },
-                if phases[3] < 0.5 { 4.0 * phases[3] - 1.0 } else { 3.0 - 4.0 * phases[3] },
+                if phases[0] < 0.5 {
+                    4.0 * phases[0] - 1.0
+                } else {
+                    3.0 - 4.0 * phases[0]
+                },
+                if phases[1] < 0.5 {
+                    4.0 * phases[1] - 1.0
+                } else {
+                    3.0 - 4.0 * phases[1]
+                },
+                if phases[2] < 0.5 {
+                    4.0 * phases[2] - 1.0
+                } else {
+                    3.0 - 4.0 * phases[2]
+                },
+                if phases[3] < 0.5 {
+                    4.0 * phases[3] - 1.0
+                } else {
+                    3.0 - 4.0 * phases[3]
+                },
             ];
             apply_polyblamp_triangle(&mut samples, phases, phase_inc);
 
