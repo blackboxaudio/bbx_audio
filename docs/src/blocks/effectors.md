@@ -7,6 +7,7 @@ Effector blocks process and transform audio signals.
 | Block | Description |
 |-------|-------------|
 | [GainBlock](effectors/gain.md) | Level control in dB |
+| [VcaBlock](effectors/vca.md) | Voltage controlled amplifier |
 | [PannerBlock](effectors/panner.md) | Stereo panning |
 | [OverdriveBlock](effectors/overdrive.md) | Soft-clipping distortion |
 | [DcBlockerBlock](effectors/dc-blocker.md) | DC offset removal |

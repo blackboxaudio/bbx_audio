@@ -8,5 +8,8 @@ publish = false
 bbx_dsp.workspace = true
 bbx_file.workspace = true
 bbx_midi = { workspace = true, features = ["streaming"] }
+
+ctrlc = "3.4"
+midir.workspace = true
 rand.workspace = true
 rodio.workspace = true

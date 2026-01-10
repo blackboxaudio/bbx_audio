@@ -57,32 +57,31 @@ fn handle_midi(data: &[u8]) {
 }
 ```
 
-## Message Buffer
+## Lock-Free MIDI Buffer
 
-Use `MidiMessageBuffer` for real-time message collection:
+For thread-safe communication between MIDI and audio threads, use the lock-free MIDI buffer:
 
 ```rust
-use bbx_midi::buffer::MidiMessageBuffer;
-use bbx_midi::message::MidiMessage;
+use bbx_midi::{midi_buffer, MidiMessage};
 
 fn main() {
-    // Create a buffer with capacity for 128 messages
-    let mut buffer = MidiMessageBuffer::new(128);
+    // Create producer/consumer pair
+    let (mut producer, mut consumer) = midi_buffer(64);
 
-    // Add messages (typically from MIDI input callback)
-    buffer.push(MidiMessage::note_on(0, 60, 100));
-    buffer.push(MidiMessage::note_on(0, 64, 100));
-    buffer.push(MidiMessage::note_on(0, 67, 100));
+    // MIDI thread: push messages
+    let msg = MidiMessage::new([0x90, 60, 100]);
+    producer.try_send(msg);
 
-    // Process messages
-    for message in buffer.iter() {
-        println!("{:?}", message);
+    // Audio thread: pop messages (realtime-safe)
+    while let Some(msg) = consumer.try_pop() {
+        println!("{:?}", msg);
     }
-
-    // Clear for next audio block
-    buffer.clear();
 }
 ```
+
+The buffer uses an SPSC ring buffer internally:
+- `MidiBufferProducer` for the MIDI input thread
+- `MidiBufferConsumer` for the audio thread (all operations are lock-free)
 
 ## MIDI to Frequency
 
@@ -238,5 +237,6 @@ fn main() {
 
 ## Next Steps
 
+- [Building a MIDI Synthesizer](07_midi_synth.md) - Complete real-time MIDI synth example
 - [JUCE Integration](../juce/overview.md) - Use MIDI in plugins
 - [DSP Graph Architecture](../architecture/graph-architecture.md) - Understand the system

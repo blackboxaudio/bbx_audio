@@ -14,7 +14,7 @@ use bbx_core::StackVec;
 use crate::{
     block::{BlockCategory, BlockId, BlockType},
     blocks::{
-        effectors::overdrive::OverdriveBlock,
+        effectors::{gain::GainBlock, low_pass_filter::LowPassFilterBlock, overdrive::OverdriveBlock, vca::VcaBlock},
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
         modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
@@ -156,6 +156,18 @@ impl<S: Sample> Graph<S> {
     #[inline]
     pub fn context(&self) -> &DspContext {
         &self.context
+    }
+
+    /// Get a reference to a block by its ID.
+    #[inline]
+    pub fn get_block(&self, id: BlockId) -> Option<&BlockType<S>> {
+        self.blocks.get(id.0)
+    }
+
+    /// Get a mutable reference to a block by its ID.
+    #[inline]
+    pub fn get_block_mut(&mut self, id: BlockId) -> Option<&mut BlockType<S>> {
+        self.blocks.get_mut(id.0)
     }
 
     /// Add an arbitrary block to the `Graph`.
@@ -449,6 +461,36 @@ impl<S: Sample> GraphBuilder<S> {
             tone,
             sample_rate,
         ));
+        self.graph.add_block(block)
+    }
+
+    /// Add a `VcaBlock` to the `Graph`.
+    ///
+    /// The VCA multiplies audio (input 0) by a control signal (input 1).
+    /// Typically used with an envelope for amplitude modulation.
+    pub fn add_vca(&mut self) -> BlockId {
+        let block = BlockType::Vca(VcaBlock::new());
+        self.graph.add_block(block)
+    }
+
+    /// Add a `GainBlock` to the `Graph`.
+    ///
+    /// Level is specified in decibels (dB), clamped to -80 to +30 dB.
+    pub fn add_gain(&mut self, level_db: f64) -> BlockId {
+        let block = BlockType::Gain(GainBlock::new(S::from_f64(level_db)));
+        self.graph.add_block(block)
+    }
+
+    /// Add a `LowPassFilterBlock` to the `Graph`.
+    ///
+    /// Uses SVF (State Variable Filter) topology for stable filtering.
+    ///
+    /// # Arguments
+    ///
+    /// * `cutoff` - Cutoff frequency in Hz (clamped to 20-20000 Hz)
+    /// * `resonance` - Q factor (clamped to 0.5-10.0, default 0.707 is Butterworth)
+    pub fn add_low_pass_filter(&mut self, cutoff: f64, resonance: f64) -> BlockId {
+        let block = BlockType::LowPassFilter(LowPassFilterBlock::new(S::from_f64(cutoff), S::from_f64(resonance)));
         self.graph.add_block(block)
     }
 

@@ -17,6 +17,7 @@
 - [Parameter Modulation with LFOs](tutorials/modulation.md)
 - [Working with Audio Files](tutorials/audio-files.md)
 - [MIDI Integration](tutorials/midi.md)
+- [Building a MIDI Synthesizer](tutorials/07_midi_synth.md)
 - [Real-Time Visualization](tutorials/visualization.md)
 - [Sketch Discovery](tutorials/sketchbook.md)
 
@@ -76,6 +77,7 @@
     - [OscillatorBlock](blocks/generators/oscillator.md)
 - [Effectors](blocks/effectors.md)
     - [GainBlock](blocks/effectors/gain.md)
+    - [VcaBlock](blocks/effectors/vca.md)
     - [PannerBlock](blocks/effectors/panner.md)
     - [OverdriveBlock](blocks/effectors/overdrive.md)
     - [DcBlockerBlock](blocks/effectors/dc-blocker.md)

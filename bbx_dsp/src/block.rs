@@ -7,7 +7,7 @@ use crate::{
     blocks::{
         effectors::{
             channel_router::ChannelRouterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock,
-            low_pass_filter::LowPassFilterBlock, overdrive::OverdriveBlock, panner::PannerBlock,
+            low_pass_filter::LowPassFilterBlock, overdrive::OverdriveBlock, panner::PannerBlock, vca::VcaBlock,
         },
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
@@ -112,6 +112,8 @@ pub enum BlockType<S: Sample> {
     Overdrive(OverdriveBlock<S>),
     /// Stereo panning with equal-power law.
     Panner(PannerBlock<S>),
+    /// Voltage controlled amplifier (multiplies audio by control signal).
+    Vca(VcaBlock<S>),
 
     // MODULATORS
     /// ADSR envelope generator.
@@ -146,6 +148,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::LowPassFilter(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Overdrive(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Panner(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::Vca(block) => block.process(inputs, outputs, modulation_values, context),
 
             // MODULATORS
             BlockType::Envelope(block) => block.process(inputs, outputs, modulation_values, context),
@@ -172,6 +175,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::LowPassFilter(block) => block.input_count(),
             BlockType::Overdrive(block) => block.input_count(),
             BlockType::Panner(block) => block.input_count(),
+            BlockType::Vca(block) => block.input_count(),
 
             // MODULATORS
             BlockType::Envelope(block) => block.input_count(),
@@ -198,6 +202,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::LowPassFilter(block) => block.output_count(),
             BlockType::Overdrive(block) => block.output_count(),
             BlockType::Panner(block) => block.output_count(),
+            BlockType::Vca(block) => block.output_count(),
 
             // MODULATORS
             BlockType::Envelope(block) => block.output_count(),
@@ -224,6 +229,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::LowPassFilter(block) => block.modulation_outputs(),
             BlockType::Overdrive(block) => block.modulation_outputs(),
             BlockType::Panner(block) => block.modulation_outputs(),
+            BlockType::Vca(block) => block.modulation_outputs(),
 
             // MODULATORS
             BlockType::Envelope(block) => block.modulation_outputs(),
@@ -291,6 +297,7 @@ impl<S: Sample> BlockType<S> {
                 }
                 _ => Err(format!("Unknown panner parameter: {parameter_name}")),
             },
+            BlockType::Vca(_) => Err("VCA has no modulated parameters".to_string()),
 
             // MODULATORS
             BlockType::Envelope(block) => match parameter_name.to_lowercase().as_str() {
@@ -349,7 +356,8 @@ impl<S: Sample> BlockType<S> {
             | BlockType::Gain(_)
             | BlockType::LowPassFilter(_)
             | BlockType::Overdrive(_)
-            | BlockType::Panner(_) => BlockCategory::Effector,
+            | BlockType::Panner(_)
+            | BlockType::Vca(_) => BlockCategory::Effector,
             BlockType::Envelope(_) | BlockType::Lfo(_) => BlockCategory::Modulator,
         }
     }
@@ -368,6 +376,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::LowPassFilter(_) => "Low Pass Filter",
             BlockType::Overdrive(_) => "Overdrive",
             BlockType::Panner(_) => "Panner",
+            BlockType::Vca(_) => "VCA",
             BlockType::Envelope(_) => "Envelope",
             BlockType::Lfo(_) => "LFO",
         }
@@ -392,7 +401,7 @@ impl<S: Sample> BlockType<S> {
                 }
             }
 
-            BlockType::ChannelRouter(_) | BlockType::DcBlocker(_) => {}
+            BlockType::ChannelRouter(_) | BlockType::DcBlocker(_) | BlockType::Vca(_) => {}
 
             BlockType::Gain(block) => {
                 if let Parameter::Modulated(id) = &block.level_db {
