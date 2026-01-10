@@ -16,4 +16,6 @@ default = []
 streaming = ["dep:midir"]
 
 [dependencies]
+bbx_core = { workspace = true }
+
 midir = { workspace = true, optional = true }

@@ -63,14 +63,14 @@ writer.finalize()?;
 ### With bbx_dsp
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{block::BlockType, blocks::GainBlock, graph::GraphBuilder};
 use bbx_file::readers::wav::WavFileReader;
 
 let reader = WavFileReader::<f32>::from_path("input.wav")?;
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let file_in = builder.add_file_input(Box::new(reader));
-let gain = builder.add_gain(-6.0);
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 
 builder.connect(file_in, 0, gain, 0);
 

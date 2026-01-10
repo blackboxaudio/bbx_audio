@@ -51,15 +51,15 @@ pub enum Parameter<S: Sample> {
 
 ## Routing Modulation
 
-Specify during graph construction:
+Use the `modulate()` method to connect modulators to parameters:
 
 ```rust
-let lfo = builder.add_lfo(5.0, Waveform::Sine);
-let osc = builder.add_oscillator(440.0, Waveform::Sine, Some(lfo));
-```
+// Create LFO (frequency, depth, seed)
+let lfo = builder.add_lfo(5.0, 0.5, None);
 
-Or explicitly:
+// Create oscillator
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 
-```rust
+// Connect modulation
 builder.modulate(lfo, osc, "frequency");
 ```

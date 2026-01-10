@@ -22,6 +22,8 @@ bbx_core = "0.1"
 
 | Feature | Description |
 |---------|-------------|
+| [Sample](core/sample.md) | Generic sample type trait with SIMD support |
+| [SIMD](../architecture/simd.md) | Vectorized DSP operations (feature-gated) |
 | [Denormal Handling](core/denormal.md) | Flush denormal floats to zero |
 | [SPSC Ring Buffer](core/spsc.md) | Lock-free producer-consumer queue |
 | [Stack Vector](core/stack-vec.md) | Fixed-capacity heap-free vector |

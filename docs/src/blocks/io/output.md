@@ -51,11 +51,18 @@ graph.process_buffers(&mut outputs);
 For complex routing, connect blocks explicitly:
 
 ```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{GainBlock, PannerBlock},
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_gain(-6.0);
-let pan = builder.add_panner(0.0);
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
 
 builder.connect(osc, 0, gain, 0);
 builder.connect(gain, 0, pan, 0);

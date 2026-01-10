@@ -13,6 +13,10 @@ bbx_dsp = "0.1"
 nannou = "0.19"
 ```
 
+> **Prior knowledge**: This tutorial assumes familiarity with:
+> - [Your First DSP Graph](first-graph.md) - Building and processing graphs
+> - [nannou](https://nannou.cc) - Basic nannou application structure
+
 ## Setting Up the Audio Bridge
 
 The audio bridge connects your audio processing to the visualization thread:
@@ -139,7 +143,7 @@ Display the structure of your DSP graph:
 
 ```rust
 use bbx_draw::{GraphTopologyVisualizer, Visualizer};
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{block::BlockType, blocks::GainBlock, graph::GraphBuilder, waveform::Waveform};
 use nannou::prelude::*;
 
 struct Model {
@@ -151,7 +155,7 @@ fn model(app: &App) -> Model {
 
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
     let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-    let gain = builder.add_gain(-6.0);
+    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
     builder.connect(osc, 0, gain, 0);
 
     let topology = builder.capture_topology();

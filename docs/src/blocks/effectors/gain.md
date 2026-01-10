@@ -9,11 +9,15 @@ Level control in decibels.
 ## Creating a Gain Block
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let gain = builder.add_gain(-6.0);  // -6 dB (half amplitude)
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));  // -6 dB
 ```
 
 ## dB to Linear Conversion
@@ -28,7 +32,7 @@ let gain = builder.add_gain(-6.0);  // -6 dB (half amplitude)
 | -6 | 0.5 | Half amplitude |
 | -12 | 0.25 | Quarter amplitude |
 | -20 | 0.1 | 10% amplitude |
-| -inf | 0.0 | Silence |
+| -80 | ~0.0 | Near silence |
 
 ## Port Layout
 
@@ -41,15 +45,24 @@ let gain = builder.add_gain(-6.0);  // -6 dB (half amplitude)
 
 | Parameter | Type | Range | Default |
 |-----------|------|-------|---------|
-| Level | f64 | -inf to +inf dB | 0.0 |
+| level_db | f64 | -80 to +30 dB | 0.0 |
 
 ## Usage Examples
 
 ### Volume Control
 
 ```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
 let source = builder.add_oscillator(440.0, Waveform::Sine, None);
-let volume = builder.add_gain(-12.0);  // -12 dB
+let volume = builder.add_block(BlockType::Gain(GainBlock::new(-12.0)));  // -12 dB
 
 builder.connect(source, 0, volume, 0);
 ```
@@ -57,14 +70,25 @@ builder.connect(source, 0, volume, 0);
 ### Gain Staging
 
 ```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let source = builder.add_oscillator(440.0, Waveform::Sine, None);
+
 // Input gain before processing
-let input_gain = builder.add_gain(6.0);
+let input_gain = builder.add_block(BlockType::Gain(GainBlock::new(6.0)));
 
 // Processing
 let effect = builder.add_overdrive(3.0, 1.0, 1.0, 44100.0);
 
 // Output gain after processing
-let output_gain = builder.add_gain(-6.0);
+let output_gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 
 builder.connect(source, 0, input_gain, 0);
 builder.connect(input_gain, 0, effect, 0);
@@ -76,12 +100,21 @@ builder.connect(effect, 0, output_gain, 0);
 Multiple inputs are summed:
 
 ```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
 let osc1 = builder.add_oscillator(261.63, Waveform::Sine, None);
 let osc2 = builder.add_oscillator(329.63, Waveform::Sine, None);
 let osc3 = builder.add_oscillator(392.00, Waveform::Sine, None);
 
 // Mix with headroom
-let mixer = builder.add_gain(-9.0);  // -9 dB for 3 sources
+let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-9.0)));
 
 builder.connect(osc1, 0, mixer, 0);
 builder.connect(osc2, 0, mixer, 0);
@@ -91,15 +124,31 @@ builder.connect(osc3, 0, mixer, 0);
 ## With Modulation
 
 ```rust
-// LFO for tremolo
-let lfo = builder.add_lfo(6.0, Waveform::Sine);
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
-// Gain with amplitude modulation
-let gain = builder.add_gain_with_modulation(-6.0, Some(lfo));
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+
+// LFO for tremolo (6 Hz, full depth)
+let lfo = builder.add_lfo(6.0, 1.0, None);
+
+// Gain block
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+
+builder.connect(osc, 0, gain, 0);
+
+// Modulate gain level with LFO
+builder.modulate(lfo, gain, "level");
 ```
 
 ## Implementation Notes
 
-- Linear multiplication (no interpolation)
-- Instant parameter changes (no smoothing)
+- Click-free gain changes via linear smoothing
 - Handles all channel counts
+- Range clamped to -80 to +30 dB

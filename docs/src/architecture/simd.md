@@ -1,85 +1,130 @@
-# SIMD Opportunities
+# SIMD Optimizations
 
-Single Instruction Multiple Data optimization potential.
+SIMD (Single Instruction Multiple Data) support for accelerated DSP processing.
 
-## What is SIMD?
+## Enabling SIMD
 
-Process multiple samples simultaneously:
+Enable the `simd` feature flag in your `Cargo.toml`:
+
+```toml
+[dependencies]
+bbx_dsp = { version = "...", features = ["simd"] }
+```
+
+**Requirements:**
+- Nightly Rust toolchain (uses the unstable `portable_simd` feature)
+- Build with: `cargo +nightly build --features simd`
+
+## How It Works
+
+SIMD processes multiple samples simultaneously:
 
 ```
-Scalar: a[0]*b[0], a[1]*b[1], a[2]*b[2], a[3]*b[3]  (4 ops)
-SIMD:   a[0:3] * b[0:3]                              (1 op)
+Scalar: a[0]*b[0], a[1]*b[1], a[2]*b[2], a[3]*b[3]  (4 operations)
+SIMD:   a[0:3] * b[0:3]                              (1 operation)
 ```
 
-## Current State
+The implementation uses 4-lane vectors (`f32x4` and `f64x4`) from Rust's `std::simd`.
 
-bbx_audio currently uses scalar processing. SIMD optimizations are future work.
+## SIMD Operations
 
-## Optimization Targets
+The `bbx_core::simd` module provides these vectorized operations:
 
-### Sample Processing
+| Function | Description |
+|----------|-------------|
+| `fill_f32/f64` | Fill a buffer with a constant value |
+| `apply_gain_f32/f64` | Multiply samples by a gain factor |
+| `multiply_add_f32/f64` | Element-wise multiplication of two buffers |
+| `sin_f32/f64` | Vectorized sine computation |
+
+Additionally, the `denormal` module provides SIMD-accelerated batch denormal flushing:
+- `flush_denormals_f32_batch`
+- `flush_denormals_f64_batch`
+
+## Sample Trait SIMD Methods
+
+The [`Sample`](../crates/core/sample.md) trait includes built-in SIMD support when the `simd` feature is enabled. This allows writing generic SIMD code that works for both `f32` and `f64`.
+
+### Associated Type
+
+Each `Sample` implementation has an associated SIMD type:
+
+| Sample Type | SIMD Type |
+|-------------|-----------|
+| `f32` | `f32x4` |
+| `f64` | `f64x4` |
+
+### SIMD Methods
+
+| Method | Description |
+|--------|-------------|
+| `simd_splat(value)` | Create a vector with all lanes set to `value` |
+| `simd_from_slice(slice)` | Load 4 samples from a slice |
+| `simd_to_array(simd)` | Convert a SIMD vector to `[Self; 4]` |
+| `simd_select_gt(a, b, if_true, if_false)` | Per-lane selection where `a > b` |
+| `simd_select_lt(a, b, if_true, if_false)` | Per-lane selection where `a < b` |
+
+### Example: Generic SIMD Code
 
 ```rust
-// Current (scalar)
-for sample in buffer {
-    *sample *= gain;
+use bbx_core::sample::{Sample, SIMD_LANES};
+
+fn apply_gain_simd<S: Sample>(output: &mut [S], gain: S) {
+    let gain_vec = S::simd_splat(gain);
+    let (chunks, remainder) = output.as_chunks_mut::<SIMD_LANES>();
+
+    for chunk in chunks {
+        let samples = S::simd_from_slice(chunk);
+        let result = samples * gain_vec;
+        chunk.copy_from_slice(&S::simd_to_array(result));
+    }
+
+    // Scalar fallback for remainder
+    for sample in remainder {
+        *sample = *sample * gain;
+    }
 }
-
-// SIMD potential
-use std::simd::f32x4;
-for chunk in buffer.chunks_exact_mut(4) {
-    let v = f32x4::from_slice(chunk);
-    let result = v * gain_vec;
-    result.copy_to_slice(chunk);
-}
 ```
 
-### Filter Processing
+This single implementation works for both `f32` and `f64` without code duplication.
 
-IIR filters can use SIMD for parallel samples:
+## Optimized Blocks
 
-```rust
-// Process 4 independent samples simultaneously
-// Requires restructuring state variables
-```
+The following blocks use SIMD when the feature is enabled:
 
-## Requirements
+| Block | Optimization |
+|-------|--------------|
+| `OscillatorBlock` | Vectorized waveform generation (4 samples at a time) |
+| `LfoBlock` | Vectorized modulation signal generation |
+| `GainBlock` | Vectorized gain application |
+| `PannerBlock` | Vectorized sin/cos gain calculation |
 
-### Data Alignment
+## Feature Propagation
 
-```rust
-#[repr(align(32))]
-struct AlignedBuffer {
-    data: [f32; 1024],
-}
-```
-
-### Buffer Size
-
-Buffer size should be multiple of SIMD width:
+The `simd` feature propagates through crate dependencies:
 
 ```
-SSE:  4 floats (128-bit)
-AVX:  8 floats (256-bit)
-AVX-512: 16 floats (512-bit)
+bbx_plugin --simd--> bbx_dsp --simd--> bbx_core
 ```
 
-### Portable SIMD
+Enable `simd` on `bbx_plugin` for plugin builds:
 
-Use Rust's portable SIMD (nightly):
-
-```rust
-#![feature(portable_simd)]
-use std::simd::f32x4;
+```toml
+[dependencies]
+bbx_plugin = { version = "...", features = ["simd"] }
 ```
-
-Or crates like `wide` for stable Rust.
 
 ## Trade-offs
 
 | Aspect | Scalar | SIMD |
 |--------|--------|------|
-| Complexity | Simple | Complex |
-| Portability | Universal | Platform-specific |
+| Complexity | Simple | More complex |
+| Toolchain | Stable Rust | Nightly required |
 | Debugging | Easy | Harder |
-| Performance | Baseline | 2-8x faster |
+| Performance | Baseline | Up to 4x faster |
+
+## Implementation Notes
+
+- Lane width is 4 for both `f32` and `f64` (SSE/NEON compatible)
+- Remainder samples (when buffer size isn't divisible by 4) are processed with scalar fallback
+- Noise waveforms use scalar processing due to RNG sequentiality requirements

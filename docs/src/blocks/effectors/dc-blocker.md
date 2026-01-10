@@ -9,12 +9,18 @@ DC offset removal filter.
 ## Creating a DC Blocker
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{
+    block::BlockType,
+    blocks::DcBlockerBlock,
+    graph::GraphBuilder,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let dc = builder.add_dc_blocker();
+let dc = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
 ```
+
+The `new(enabled: bool)` constructor takes a boolean to enable/disable the filter.
 
 ## Why DC Blocking?
 
@@ -43,9 +49,18 @@ Problems caused by DC offset:
 ### After Distortion
 
 ```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::DcBlockerBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 let drive = builder.add_overdrive(5.0, 1.0, 0.7, 44100.0);
-let dc = builder.add_dc_blocker();
+let dc = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
 
 builder.connect(osc, 0, drive, 0);
 builder.connect(drive, 0, dc, 0);
@@ -54,9 +69,17 @@ builder.connect(drive, 0, dc, 0);
 ### On External Input
 
 ```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::DcBlockerBlock,
+    graph::GraphBuilder,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
 // External audio (e.g., from file or interface)
 let input = builder.add_file_input(Box::new(reader));
-let dc = builder.add_dc_blocker();
+let dc = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
 
 builder.connect(input, 0, dc, 0);
 ```
@@ -83,7 +106,7 @@ Where `r` is typically 0.995 (5 Hz cutoff at 44.1 kHz).
 - Very low cutoff frequency (~5 Hz)
 - Minimal impact on audible frequencies
 - Introduces tiny phase shift at low frequencies
-- Needs `prepare()` when sample rate changes
+- Automatically recalculates coefficient when sample rate changes
 
 ## When to Use
 

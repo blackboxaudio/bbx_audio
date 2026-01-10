@@ -2,6 +2,20 @@
 
 All notable changes to bbx_audio will be documented in this file.
 
+## [0.3.1] - 2026-01-10
+
+### Bug Fixes
+
+- Synth voice not reset (#48) ([#48](https://github.com/blackboxaudio/bbx_audio/pull/48))
+
+### Features
+
+- Add MIDI message processing (#51) ([#51](https://github.com/blackboxaudio/bbx_audio/pull/51))
+
+### Miscellaneous
+
+- Add SIMD optimizations (#49) ([#49](https://github.com/blackboxaudio/bbx_audio/pull/49))
+
 ## [0.3.0] - 2026-01-08
 
 ### Added

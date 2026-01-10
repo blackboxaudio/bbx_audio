@@ -7,6 +7,7 @@ Effector blocks process and transform audio signals.
 | Block | Description |
 |-------|-------------|
 | [GainBlock](effectors/gain.md) | Level control in dB |
+| [VcaBlock](effectors/vca.md) | Voltage controlled amplifier |
 | [PannerBlock](effectors/panner.md) | Stereo panning |
 | [OverdriveBlock](effectors/overdrive.md) | Soft-clipping distortion |
 | [DcBlockerBlock](effectors/dc-blocker.md) | DC offset removal |
@@ -29,7 +30,7 @@ Recommended order:
 Source -> Gain (input level)
        -> Distortion
        -> DC Blocker
-       -> Filter (when available)
+       -> Filter
        -> Panning
        -> Gain (output level)
 ```
@@ -37,7 +38,12 @@ Source -> Gain (input level)
 ## Usage Pattern
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{
+    block::BlockType,
+    blocks::{DcBlockerBlock, GainBlock},
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -46,8 +52,8 @@ let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
 
 // Effect chain
 let drive = builder.add_overdrive(3.0, 1.0, 0.8, 44100.0);
-let dc = builder.add_dc_blocker();
-let gain = builder.add_gain(-6.0);
+let dc = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 
 // Connect in series
 builder.connect(osc, 0, drive, 0);
@@ -60,10 +66,19 @@ builder.connect(dc, 0, gain, 0);
 Split signal to multiple effects:
 
 ```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::GainBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
 let source = builder.add_oscillator(440.0, Waveform::Saw, None);
 
 // Dry path
-let dry_gain = builder.add_gain(-6.0);
+let dry_gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 
 // Wet path (distorted)
 let wet_drive = builder.add_overdrive(5.0, 1.0, 0.5, 44100.0);
@@ -73,7 +88,7 @@ builder.connect(source, 0, dry_gain, 0);
 builder.connect(source, 0, wet_drive, 0);
 
 // Mix back together
-let mixer = builder.add_gain(-3.0);
+let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-3.0)));
 builder.connect(dry_gain, 0, mixer, 0);
 builder.connect(wet_drive, 0, mixer, 0);
 ```

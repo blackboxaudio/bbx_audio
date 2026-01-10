@@ -1,88 +1,151 @@
-//! Pre-allocated MIDI message buffer for real-time audio processing.
+//! Lock-free MIDI buffer for thread-safe communication.
 //!
-//! This module provides a buffer that can accumulate MIDI messages without
-//! allocation in the audio callback, which is critical for real-time performance.
+//! Provides a realtime-safe channel for passing MIDI messages between threads,
+//! suitable for MIDI input thread to audio thread communication.
+
+use bbx_core::spsc::{Consumer, Producer, SpscRingBuffer};
 
 use crate::message::MidiMessage;
 
-/// A pre-allocated buffer for accumulating MIDI messages.
-///
-/// This buffer is designed for use in real-time audio contexts where
-/// allocations must be avoided. The buffer has a fixed capacity and
-/// will silently drop messages if the capacity is exceeded.
-#[derive(Debug)]
-pub struct MidiMessageBuffer {
-    messages: Vec<MidiMessage>,
-    count: usize,
+/// Producer side of the MIDI buffer (used in MIDI input thread).
+pub struct MidiBufferProducer {
+    producer: Producer<MidiMessage>,
 }
 
-impl MidiMessageBuffer {
-    /// Create a new buffer with the specified capacity.
+impl MidiBufferProducer {
+    /// Try to send a MIDI message to the consumer.
     ///
-    /// The buffer will be pre-allocated to hold up to `capacity` messages.
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            messages: Vec::with_capacity(capacity),
-            count: 0,
+    /// Returns `true` if the message was sent, `false` if the buffer was full.
+    #[inline]
+    pub fn try_send(&mut self, message: MidiMessage) -> bool {
+        self.producer.try_push(message).is_ok()
+    }
+
+    /// Check if the buffer is full.
+    #[inline]
+    pub fn is_full(&self) -> bool {
+        self.producer.is_full()
+    }
+}
+
+/// Consumer side of the MIDI buffer (used in audio thread).
+///
+/// All methods are realtime-safe and do not allocate.
+pub struct MidiBufferConsumer {
+    consumer: Consumer<MidiMessage>,
+}
+
+impl MidiBufferConsumer {
+    /// Pop a single MIDI message from the buffer (realtime-safe).
+    ///
+    /// Returns `Some(MidiMessage)` if available, `None` if empty.
+    #[inline]
+    pub fn try_pop(&mut self) -> Option<MidiMessage> {
+        self.consumer.try_pop()
+    }
+
+    /// Drain all available MIDI messages into the provided buffer.
+    ///
+    /// Returns the number of messages drained.
+    #[inline]
+    pub fn drain_into(&mut self, buffer: &mut Vec<MidiMessage>) -> usize {
+        let mut count = 0;
+        while let Some(msg) = self.consumer.try_pop() {
+            buffer.push(msg);
+            count += 1;
         }
+        count
     }
 
-    /// Clear all messages from the buffer.
-    ///
-    /// This does not deallocate memory, only resets the count.
-    #[inline]
-    pub fn clear(&mut self) {
-        self.count = 0;
-    }
-
-    /// Add a message to the buffer.
-    ///
-    /// If the buffer is at capacity, the message is silently dropped.
-    #[inline]
-    pub fn push(&mut self, message: MidiMessage) {
-        if self.count < self.messages.capacity() {
-            if self.count < self.messages.len() {
-                self.messages[self.count] = message;
-            } else {
-                self.messages.push(message);
-            }
-            self.count += 1;
-        }
-    }
-
-    /// Returns the number of messages currently in the buffer.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.count
-    }
-
-    /// Returns true if the buffer is empty.
+    /// Check if the buffer is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.count == 0
-    }
-
-    /// Returns the capacity of the buffer.
-    #[inline]
-    pub fn capacity(&self) -> usize {
-        self.messages.capacity()
-    }
-
-    /// Iterate over the messages in the buffer.
-    #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = &MidiMessage> {
-        self.messages[..self.count].iter()
-    }
-
-    /// Get a slice of all messages in the buffer.
-    #[inline]
-    pub fn as_slice(&self) -> &[MidiMessage] {
-        &self.messages[..self.count]
+        self.consumer.is_empty()
     }
 }
 
-impl Default for MidiMessageBuffer {
-    fn default() -> Self {
-        Self::new(256)
+/// Create a MIDI buffer pair for thread-safe MIDI message transfer.
+///
+/// The `capacity` determines how many MIDI messages can be buffered.
+/// A typical value is 64-256 messages.
+///
+/// # Examples
+///
+/// ```
+/// use bbx_midi::{MidiMessage, buffer::midi_buffer};
+///
+/// let (mut producer, mut consumer) = midi_buffer(64);
+///
+/// // In MIDI input thread
+/// let msg = MidiMessage::new([0x90, 60, 100]);
+/// producer.try_send(msg);
+///
+/// // In audio thread
+/// while let Some(msg) = consumer.try_pop() {
+///     // Process MIDI message
+/// }
+/// ```
+pub fn midi_buffer(capacity: usize) -> (MidiBufferProducer, MidiBufferConsumer) {
+    let (producer, consumer) = SpscRingBuffer::new(capacity);
+    (MidiBufferProducer { producer }, MidiBufferConsumer { consumer })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_send_receive() {
+        let (mut producer, mut consumer) = midi_buffer(8);
+
+        let msg = MidiMessage::new([0x90, 60, 100]);
+        assert!(producer.try_send(msg));
+
+        let received = consumer.try_pop().expect("should have message");
+        assert_eq!(received.get_note_number(), Some(60));
+        assert!(consumer.try_pop().is_none());
+    }
+
+    #[test]
+    fn test_buffer_overflow() {
+        let (mut producer, _consumer) = midi_buffer(2);
+
+        let msg = MidiMessage::new([0x90, 60, 100]);
+        assert!(producer.try_send(msg));
+        assert!(producer.try_send(msg));
+        assert!(!producer.try_send(msg));
+        assert!(producer.is_full());
+    }
+
+    #[test]
+    fn test_drain_into() {
+        let (mut producer, mut consumer) = midi_buffer(8);
+
+        producer.try_send(MidiMessage::new([0x90, 60, 100]));
+        producer.try_send(MidiMessage::new([0x90, 64, 80]));
+        producer.try_send(MidiMessage::new([0x80, 60, 0]));
+
+        let mut buffer = Vec::new();
+        let count = consumer.drain_into(&mut buffer);
+
+        assert_eq!(count, 3);
+        assert_eq!(buffer.len(), 3);
+        assert_eq!(buffer[0].get_note_number(), Some(60));
+        assert_eq!(buffer[1].get_note_number(), Some(64));
+        assert_eq!(buffer[2].get_note_number(), Some(60));
+        assert!(consumer.is_empty());
+    }
+
+    #[test]
+    fn test_is_empty() {
+        let (mut producer, mut consumer) = midi_buffer(4);
+
+        assert!(consumer.is_empty());
+
+        producer.try_send(MidiMessage::new([0x90, 60, 100]));
+        assert!(!consumer.is_empty());
+
+        consumer.try_pop();
+        assert!(consumer.is_empty());
     }
 }

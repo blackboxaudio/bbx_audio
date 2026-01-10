@@ -87,11 +87,23 @@ void Process(
     uint32_t numChannels,
     uint32_t numSamples,
     const float* params,
-    uint32_t numParams
+    uint32_t numParams,
+    const BbxMidiEvent* midiEvents = nullptr,
+    uint32_t numMidiEvents = 0
 );
 ```
 
-Process audio. Call from `processBlock()`.
+Process audio with optional MIDI events. Call from `processBlock()`.
+
+For effects (no MIDI):
+```cpp
+dsp.Process(inputs, outputs, numChannels, numSamples, params, numParams);
+```
+
+For synthesizers (with MIDI):
+```cpp
+dsp.Process(inputs, outputs, numChannels, numSamples, params, numParams, midiEvents, numMidiEvents);
+```
 
 ### IsValid
 
@@ -177,10 +189,13 @@ public:
         uint32_t numChannels,
         uint32_t numSamples,
         const float* params,
-        uint32_t numParams)
+        uint32_t numParams,
+        const BbxMidiEvent* midiEvents = nullptr,
+        uint32_t numMidiEvents = 0)
     {
         if (m_handle) {
-            bbx_graph_process(m_handle, inputs, outputs, numChannels, numSamples, params, numParams);
+            bbx_graph_process(m_handle, inputs, outputs, numChannels, numSamples,
+                              params, numParams, midiEvents, numMidiEvents);
         }
     }
 
