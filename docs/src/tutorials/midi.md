@@ -237,6 +237,6 @@ fn main() {
 
 ## Next Steps
 
-- [Building a MIDI Synthesizer](07_midi_synth.md) - Complete real-time MIDI synth example
+- [Building a Terminal Synthesizer](terminal-synth.md) - Terminal synth with MIDI input
 - [JUCE Integration](../juce/overview.md) - Use MIDI in plugins
 - [DSP Graph Architecture](../architecture/graph-architecture.md) - Understand the system

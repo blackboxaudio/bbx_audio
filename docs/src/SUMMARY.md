@@ -17,7 +17,6 @@
 - [Parameter Modulation with LFOs](tutorials/modulation.md)
 - [Working with Audio Files](tutorials/audio-files.md)
 - [MIDI Integration](tutorials/midi.md)
-- [Building a MIDI Synthesizer](tutorials/07_midi_synth.md)
 - [Real-Time Visualization](tutorials/visualization.md)
 - [Sketch Discovery](tutorials/sketchbook.md)
 
