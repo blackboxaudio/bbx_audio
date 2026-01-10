@@ -175,35 +175,29 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                 let inv_two_pi = S::simd_splat(S::from_f64(1.0 / std::f64::consts::TAU));
 
                 // Normalized phase increment for PolyBLEP calculations
-                let phase_inc_normalized = phase_increment / std::f64::consts::TAU;
-
-                // Track previous last phase for cross-chunk discontinuity detection
-                let mut prev_last_phase_normalized = (self.phase / std::f64::consts::TAU).rem_euclid(1.0);
+                let phase_inc_normalized = S::from_f64(phase_increment / std::f64::consts::TAU);
 
                 for chunk_idx in 0..chunks {
                     let samples = if use_antialiasing {
-                        // Convert SIMD phases to normalized f64 array for PolyBLEP
+                        // Convert SIMD phases to normalized Sample array for PolyBLEP
                         let phases_array = S::simd_to_array(phases);
-                        let phases_normalized: [f64; SIMD_LANES] = [
-                            (phases_array[0].to_f64() / std::f64::consts::TAU).rem_euclid(1.0),
-                            (phases_array[1].to_f64() / std::f64::consts::TAU).rem_euclid(1.0),
-                            (phases_array[2].to_f64() / std::f64::consts::TAU).rem_euclid(1.0),
-                            (phases_array[3].to_f64() / std::f64::consts::TAU).rem_euclid(1.0),
+                        let inv_tau = S::from_f64(1.0 / std::f64::consts::TAU);
+                        let phases_normalized: [S; SIMD_LANES] = [
+                            (phases_array[0] * inv_tau) - S::from_f64((phases_array[0].to_f64() / std::f64::consts::TAU).floor()),
+                            (phases_array[1] * inv_tau) - S::from_f64((phases_array[1].to_f64() / std::f64::consts::TAU).floor()),
+                            (phases_array[2] * inv_tau) - S::from_f64((phases_array[2].to_f64() / std::f64::consts::TAU).floor()),
+                            (phases_array[3] * inv_tau) - S::from_f64((phases_array[3].to_f64() / std::f64::consts::TAU).floor()),
                         ];
 
                         let result = generate_waveform_samples_simd_antialiased::<S>(
                             self.waveform,
                             phases,
                             phases_normalized,
-                            prev_last_phase_normalized,
                             phase_inc_normalized,
                             duty,
                             two_pi,
                             inv_two_pi,
                         );
-
-                        // Update previous last phase for next chunk
-                        prev_last_phase_normalized = phases_normalized[SIMD_LANES - 1];
 
                         result
                     } else {

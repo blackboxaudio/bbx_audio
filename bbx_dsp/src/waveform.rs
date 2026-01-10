@@ -12,9 +12,7 @@ use crate::polyblep::{apply_polyblamp_triangle, apply_polyblep_pulse, apply_poly
 #[cfg(feature = "simd")]
 use crate::sample::SIMD_LANES;
 use crate::{
-    polyblep::{
-        polyblamp_correction_triangle, polyblep_correction_pulse, polyblep_correction_saw, polyblep_correction_square,
-    },
+    polyblep::{polyblamp_triangle, polyblep_pulse, polyblep_saw, polyblep_square},
     sample::Sample,
 };
 
@@ -154,8 +152,8 @@ pub(crate) fn generate_waveform_samples_simd_generic<S: Sample>(
 
 /// Generate an anti-aliased sample of a waveform using PolyBLEP/PolyBLAMP.
 ///
-/// This function applies polynomial corrections near discontinuities to reduce aliasing.
-/// For sine and noise waveforms, no correction is needed.
+/// This function generates band-limited waveforms using polynomial corrections
+/// near discontinuities. For sine and noise waveforms, no correction is needed.
 ///
 /// # Arguments
 /// * `waveform` - The waveform type to generate
@@ -170,17 +168,16 @@ pub(crate) fn generate_waveform_sample_antialiased(
     duty_cycle: f64,
     rng: &mut XorShiftRng,
 ) -> f64 {
-    let naive = generate_waveform_sample(waveform, phase, duty_cycle, rng);
-
     let normalized_phase = (phase % TWO_PI) * INV_TWO_PI;
     let normalized_inc = phase_increment * INV_TWO_PI;
 
     match waveform {
-        Waveform::Sine | Waveform::Noise => naive,
-        Waveform::Sawtooth => naive + polyblep_correction_saw(normalized_phase, normalized_inc),
-        Waveform::Square => naive + polyblep_correction_square(normalized_phase, normalized_inc),
-        Waveform::Pulse => naive + polyblep_correction_pulse(normalized_phase, normalized_inc, duty_cycle),
-        Waveform::Triangle => naive + polyblamp_correction_triangle(normalized_phase, normalized_inc),
+        Waveform::Sine => phase.sin(),
+        Waveform::Sawtooth => polyblep_saw(normalized_phase, normalized_inc),
+        Waveform::Square => polyblep_square(normalized_phase, normalized_inc),
+        Waveform::Pulse => polyblep_pulse(normalized_phase, normalized_inc, duty_cycle),
+        Waveform::Triangle => polyblamp_triangle(normalized_phase, normalized_inc),
+        Waveform::Noise => rng.next_noise_sample(),
     }
 }
 
@@ -206,14 +203,13 @@ pub(crate) fn process_waveform_scalar_antialiased<S: Sample>(
 
 /// Generate 4 anti-aliased samples of a waveform using SIMD with PolyBLEP corrections.
 ///
-/// This function first generates naive samples using SIMD, then applies scalar
-/// PolyBLEP corrections for any samples near discontinuities.
+/// This function first generates naive samples using fast SIMD operations, then applies
+/// scalar PolyBLEP/PolyBLAMP corrections near discontinuities.
 ///
 /// # Arguments
 /// * `waveform` - The waveform type to generate
-/// * `phases` - SIMD vector of 4 phases
-/// * `phases_normalized` - Array of 4 normalized phases (0-1) for correction calculation
-/// * `prev_last_phase` - Last phase from previous chunk (normalized, for cross-chunk detection)
+/// * `phases` - SIMD vector of 4 phases (in radians)
+/// * `phases_normalized` - Array of 4 normalized phases (0-1) for polyblep calculation
 /// * `phase_inc_normalized` - Phase increment per sample (normalized 0-1)
 /// * `duty_cycle` - Duty cycle for pulse waveform
 /// * `two_pi` - Pre-computed SIMD 2π constant
@@ -222,30 +218,26 @@ pub(crate) fn process_waveform_scalar_antialiased<S: Sample>(
 pub(crate) fn generate_waveform_samples_simd_antialiased<S: Sample>(
     waveform: Waveform,
     phases: S::Simd,
-    phases_normalized: [f64; SIMD_LANES],
-    prev_last_phase: f64,
-    phase_inc_normalized: f64,
+    phases_normalized: [S; SIMD_LANES],
+    phase_inc_normalized: S,
     duty_cycle: S,
     two_pi: S::Simd,
     inv_two_pi: S::Simd,
 ) -> Option<[S; SIMD_LANES]> {
+    // First generate naive samples using fast SIMD
     let mut samples = generate_waveform_samples_simd_generic(waveform, phases, duty_cycle, two_pi, inv_two_pi)?;
 
+    // Apply scalar corrections near discontinuities
     match waveform {
         Waveform::Sine | Waveform::Noise => {}
         Waveform::Sawtooth => {
-            apply_polyblep_saw(&mut samples, phases_normalized, prev_last_phase, phase_inc_normalized);
+            apply_polyblep_saw(&mut samples, phases_normalized, phase_inc_normalized);
         }
         Waveform::Square => {
-            apply_polyblep_square(&mut samples, phases_normalized, prev_last_phase, phase_inc_normalized);
+            apply_polyblep_square(&mut samples, phases_normalized, phase_inc_normalized);
         }
         Waveform::Pulse => {
-            apply_polyblep_pulse(
-                &mut samples,
-                phases_normalized,
-                phase_inc_normalized,
-                duty_cycle.to_f64(),
-            );
+            apply_polyblep_pulse(&mut samples, phases_normalized, phase_inc_normalized, duty_cycle);
         }
         Waveform::Triangle => {
             apply_polyblamp_triangle(&mut samples, phases_normalized, phase_inc_normalized);
