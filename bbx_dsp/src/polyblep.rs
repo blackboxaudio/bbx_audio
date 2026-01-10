@@ -16,16 +16,6 @@ use std::simd::StdFloat;
 use crate::sample::SIMD_LANES;
 use crate::sample::Sample;
 
-/// Anti-aliasing mode for waveform generation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum AntiAliasingMode {
-    /// No anti-aliasing (naive waveforms). Fastest but produces aliasing artifacts.
-    None,
-    /// PolyBLEP/PolyBLAMP anti-aliasing. Standard for professional audio software.
-    #[default]
-    PolyBlep,
-}
-
 /// Fractional part of a Sample value.
 #[inline]
 fn fract<S: Sample>(x: S) -> S {
@@ -200,40 +190,6 @@ pub fn polyblamp_triangle<S: Sample>(phase: S, phase_inc: S) -> S {
     out += eight * poly_blamp(phase, phase_inc);
     out -= eight * poly_blamp(fract(phase + half), phase_inc);
     out
-}
-
-/// State for tracking cross-chunk discontinuity corrections in SIMD processing.
-#[cfg(feature = "simd")]
-#[derive(Debug, Clone)]
-pub struct PolyBlepState<S: Sample> {
-    /// Correction to apply to the first sample of the next chunk.
-    pub pending_correction: S,
-    /// Last phase from the previous chunk (normalized 0-1).
-    pub last_phase: S,
-}
-
-#[cfg(feature = "simd")]
-impl<S: Sample> Default for PolyBlepState<S> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(feature = "simd")]
-impl<S: Sample> PolyBlepState<S> {
-    /// Create a new PolyBLEP state with zero pending correction.
-    pub fn new() -> Self {
-        Self {
-            pending_correction: S::ZERO,
-            last_phase: S::ZERO,
-        }
-    }
-
-    /// Reset the state (call on voice reset or frequency change).
-    pub fn reset(&mut self) {
-        self.pending_correction = S::ZERO;
-        self.last_phase = S::ZERO;
-    }
 }
 
 /// Apply PolyBLEP corrections to a SIMD chunk of sawtooth samples.

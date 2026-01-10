@@ -48,6 +48,30 @@ pub trait Sample:
     /// The unit value for this sample type (full scale).
     const ONE: Self;
 
+    /// Pi (π ≈ 3.14159...).
+    const PI: Self;
+
+    /// Two times pi (2π = τ ≈ 6.28318...).
+    const TWO_PI: Self;
+
+    /// Tau (τ = 2π ≈ 6.28318...).
+    const TAU: Self;
+
+    /// The reciprocal of pi (1/π ≈ 0.31830...).
+    const INV_PI: Self;
+
+    /// The reciprocal of two pi (1/2π ≈ 0.15915...).
+    const INV_TWO_PI: Self;
+
+    /// The reciprocal of tau (1/τ = 1/2π ≈ 0.15915...).
+    const INV_TAU: Self;
+
+    /// Half of pi (π/2 ≈ 1.57079...).
+    const FRAC_PI_2: Self;
+
+    /// Quarter of pi (π/4 ≈ 0.78539...).
+    const FRAC_PI_4: Self;
+
     /// Convert from an `f64` value.
     fn from_f64(value: f64) -> Self;
 
@@ -98,6 +122,14 @@ pub trait Sample:
 impl Sample for f32 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
+    const PI: Self = std::f32::consts::PI;
+    const TWO_PI: Self = std::f32::consts::TAU;
+    const TAU: Self = std::f32::consts::TAU;
+    const INV_PI: Self = std::f32::consts::FRAC_1_PI;
+    const INV_TWO_PI: Self = 0.5 * std::f32::consts::FRAC_1_PI;
+    const INV_TAU: Self = 0.5 * std::f32::consts::FRAC_1_PI;
+    const FRAC_PI_2: Self = std::f32::consts::FRAC_PI_2;
+    const FRAC_PI_4: Self = std::f32::consts::FRAC_PI_4;
 
     #[inline]
     fn from_f64(value: f64) -> Self {
@@ -152,6 +184,14 @@ impl Sample for f32 {
 impl Sample for f64 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
+    const PI: Self = std::f64::consts::PI;
+    const TWO_PI: Self = std::f64::consts::TAU;
+    const TAU: Self = std::f64::consts::TAU;
+    const INV_PI: Self = std::f64::consts::FRAC_1_PI;
+    const INV_TWO_PI: Self = 0.5 * std::f64::consts::FRAC_1_PI;
+    const INV_TAU: Self = 0.5 * std::f64::consts::FRAC_1_PI;
+    const FRAC_PI_2: Self = std::f64::consts::FRAC_PI_2;
+    const FRAC_PI_4: Self = std::f64::consts::FRAC_PI_4;
 
     #[inline]
     fn from_f64(value: f64) -> Self {

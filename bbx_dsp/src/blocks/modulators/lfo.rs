@@ -5,7 +5,7 @@ use bbx_core::random::XorShiftRng;
 #[cfg(feature = "simd")]
 use crate::sample::SIMD_LANES;
 #[cfg(feature = "simd")]
-use crate::waveform::generate_waveform_samples_simd_generic;
+use crate::waveform::generate_waveform_samples_simd;
 use crate::{
     block::{Block, DEFAULT_MODULATOR_INPUT_COUNT, DEFAULT_MODULATOR_OUTPUT_COUNT},
     context::DspContext,
@@ -53,7 +53,7 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
     fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
         let frequency = self.frequency.get_value(modulation_values);
         let depth = self.depth.get_value(modulation_values).to_f64();
-        let phase_increment = frequency.to_f64() / context.sample_rate * std::f64::consts::TAU;
+        let phase_increment = frequency.to_f64() / context.sample_rate * f64::TAU;
 
         #[cfg(feature = "simd")]
         {
@@ -72,13 +72,30 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
                 let mut phases = base_phase + S::simd_lane_offsets() * sample_inc_simd;
                 let chunk_inc_simd = S::simd_splat(S::from_f64(chunk_phase_step));
                 let duty = S::from_f64(DEFAULT_DUTY_CYCLE);
-                let two_pi = S::simd_splat(S::from_f64(std::f64::consts::TAU));
-                let inv_two_pi = S::simd_splat(S::from_f64(1.0 / std::f64::consts::TAU));
+                let two_pi = S::simd_splat(S::TAU);
+                let inv_two_pi = S::simd_splat(S::INV_TAU);
+                let phase_inc_normalized = S::from_f64(phase_increment * S::INV_TAU.to_f64());
+                let tau = f64::TAU;
+                let inv_tau = 1.0 / tau;
 
                 for chunk_idx in 0..chunks {
-                    if let Some(samples) =
-                        generate_waveform_samples_simd_generic::<S>(self.waveform, phases, duty, two_pi, inv_two_pi)
-                    {
+                    let phases_array = S::simd_to_array(phases);
+                    let phases_normalized: [S; SIMD_LANES] = [
+                        S::from_f64(phases_array[0].to_f64().rem_euclid(tau) * inv_tau),
+                        S::from_f64(phases_array[1].to_f64().rem_euclid(tau) * inv_tau),
+                        S::from_f64(phases_array[2].to_f64().rem_euclid(tau) * inv_tau),
+                        S::from_f64(phases_array[3].to_f64().rem_euclid(tau) * inv_tau),
+                    ];
+
+                    if let Some(samples) = generate_waveform_samples_simd::<S>(
+                        self.waveform,
+                        phases,
+                        phases_normalized,
+                        phase_inc_normalized,
+                        duty,
+                        two_pi,
+                        inv_two_pi,
+                    ) {
                         let samples_vec = S::simd_from_slice(&samples);
                         let scaled = samples_vec * depth_vec;
                         let base = chunk_idx * SIMD_LANES;
@@ -89,7 +106,7 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
                 }
 
                 self.phase += chunk_phase_step * chunks as f64;
-                self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
+                self.phase = self.phase.rem_euclid(f64::TAU);
 
                 process_waveform_scalar(
                     &mut outputs[0][remainder_start..],

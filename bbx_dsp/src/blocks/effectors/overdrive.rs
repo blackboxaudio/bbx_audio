@@ -57,7 +57,7 @@ impl<S: Sample> OverdriveBlock<S> {
     fn update_filter(&mut self, sample_rate: f64) {
         // Tone control: 0.0 = darker (300Hz), 1.0 = brighter (3KHz)
         let cutoff = 300.0 + (self.tone + 2700.0);
-        self.filter_coefficient = 1.0 - (-2.0 * std::f64::consts::PI * cutoff / sample_rate).exp();
+        self.filter_coefficient = 1.0 - (-2.0 * f64::PI * cutoff / sample_rate).exp();
     }
 
     #[inline]
@@ -93,12 +93,12 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
         let len = inputs.first().map_or(0, |ch| ch.len().min(context.buffer_size));
         debug_assert!(len <= MAX_BUFFER_SIZE, "buffer_size exceeds MAX_BUFFER_SIZE");
 
-        let mut drive_values: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
-        let mut level_values: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
+        let mut drive_values: [S; MAX_BUFFER_SIZE] = [S::ZERO; MAX_BUFFER_SIZE];
+        let mut level_values: [S; MAX_BUFFER_SIZE] = [S::ZERO; MAX_BUFFER_SIZE];
 
         for i in 0..len {
-            drive_values[i] = self.drive_smoother.get_next_value().to_f64();
-            level_values[i] = self.level_smoother.get_next_value().to_f64();
+            drive_values[i] = self.drive_smoother.get_next_value();
+            level_values[i] = self.level_smoother.get_next_value();
         }
 
         for (input_index, input_buffer) in inputs.iter().enumerate() {
@@ -107,12 +107,12 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
                 let drive = drive_values[sample_index];
                 let level = level_values[sample_index];
 
-                let driven = sample_value.to_f64() * drive;
+                let driven = sample_value.to_f64() * drive.to_f64();
                 let clipped = self.asymmetric_saturation(driven);
 
                 self.filter_state += self.filter_coefficient * (clipped - self.filter_state);
                 self.filter_state = flush_denormal_f64(self.filter_state);
-                outputs[input_index][sample_index] = S::from_f64(self.filter_state * level);
+                outputs[input_index][sample_index] = S::from_f64(self.filter_state * level.to_f64());
             }
         }
     }

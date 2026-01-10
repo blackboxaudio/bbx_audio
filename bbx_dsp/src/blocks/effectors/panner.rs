@@ -49,7 +49,7 @@ impl<S: Sample> PannerBlock<S> {
         let normalized = normalized.clamp(0.0, 1.0);
 
         // Constant power pan law using sine/cosine
-        let angle = normalized * std::f64::consts::FRAC_PI_2;
+        let angle = normalized * f64::FRAC_PI_2;
         let left_gain = angle.cos();
         let right_gain = angle.sin();
 
@@ -99,7 +99,7 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
                 let normalized = ((pos_vec + f64x4::splat(100.0)) / f64x4::splat(200.0))
                     .simd_clamp(f64x4::splat(0.0), f64x4::splat(1.0));
 
-                let angle = normalized * f64x4::splat(std::f64::consts::FRAC_PI_2);
+                let angle = normalized * f64x4::splat(f64::FRAC_PI_2);
 
                 let l_arr = angle.cos().to_array();
                 let r_arr = angle.sin().to_array();

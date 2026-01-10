@@ -38,69 +38,14 @@ pub enum Waveform {
 /// determines the width of the waveform within its periodic cycle.
 pub(crate) const DEFAULT_DUTY_CYCLE: f64 = 0.5;
 
-const TWO_PI: f64 = 2.0 * std::f64::consts::PI;
-const INV_TWO_PI: f64 = 1.0 / TWO_PI;
+const TWO_PI: f64 = f64::TAU;
+const INV_TWO_PI: f64 = 1.0 / f64::TAU;
 
-/// Generate a sample of a particular waveform, given its position (phase) and duty cycle.
-pub(crate) fn generate_waveform_sample(waveform: Waveform, phase: f64, duty_cycle: f64, rng: &mut XorShiftRng) -> f64 {
-    match waveform {
-        Waveform::Sine => phase.sin(),
-        Waveform::Square => {
-            if phase.sin() > 0.0 {
-                1.0
-            } else {
-                -1.0
-            }
-        }
-        Waveform::Sawtooth => {
-            let normalized_phase = (phase % TWO_PI) * INV_TWO_PI;
-            2.0 * normalized_phase - 1.0
-        }
-        Waveform::Triangle => {
-            let normalized_phase = (phase % TWO_PI) * INV_TWO_PI;
-            if normalized_phase < 0.5 {
-                4.0 * normalized_phase - 1.0
-            } else {
-                3.0 - 4.0 * normalized_phase
-            }
-        }
-        Waveform::Pulse => {
-            let normalized_phase = (phase % TWO_PI) * INV_TWO_PI;
-            if normalized_phase < duty_cycle { 1.0 } else { -1.0 }
-        }
-        Waveform::Noise => rng.next_noise_sample(),
-    }
-}
-
-/// Process waveform samples using scalar (non-SIMD) operations.
+/// Generate 4 naive samples of a waveform using SIMD (internal helper).
 ///
-/// Writes samples to `output`, advances `phase` by `phase_increment` per sample,
-/// and normalizes phase at the end.
-pub(crate) fn process_waveform_scalar<S: Sample>(
-    output: &mut [S],
-    waveform: Waveform,
-    phase: &mut f64,
-    phase_increment: f64,
-    rng: &mut XorShiftRng,
-    scale: f64,
-) {
-    for sample in output.iter_mut() {
-        let value = generate_waveform_sample(waveform, *phase, DEFAULT_DUTY_CYCLE, rng);
-        *sample = S::from_f64(value * scale);
-        *phase += phase_increment;
-    }
-    *phase = phase.rem_euclid(TWO_PI);
-}
-
-/// Generate 4 samples of a waveform at consecutive phases using SIMD (generic version).
-///
-/// This version works with any `Sample` type, using f32x4 for f32 and f64x4 for f64.
 /// Returns `None` for Noise waveform (requires sequential RNG).
-///
-/// The `two_pi` and `inv_two_pi` parameters should be pre-computed once per process()
-/// call to avoid redundant SIMD splat operations in the hot loop.
 #[cfg(feature = "simd")]
-pub(crate) fn generate_waveform_samples_simd_generic<S: Sample>(
+fn generate_naive_samples_simd<S: Sample>(
     waveform: Waveform,
     phases: S::Simd,
     duty_cycle: S,
@@ -150,18 +95,11 @@ pub(crate) fn generate_waveform_samples_simd_generic<S: Sample>(
     }
 }
 
-/// Generate an anti-aliased sample of a waveform using PolyBLEP/PolyBLAMP.
+/// Generate a band-limited waveform sample using PolyBLEP/PolyBLAMP.
 ///
-/// This function generates band-limited waveforms using polynomial corrections
-/// near discontinuities. For sine and noise waveforms, no correction is needed.
-///
-/// # Arguments
-/// * `waveform` - The waveform type to generate
-/// * `phase` - Current phase in radians (0 to 2π)
-/// * `phase_increment` - Phase increment per sample in radians
-/// * `duty_cycle` - Duty cycle for pulse waveform (0.0 to 1.0)
-/// * `rng` - Random number generator for noise waveform
-pub(crate) fn generate_waveform_sample_antialiased(
+/// Uses polynomial corrections near discontinuities to reduce aliasing.
+/// Sine and noise waveforms pass through without correction.
+pub(crate) fn generate_waveform_sample(
     waveform: Waveform,
     phase: f64,
     phase_increment: f64,
@@ -181,11 +119,11 @@ pub(crate) fn generate_waveform_sample_antialiased(
     }
 }
 
-/// Process waveform samples with anti-aliasing using scalar operations.
+/// Process waveform samples using scalar operations with band-limiting.
 ///
-/// Writes samples to `output`, advances `phase` by `phase_increment` per sample,
-/// and applies PolyBLEP/PolyBLAMP corrections for band-limited output.
-pub(crate) fn process_waveform_scalar_antialiased<S: Sample>(
+/// Writes band-limited samples to `output`, advances `phase` by `phase_increment`
+/// per sample, and applies PolyBLEP/PolyBLAMP corrections.
+pub(crate) fn process_waveform_scalar<S: Sample>(
     output: &mut [S],
     waveform: Waveform,
     phase: &mut f64,
@@ -194,28 +132,18 @@ pub(crate) fn process_waveform_scalar_antialiased<S: Sample>(
     scale: f64,
 ) {
     for sample in output.iter_mut() {
-        let value = generate_waveform_sample_antialiased(waveform, *phase, phase_increment, DEFAULT_DUTY_CYCLE, rng);
+        let value = generate_waveform_sample(waveform, *phase, phase_increment, DEFAULT_DUTY_CYCLE, rng);
         *sample = S::from_f64(value * scale);
         *phase += phase_increment;
     }
     *phase = phase.rem_euclid(TWO_PI);
 }
 
-/// Generate 4 anti-aliased samples of a waveform using SIMD with PolyBLEP corrections.
+/// Generate 4 band-limited waveform samples using SIMD with PolyBLEP corrections.
 ///
-/// This function first generates naive samples using fast SIMD operations, then applies
-/// scalar PolyBLEP/PolyBLAMP corrections near discontinuities.
-///
-/// # Arguments
-/// * `waveform` - The waveform type to generate
-/// * `phases` - SIMD vector of 4 phases (in radians)
-/// * `phases_normalized` - Array of 4 normalized phases (0-1) for polyblep calculation
-/// * `phase_inc_normalized` - Phase increment per sample (normalized 0-1)
-/// * `duty_cycle` - Duty cycle for pulse waveform
-/// * `two_pi` - Pre-computed SIMD 2π constant
-/// * `inv_two_pi` - Pre-computed SIMD 1/(2π) constant
+/// Generates naive samples via SIMD, then applies PolyBLEP/PolyBLAMP corrections.
 #[cfg(feature = "simd")]
-pub(crate) fn generate_waveform_samples_simd_antialiased<S: Sample>(
+pub(crate) fn generate_waveform_samples_simd<S: Sample>(
     waveform: Waveform,
     phases: S::Simd,
     phases_normalized: [S; SIMD_LANES],
@@ -224,10 +152,8 @@ pub(crate) fn generate_waveform_samples_simd_antialiased<S: Sample>(
     two_pi: S::Simd,
     inv_two_pi: S::Simd,
 ) -> Option<[S; SIMD_LANES]> {
-    // First generate naive samples using fast SIMD
-    let mut samples = generate_waveform_samples_simd_generic(waveform, phases, duty_cycle, two_pi, inv_two_pi)?;
+    let mut samples = generate_naive_samples_simd(waveform, phases, duty_cycle, two_pi, inv_two_pi)?;
 
-    // Apply scalar corrections near discontinuities
     match waveform {
         Waveform::Sine | Waveform::Noise => {}
         Waveform::Sawtooth => {
