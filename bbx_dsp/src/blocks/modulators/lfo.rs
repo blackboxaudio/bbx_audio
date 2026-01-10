@@ -53,7 +53,7 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
     fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
         let frequency = self.frequency.get_value(modulation_values);
         let depth = self.depth.get_value(modulation_values).to_f64();
-        let phase_increment = frequency.to_f64() / context.sample_rate * f64::TAU;
+        let phase_increment = frequency.to_f64() / context.sample_rate * S::TAU.to_f64();
 
         #[cfg(feature = "simd")]
         {
@@ -75,7 +75,7 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
                 let two_pi = S::simd_splat(S::TAU);
                 let inv_two_pi = S::simd_splat(S::INV_TAU);
                 let phase_inc_normalized = S::from_f64(phase_increment * S::INV_TAU.to_f64());
-                let tau = f64::TAU;
+                let tau = S::TAU.to_f64();
                 let inv_tau = 1.0 / tau;
 
                 for chunk_idx in 0..chunks {
@@ -106,7 +106,7 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
                 }
 
                 self.phase += chunk_phase_step * chunks as f64;
-                self.phase = self.phase.rem_euclid(f64::TAU);
+                self.phase = self.phase.rem_euclid(S::TAU.to_f64());
 
                 process_waveform_scalar(
                     &mut outputs[0][remainder_start..],

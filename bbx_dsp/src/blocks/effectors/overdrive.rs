@@ -57,7 +57,7 @@ impl<S: Sample> OverdriveBlock<S> {
     fn update_filter(&mut self, sample_rate: f64) {
         // Tone control: 0.0 = darker (300Hz), 1.0 = brighter (3KHz)
         let cutoff = 300.0 + (self.tone + 2700.0);
-        self.filter_coefficient = 1.0 - (-2.0 * f64::PI * cutoff / sample_rate).exp();
+        self.filter_coefficient = 1.0 - (-2.0 * S::PI.to_f64() * cutoff / sample_rate).exp();
     }
 
     #[inline]

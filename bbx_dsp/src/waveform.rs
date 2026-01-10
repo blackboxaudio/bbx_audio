@@ -38,9 +38,6 @@ pub enum Waveform {
 /// determines the width of the waveform within its periodic cycle.
 pub(crate) const DEFAULT_DUTY_CYCLE: f64 = 0.5;
 
-const TWO_PI: f64 = f64::TAU;
-const INV_TWO_PI: f64 = 1.0 / f64::TAU;
-
 /// Generate 4 naive samples of a waveform using SIMD (internal helper).
 ///
 /// Returns `None` for Noise waveform (requires sequential RNG).
@@ -106,8 +103,8 @@ pub(crate) fn generate_waveform_sample(
     duty_cycle: f64,
     rng: &mut XorShiftRng,
 ) -> f64 {
-    let normalized_phase = (phase % TWO_PI) * INV_TWO_PI;
-    let normalized_inc = phase_increment * INV_TWO_PI;
+    let normalized_phase = (phase % <f64 as Sample>::TAU) * <f64 as Sample>::INV_TAU;
+    let normalized_inc = phase_increment * <f64 as Sample>::INV_TAU;
 
     match waveform {
         Waveform::Sine => phase.sin(),
@@ -136,7 +133,7 @@ pub(crate) fn process_waveform_scalar<S: Sample>(
         *sample = S::from_f64(value * scale);
         *phase += phase_increment;
     }
-    *phase = phase.rem_euclid(TWO_PI);
+    *phase = phase.rem_euclid(<f64 as Sample>::TAU);
 }
 
 /// Generate 4 band-limited waveform samples using SIMD with PolyBLEP corrections.
