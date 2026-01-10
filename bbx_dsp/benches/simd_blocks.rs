@@ -9,6 +9,7 @@ use bbx_dsp::{
         generators::oscillator::OscillatorBlock,
         modulators::lfo::LfoBlock,
     },
+    polyblep::AntiAliasingMode,
     sample::Sample,
     waveform::Waveform,
 };
@@ -178,7 +179,72 @@ fn bench_lfo_f64(c: &mut Criterion) {
     bench_lfo::<f64>(c, "f64");
 }
 
+fn bench_oscillator_antialiasing<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let waveforms = [
+        ("sawtooth", Waveform::Sawtooth),
+        ("square", Waveform::Square),
+        ("triangle", Waveform::Triangle),
+    ];
+
+    let aa_modes = [
+        ("naive", AntiAliasingMode::None),
+        ("polyblep", AntiAliasingMode::PolyBlep),
+    ];
+
+    let mut group = c.benchmark_group(format!("oscillator_antialiasing_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64));
+
+        for (waveform_name, waveform) in &waveforms {
+            for (aa_name, aa_mode) in &aa_modes {
+                let bench_name = format!("{}_{}", waveform_name, aa_name);
+                let bench_id = BenchmarkId::new(bench_name, buffer_size);
+
+                group.bench_with_input(bench_id, buffer_size, |b, &size| {
+                    let context = create_context(size);
+                    let mut block = OscillatorBlock::<S>::with_antialiasing(
+                        S::from_f64(2000.0), // High frequency to exercise anti-aliasing
+                        *waveform,
+                        *aa_mode,
+                        None,
+                    );
+                    let mut outputs = create_output_buffers::<S>(size, 1);
+                    let modulation_values: Vec<S> = vec![];
+
+                    b.iter(|| {
+                        let inputs: Vec<&[S]> = vec![];
+                        let mut output_slices = as_output_slices(&mut outputs);
+                        block.process(
+                            black_box(&inputs),
+                            black_box(&mut output_slices),
+                            black_box(&modulation_values),
+                            black_box(&context),
+                        );
+                    });
+                });
+            }
+        }
+    }
+
+    group.finish();
+}
+
+fn bench_oscillator_antialiasing_f32(c: &mut Criterion) {
+    bench_oscillator_antialiasing::<f32>(c, "f32");
+}
+
+fn bench_oscillator_antialiasing_f64(c: &mut Criterion) {
+    bench_oscillator_antialiasing::<f64>(c, "f64");
+}
+
 criterion_group!(oscillator_benches, bench_oscillator_f32, bench_oscillator_f64,);
+
+criterion_group!(
+    oscillator_antialiasing_benches,
+    bench_oscillator_antialiasing_f32,
+    bench_oscillator_antialiasing_f64
+);
 
 criterion_group!(panner_benches, bench_panner_f32, bench_panner_f64);
 
@@ -186,4 +252,10 @@ criterion_group!(gain_benches, bench_gain_f32, bench_gain_f64);
 
 criterion_group!(lfo_benches, bench_lfo_f32, bench_lfo_f64);
 
-criterion_main!(oscillator_benches, panner_benches, gain_benches, lfo_benches);
+criterion_main!(
+    oscillator_benches,
+    oscillator_antialiasing_benches,
+    panner_benches,
+    gain_benches,
+    lfo_benches
+);
