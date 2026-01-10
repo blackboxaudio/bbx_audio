@@ -43,6 +43,7 @@ pub mod frame;
 pub mod graph;
 pub mod parameter;
 pub mod plugin;
+pub mod polyblep;
 pub mod prelude;
 pub mod reader;
 pub mod sample {

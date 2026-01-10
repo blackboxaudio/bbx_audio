@@ -24,7 +24,7 @@ pub fn create_input_buffers<S: Sample>(buffer_size: usize, count: usize) -> Vec<
         .map(|_| {
             (0..buffer_size)
                 .map(|i| {
-                    let phase = (i as f64 / buffer_size as f64) * std::f64::consts::TAU;
+                    let phase = (i as f64 / buffer_size as f64) * S::TAU.to_f64();
                     S::from_f64(phase.sin())
                 })
                 .collect()

@@ -20,7 +20,7 @@ const MIN_RAMP_LENGTH_MS: f64 = 0.01;
 fn is_approximately_equal<S: Sample>(a: S, b: S) -> bool {
     let a_f64 = a.to_f64();
     let b_f64 = b.to_f64();
-    let epsilon = f64::EPSILON * a_f64.abs().max(b_f64.abs()).max(1.0);
+    let epsilon = S::EPSILON.to_f64() * a_f64.abs().max(b_f64.abs()).max(1.0);
     (a_f64 - b_f64).abs() < epsilon
 }
 

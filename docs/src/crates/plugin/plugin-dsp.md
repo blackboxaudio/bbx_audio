@@ -187,9 +187,9 @@ impl PluginDsp for StereoGain {
         _midi_events: &[MidiEvent],
         context: &DspContext,
     ) {
-        let pan_rad = self.pan * std::f32::consts::FRAC_PI_4;
-        let left_gain = self.gain * (std::f32::consts::FRAC_PI_4 - pan_rad).cos();
-        let right_gain = self.gain * (std::f32::consts::FRAC_PI_4 + pan_rad).cos();
+        let pan_rad = self.pan * f32::FRAC_PI_4;
+        let left_gain = self.gain * (f32::FRAC_PI_4 - pan_rad).cos();
+        let right_gain = self.gain * (f32::FRAC_PI_4 + pan_rad).cos();
 
         if inputs.len() >= 2 && outputs.len() >= 2 {
             for i in 0..context.buffer_size {

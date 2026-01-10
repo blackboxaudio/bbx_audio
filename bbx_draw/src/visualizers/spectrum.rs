@@ -1,7 +1,5 @@
 //! FFT-based spectrum analyzer.
 
-use std::f32::consts::PI;
-
 use nannou::{
     Draw,
     geom::{Point2, Rect},
@@ -218,7 +216,7 @@ impl Visualizer for SpectrumAnalyzer {
 
 fn hann_window(size: usize) -> Vec<f32> {
     (0..size)
-        .map(|i| 0.5 * (1.0 - (2.0 * PI * i as f32 / size as f32).cos()))
+        .map(|i| 0.5 * (1.0 - (std::f32::consts::TAU * i as f32 / size as f32).cos()))
         .collect()
 }
 

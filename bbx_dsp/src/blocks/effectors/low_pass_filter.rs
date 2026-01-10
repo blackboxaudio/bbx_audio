@@ -69,7 +69,7 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
             .to_f64()
             .clamp(Self::MIN_Q, Self::MAX_Q);
 
-        let g = (std::f64::consts::PI * cutoff_hz / context.sample_rate).tan();
+        let g = (S::PI.to_f64() * cutoff_hz / context.sample_rate).tan();
         let k = 1.0 / q;
         let a1 = 1.0 / (1.0 + g * (g + k));
         let a2 = g * a1;

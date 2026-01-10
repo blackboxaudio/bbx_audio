@@ -3,7 +3,6 @@
 //! Displays a sine wave oscilloscope using the WaveformVisualizer.
 
 use std::{
-    f32::consts::PI,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -45,7 +44,7 @@ fn model(app: &App) -> Model {
 
         while running_clone.load(Ordering::Relaxed) {
             for i in 0..BUFFER_SIZE {
-                samples[i] = (phase * 2.0 * PI).sin();
+                samples[i] = (phase * std::f32::consts::TAU).sin();
                 phase += frequency / sample_rate as f32;
                 if phase >= 1.0 {
                     phase -= 1.0;

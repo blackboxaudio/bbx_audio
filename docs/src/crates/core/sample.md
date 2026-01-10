@@ -32,6 +32,22 @@ pub trait Sample:
     /// One value (full scale)
     const ONE: Self;
 
+    /// Machine epsilon
+    const EPSILON: Self;
+
+    /// Mathematical constants for DSP
+    const PI: Self;        // π
+    const INV_PI: Self;    // 1/π
+    const FRAC_PI_2: Self; // π/2
+    const FRAC_PI_3: Self; // π/3
+    const FRAC_PI_4: Self; // π/4
+    const TAU: Self;       // 2π (full circle)
+    const INV_TAU: Self;   // 1/(2π)
+    const PHI: Self;       // Golden ratio
+    const E: Self;         // Euler's number
+    const SQRT_2: Self;    // √2
+    const INV_SQRT_2: Self; // 1/√2
+
     /// Convert from f64
     fn from_f64(value: f64) -> Self;
 
@@ -48,6 +64,10 @@ The trait is implemented for `f32` and `f64`:
 impl Sample for f32 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
+    const EPSILON: Self = f32::EPSILON;
+    const PI: Self = std::f32::consts::PI;
+    const TAU: Self = std::f32::consts::TAU;
+    // ... other constants with f32 precision
 
     fn from_f64(value: f64) -> Self { value as f32 }
     fn to_f64(self) -> f64 { self as f64 }
@@ -56,11 +76,32 @@ impl Sample for f32 {
 impl Sample for f64 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
+    const EPSILON: Self = f64::EPSILON;
+    const PI: Self = std::f64::consts::PI;
+    const TAU: Self = std::f64::consts::TAU;
+    // ... other constants with f64 precision
 
     fn from_f64(value: f64) -> Self { value }
     fn to_f64(self) -> f64 { self }
 }
 ```
+
+## Mathematical Constants
+
+The `Sample` trait provides mathematical constants commonly used in DSP:
+
+| Constant | Value | Common DSP Use |
+|----------|-------|----------------|
+| `PI` | π ≈ 3.14159 | Phase calculations, filter coefficients |
+| `TAU` | 2π ≈ 6.28318 | Full cycle/phase wrap, angular frequency |
+| `INV_TAU` | 1/(2π) | Frequency-to-phase conversion |
+| `FRAC_PI_2` | π/2 | Quarter-wave, phase shifts |
+| `SQRT_2` | √2 ≈ 1.414 | RMS calculations, equal-power panning |
+| `INV_SQRT_2` | 1/√2 ≈ 0.707 | Equal-power crossfade, normalization |
+| `E` | e ≈ 2.718 | Exponential decay, RC filter time constants |
+| `PHI` | φ ≈ 1.618 | Golden ratio for aesthetic frequency ratios |
+
+These constants are provided at compile-time precision for both `f32` and `f64`, avoiding runtime conversions in hot paths.
 
 ## Usage
 
@@ -146,6 +187,10 @@ pub trait Sample {
     /// Select elements where a < b
     #[cfg(feature = "simd")]
     fn simd_select_lt(a: Self::Simd, b: Self::Simd, if_true: Self::Simd, if_false: Self::Simd) -> Self::Simd;
+
+    /// Returns lane offsets [0.0, 1.0, 2.0, 3.0] for phase calculations
+    #[cfg(feature = "simd")]
+    fn simd_lane_offsets() -> Self::Simd;
 }
 ```
 

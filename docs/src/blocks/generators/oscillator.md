@@ -120,6 +120,10 @@ let noise2 = builder.add_oscillator(0.0, Waveform::Noise, Some(12345));  // Same
 ## Implementation Notes
 
 - Phase accumulator runs continuously
-- No anti-aliasing (naive waveforms)
+- **Band-limited output** using PolyBLEP/PolyBLAMP anti-aliasing:
+  - Saw, Square, Pulse: PolyBLEP corrects step discontinuities
+  - Triangle: PolyBLAMP corrects slope discontinuities
+  - Sine: Naturally band-limited (no correction needed)
+  - Noise: No discontinuities (no correction needed)
 - Noise is sample-and-hold (per-sample random)
 - Frequency is ignored for Noise waveform

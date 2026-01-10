@@ -71,14 +71,13 @@ impl<S: Sample> Block<S> for GainBlock<S> {
 
         // Fast path: constant gain when not smoothing
         if !self.gain_smoother.is_smoothing() {
-            let gain = self.gain_smoother.current().to_f64();
+            let gain = self.gain_smoother.current();
 
             #[cfg(feature = "simd")]
             {
-                let gain_s = S::from_f64(gain);
                 for ch in 0..num_channels {
                     let len = inputs[ch].len().min(outputs[ch].len());
-                    apply_gain(&inputs[ch][..len], &mut outputs[ch][..len], gain_s);
+                    apply_gain(&inputs[ch][..len], &mut outputs[ch][..len], gain);
                 }
                 return;
             }
@@ -88,7 +87,7 @@ impl<S: Sample> Block<S> for GainBlock<S> {
                 for ch in 0..num_channels {
                     let len = inputs[ch].len().min(outputs[ch].len());
                     for i in 0..len {
-                        outputs[ch][i] = S::from_f64(inputs[ch][i].to_f64() * gain);
+                        outputs[ch][i] = inputs[ch][i] * gain;
                     }
                 }
                 return;
@@ -109,7 +108,7 @@ impl<S: Sample> Block<S> for GainBlock<S> {
         for ch in 0..num_channels {
             let ch_len = inputs[ch].len().min(outputs[ch].len()).min(len);
             for (i, &gain) in gain_values.iter().enumerate().take(ch_len) {
-                outputs[ch][i] = S::from_f64(inputs[ch][i].to_f64() * gain.to_f64());
+                outputs[ch][i] = inputs[ch][i] * gain;
             }
         }
     }

@@ -3,7 +3,6 @@
 //! Displays FFT spectrum of a multi-frequency signal.
 
 use std::{
-    f32::consts::PI,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -48,7 +47,7 @@ fn model(app: &App) -> Model {
                 let mut sample = 0.0;
                 for (j, &freq) in frequencies.iter().enumerate() {
                     let amplitude = 1.0 / (j as f32 + 1.0);
-                    sample += amplitude * (phases[j] * 2.0 * PI).sin();
+                    sample += amplitude * (phases[j] * std::f32::consts::TAU).sin();
                     phases[j] += freq / sample_rate as f32;
                     if phases[j] >= 1.0 {
                         phases[j] -= 1.0;
