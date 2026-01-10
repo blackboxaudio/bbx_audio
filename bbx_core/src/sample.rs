@@ -4,6 +4,8 @@
 //! types used for audio processing. This allows blocks and graphs to be generic
 //! over sample precision (`f32` or `f64`).
 
+#![allow(clippy::excessive_precision)]
+
 #[cfg(feature = "simd")]
 use std::simd::{StdFloat, cmp::SimdPartialOrd, f32x4, f64x4, num::SimdFloat};
 use std::{
@@ -48,29 +50,35 @@ pub trait Sample:
     /// The unit value for this sample type (full scale).
     const ONE: Self;
 
-    /// Pi (π ≈ 3.14159...).
+    /// Pi (π).
     const PI: Self;
 
-    /// Two times pi (2π = τ ≈ 6.28318...).
-    const TWO_PI: Self;
-
-    /// Tau (τ = 2π ≈ 6.28318...).
-    const TAU: Self;
-
-    /// The reciprocal of pi (1/π ≈ 0.31830...).
+    /// The reciprocal of pi (1/π).
     const INV_PI: Self;
 
-    /// The reciprocal of two pi (1/2π ≈ 0.15915...).
-    const INV_TWO_PI: Self;
-
-    /// The reciprocal of tau (1/τ = 1/2π ≈ 0.15915...).
-    const INV_TAU: Self;
-
-    /// Half of pi (π/2 ≈ 1.57079...).
+    /// Half of pi (π/2).
     const FRAC_PI_2: Self;
 
-    /// Quarter of pi (π/4 ≈ 0.78539...).
+    /// Third of pi (π/3).
+    const FRAC_PI_3: Self;
+
+    /// Quarter of pi (π/4).
     const FRAC_PI_4: Self;
+
+    /// Tau; full circle constant (τ = 2π).
+    const TAU: Self;
+
+    /// The golden ratio (φ).
+    const PHI: Self;
+
+    /// Euler's number (e).
+    const E: Self;
+
+    /// Square root of 2.
+    const SQRT_2: Self;
+
+    /// Inverse square root of 2.
+    const INV_SQRT_2: Self;
 
     /// Convert from an `f64` value.
     fn from_f64(value: f64) -> Self;
@@ -122,14 +130,16 @@ pub trait Sample:
 impl Sample for f32 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
-    const PI: Self = std::f32::consts::PI;
-    const TWO_PI: Self = std::f32::consts::TAU;
-    const TAU: Self = std::f32::consts::TAU;
-    const INV_PI: Self = std::f32::consts::FRAC_1_PI;
-    const INV_TWO_PI: Self = 0.5 * std::f32::consts::FRAC_1_PI;
-    const INV_TAU: Self = 0.5 * std::f32::consts::FRAC_1_PI;
-    const FRAC_PI_2: Self = std::f32::consts::FRAC_PI_2;
-    const FRAC_PI_4: Self = std::f32::consts::FRAC_PI_4;
+    const PI: Self = 3.14159265358979323846264338327950288_f32;
+    const INV_PI: Self = 0.318309886183790671537767526745028724_f32;
+    const FRAC_PI_2: Self = 1.57079632679489661923132169163975144_f32;
+    const FRAC_PI_3: Self = 1.04719755119659774615421446109316763_f32;
+    const FRAC_PI_4: Self = 0.785398163397448309615660845819875721_f32;
+    const TAU: Self = 6.28318530717958647692528676655900577_f32;
+    const PHI: Self = 1.618033988749894848204586834365638118_f32;
+    const E: Self = 2.71828182845904523536028747135266250_f32;
+    const SQRT_2: Self = 1.41421356237309504880168872420969808_f32;
+    const INV_SQRT_2: Self = 0.707106781186547524400844362104849039_f32;
 
     #[inline]
     fn from_f64(value: f64) -> Self {
@@ -184,14 +194,16 @@ impl Sample for f32 {
 impl Sample for f64 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
-    const PI: Self = std::f64::consts::PI;
-    const TWO_PI: Self = std::f64::consts::TAU;
-    const TAU: Self = std::f64::consts::TAU;
-    const INV_PI: Self = std::f64::consts::FRAC_1_PI;
-    const INV_TWO_PI: Self = 0.5 * std::f64::consts::FRAC_1_PI;
-    const INV_TAU: Self = 0.5 * std::f64::consts::FRAC_1_PI;
-    const FRAC_PI_2: Self = std::f64::consts::FRAC_PI_2;
-    const FRAC_PI_4: Self = std::f64::consts::FRAC_PI_4;
+    const PI: Self = 3.14159265358979323846264338327950288_f64;
+    const INV_PI: Self = 0.318309886183790671537767526745028724_f64;
+    const FRAC_PI_2: Self = 1.57079632679489661923132169163975144_f64;
+    const FRAC_PI_3: Self = 1.04719755119659774615421446109316763_f64;
+    const FRAC_PI_4: Self = 0.785398163397448309615660845819875721_f64;
+    const TAU: Self = 6.28318530717958647692528676655900577_f64;
+    const PHI: Self = 1.618033988749894848204586834365638118_f64;
+    const E: Self = 2.71828182845904523536028747135266250_f64;
+    const SQRT_2: Self = 1.41421356237309504880168872420969808_f64;
+    const INV_SQRT_2: Self = 0.707106781186547524400844362104849039_f64;
 
     #[inline]
     fn from_f64(value: f64) -> Self {

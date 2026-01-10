@@ -186,9 +186,4 @@ criterion_group!(gain_benches, bench_gain_f32, bench_gain_f64);
 
 criterion_group!(lfo_benches, bench_lfo_f32, bench_lfo_f64);
 
-criterion_main!(
-    oscillator_benches,
-    panner_benches,
-    gain_benches,
-    lfo_benches
-);
+criterion_main!(oscillator_benches, panner_benches, gain_benches, lfo_benches);
