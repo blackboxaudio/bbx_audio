@@ -159,7 +159,10 @@ fn main() {
 
 ## Next Steps
 
-- [Building a Terminal Synthesizer](terminal-synth.md) - Hear your first synth
-- [Creating a Simple Oscillator](oscillator.md) - Explore different waveforms
-- [Adding Effects](effects.md) - Add more processing blocks
-- [Parameter Modulation](modulation.md) - Use LFOs to modulate parameters
+Choose your learning path:
+
+- **Build something immediately**: [Building a Terminal Synthesizer](terminal-synth.md) - Create a playable synth with audio output
+- **Deepen your understanding**: Continue with the core concepts:
+  - [Creating a Simple Oscillator](oscillator.md) - Explore different waveforms
+  - [Adding Effects](effects.md) - Process audio with gain, panning, distortion
+  - [Parameter Modulation](modulation.md) - Animate parameters with LFOs

@@ -13,6 +13,10 @@ bbx_dsp = "0.1"
 nannou = "0.19"
 ```
 
+> **Prior knowledge**: This tutorial assumes familiarity with:
+> - [Your First DSP Graph](first-graph.md) - Building and processing graphs
+> - [nannou](https://nannou.cc) - Basic nannou application structure
+
 ## Setting Up the Audio Bridge
 
 The audio bridge connects your audio processing to the visualization thread:

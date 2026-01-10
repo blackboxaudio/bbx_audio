@@ -12,6 +12,10 @@ bbx_dsp = "0.1"
 bbx_file = "0.1"
 ```
 
+> **Prior knowledge**: This tutorial assumes familiarity with:
+> - [Your First DSP Graph](first-graph.md) - GraphBuilder and processing
+> - [Adding Effects](effects.md) - Effect chains (for processing examples)
+
 ## Supported Formats
 
 | Format | Read | Write |

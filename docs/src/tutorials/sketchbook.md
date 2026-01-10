@@ -11,6 +11,8 @@ Enable the sketchbook feature (enabled by default):
 bbx_draw = { version = "0.1", features = ["sketchbook"] }
 ```
 
+> **Prior knowledge**: Review [Real-Time Visualization](visualization.md) first to understand the Visualizer trait and audio bridge pattern.
+
 ## The Sketch Trait
 
 Implement `Sketch` to make your sketch discoverable:

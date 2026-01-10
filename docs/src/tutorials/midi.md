@@ -11,6 +11,10 @@ Add bbx_midi to your project:
 bbx_midi = "0.1"
 ```
 
+> **Prior knowledge**: For synthesizer integration examples, familiarity with:
+> - [Your First DSP Graph](first-graph.md) - Graph basics
+> - [Parameter Modulation](modulation.md) - Envelope triggering
+
 ## MIDI Message Types
 
 bbx_midi supports standard MIDI messages:
@@ -117,7 +121,7 @@ fn velocity_to_amplitude_curve(velocity: u8) -> f32 {
 
 ## Simple MIDI Synth
 
-Combine MIDI with oscillators:
+Combine MIDI with oscillators. For a complete implementation with audio output, see [Building a Terminal Synthesizer - Part 3](terminal-synth.md#part-3-adding-midi-input).
 
 ```rust
 use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};

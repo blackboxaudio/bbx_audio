@@ -8,6 +8,10 @@ This tutorial shows you how to create a synthesizer that runs in your terminal, 
 - Audio output device (speakers or headphones)
 - USB MIDI keyboard (optional, for Part 3)
 
+> **Prior knowledge**: Before starting, review [Your First DSP Graph](first-graph.md) for core graph concepts.
+>
+> **Note**: This tutorial progressively introduces concepts. Parts 2-3 use techniques covered in more depth in [Parameter Modulation](modulation.md) and [MIDI Integration](midi.md).
+
 ## Part 1: Basic Sine Wave Synth
 
 ### Creating Your Project
@@ -611,6 +615,12 @@ let filter_id = builder.add_low_pass_filter(4000.0, 0.7);  // Brighter, less res
 
 ## Next Steps
 
-- [Parameter Modulation with LFOs](modulation.md) - Add vibrato and filter sweeps
-- [Working with Audio Files](audio-files.md) - Sample playback
-- [VcaBlock Reference](../blocks/effectors/vca.md) - VCA block details
+Now that you've built a working synthesizer:
+
+- [Parameter Modulation with LFOs](modulation.md) - Add vibrato and filter sweeps (deeper coverage of Part 2 concepts)
+- [Working with Audio Files](audio-files.md) - Add sample playback to your synth
+- [VcaBlock Reference](../blocks/effectors/vca.md) - VCA block API details
+
+For the concepts used in Part 3:
+
+- [MIDI Integration](midi.md) - Complete MIDI API reference and patterns
