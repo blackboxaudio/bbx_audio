@@ -7,3 +7,4 @@ pub mod gain;
 pub mod low_pass_filter;
 pub mod overdrive;
 pub mod panner;
+pub mod vca;

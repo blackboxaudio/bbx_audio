@@ -2,6 +2,8 @@
 
 This tutorial explores the `OscillatorBlock` and its waveform options.
 
+> **Prior knowledge**: This tutorial builds on [Your First DSP Graph](first-graph.md), which covers `GraphBuilder` basics and block connections.
+
 ## Available Waveforms
 
 bbx_audio provides several waveform types:
@@ -73,7 +75,7 @@ Random samples. Contains all frequencies equally.
 
 ## Frequency Modulation
 
-Use an LFO to modulate the oscillator frequency:
+Use an LFO to modulate the oscillator frequency. For a deeper dive into modulation, see [Parameter Modulation with LFOs](modulation.md).
 
 ```rust
 use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};

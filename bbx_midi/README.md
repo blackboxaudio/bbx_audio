@@ -6,7 +6,7 @@ MIDI message parsing and streaming utilities for audio applications.
 
 - **MIDI message parsing**: Parse raw MIDI bytes into structured messages
 - **Message type helpers**: Extract note, velocity, pitch wheel, control data
-- **Real-time buffer**: Pre-allocated buffer for use in audio callbacks
+- **Lock-free buffer**: Thread-safe SPSC ring buffer for MIDI-to-audio communication
 - **Input streaming**: Real-time MIDI input via `midir`
 - **FFI compatible**: `#[repr(C)]` types for C interop
 
@@ -37,7 +37,7 @@ Used with `PluginDsp::process()` for synthesizer plugins.
 ## Usage
 
 ```rust
-use bbx_midi::{MidiMessage, MidiMessageStatus, MidiMessageBuffer};
+use bbx_midi::{MidiMessage, MidiMessageStatus};
 
 // Parse raw MIDI bytes
 let msg = MidiMessage::new([0x90, 60, 100]); // Note On, C4, velocity 100
@@ -47,17 +47,29 @@ if msg.get_status() == MidiMessageStatus::NoteOn {
     println!("Frequency: {} Hz", msg.get_note_frequency().unwrap()); // ~261.6
     println!("Velocity: {}", msg.get_velocity().unwrap());   // 100
 }
-
-// Pre-allocated buffer for real-time use
-let mut buffer = MidiMessageBuffer::new(256);
-buffer.push(msg);
-
-for message in buffer.iter() {
-    // Process messages...
-}
-
-buffer.clear(); // Reset without deallocation
 ```
+
+## Lock-Free MIDI Buffer
+
+For thread-safe communication between MIDI and audio threads:
+
+```rust
+use bbx_midi::{midi_buffer, MidiMessage};
+
+// Create producer/consumer pair
+let (mut producer, mut consumer) = midi_buffer(64);
+
+// MIDI thread: push messages
+let msg = MidiMessage::new([0x90, 60, 100]);
+producer.try_send(msg);
+
+// Audio thread: pop messages (realtime-safe)
+while let Some(msg) = consumer.try_pop() {
+    // Process MIDI message
+}
+```
+
+The buffer uses an SPSC ring buffer internally, making all consumer operations lock-free and allocation-free for real-time safety.
 
 ## Cargo Features
 

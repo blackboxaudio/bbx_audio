@@ -2,6 +2,10 @@
 
 This tutorial covers the effect blocks available in bbx_audio.
 
+> **Prior knowledge**: This tutorial assumes familiarity with:
+> - [Your First DSP Graph](first-graph.md) - GraphBuilder and connections
+> - [Creating a Simple Oscillator](oscillator.md) - Adding audio sources
+
 ## Available Effects
 
 - `GainBlock` - Level control in dB
@@ -121,7 +125,7 @@ Use DC blockers after:
 
 ## Building Effect Chains
 
-Chain multiple effects together:
+Chain multiple effects together using the same connection pattern from [Your First DSP Graph](first-graph.md#connecting-blocks):
 
 ```rust
 use bbx_dsp::{

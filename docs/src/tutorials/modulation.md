@@ -2,6 +2,10 @@
 
 This tutorial covers using LFOs and envelopes to modulate block parameters.
 
+> **Prior knowledge**: This tutorial builds on:
+> - [Your First DSP Graph](first-graph.md) - GraphBuilder basics
+> - [Adding Effects](effects.md) - GainBlock for tremolo examples
+
 ## Low-Frequency Oscillators (LFOs)
 
 LFOs generate control signals for modulating parameters like pitch, volume, and filter cutoff.
@@ -85,7 +89,7 @@ let graph = builder.build();
 
 ## Envelope Generator
 
-ADSR envelopes control how parameters change over time:
+ADSR envelopes control how parameters change over time. For a practical application with VCA, see [Building a Terminal Synthesizer - Part 2](terminal-synth.md#part-2-subtractive-synth-voice).
 
 ```rust
 use bbx_dsp::graph::GraphBuilder;

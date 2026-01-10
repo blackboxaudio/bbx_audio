@@ -10,15 +10,15 @@
 
 # Tutorials
 
-- [Your First DSP Graph](tutorials/first-graph.md)
-- [Building a Terminal Synthesizer](tutorials/terminal-synth.md)
-- [Creating a Simple Oscillator](tutorials/oscillator.md)
-- [Adding Effects](tutorials/effects.md)
-- [Parameter Modulation with LFOs](tutorials/modulation.md)
-- [Working with Audio Files](tutorials/audio-files.md)
-- [MIDI Integration](tutorials/midi.md)
-- [Real-Time Visualization](tutorials/visualization.md)
-- [Sketch Discovery](tutorials/sketchbook.md)
+- [Your First DSP Graph](tutorials/first-graph.md) — *start here*
+- [Building a Terminal Synthesizer](tutorials/terminal-synth.md) — *hands-on project*
+- [Creating a Simple Oscillator](tutorials/oscillator.md) — *sound sources*
+- [Adding Effects](tutorials/effects.md) — *signal processing*
+- [Parameter Modulation with LFOs](tutorials/modulation.md) — *dynamic control*
+- [Working with Audio Files](tutorials/audio-files.md) — *file I/O*
+- [MIDI Integration](tutorials/midi.md) — *external control*
+- [Real-Time Visualization](tutorials/visualization.md) — *visual feedback*
+- [Sketch Discovery](tutorials/sketchbook.md) — *project organization*
 
 # JUCE Plugin Integration
 
@@ -76,6 +76,7 @@
     - [OscillatorBlock](blocks/generators/oscillator.md)
 - [Effectors](blocks/effectors.md)
     - [GainBlock](blocks/effectors/gain.md)
+    - [VcaBlock](blocks/effectors/vca.md)
     - [PannerBlock](blocks/effectors/panner.md)
     - [OverdriveBlock](blocks/effectors/overdrive.md)
     - [DcBlockerBlock](blocks/effectors/dc-blocker.md)
