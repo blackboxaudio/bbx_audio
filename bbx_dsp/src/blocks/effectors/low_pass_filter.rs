@@ -15,17 +15,14 @@ use crate::{
 /// - Stable at all cutoff frequencies
 /// - Has no delay-free loops
 /// - Maintains consistent behavior regardless of sample rate
+///
+/// Output is scaled by a compensation factor based on Q and cutoff frequency
+/// to preserve passband gain while limiting the resonance peak (target ≤ 2.0).
 pub struct LowPassFilterBlock<S: Sample> {
     /// Cutoff frequency in Hz (20-20000).
     pub cutoff: Parameter<S>,
     /// Resonance (Q factor, 0.5-10.0, default 0.707 = Butterworth).
     pub resonance: Parameter<S>,
-    /// Whether to compensate for resonance gain boost (default: true).
-    ///
-    /// When enabled, the output is scaled by 1/Q to maintain unity gain at
-    /// resonance. When disabled, high Q values will cause gain proportional
-    /// to the Q factor (classic synthesizer filter behavior).
-    pub compensate_resonance: bool,
 
     ic1eq: [f64; 2],
     ic2eq: [f64; 2],
@@ -43,7 +40,6 @@ impl<S: Sample> LowPassFilterBlock<S> {
         Self {
             cutoff: Parameter::Constant(cutoff),
             resonance: Parameter::Constant(resonance),
-            compensate_resonance: true,
             ic1eq: [0.0; 2],
             ic2eq: [0.0; 2],
             sample_rate: 44100.0,
@@ -82,7 +78,23 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
         let a2 = g * a1;
         let a3 = g * a2;
 
-        let compensation = if self.compensate_resonance { k } else { 1.0 };
+        let compensation = {
+            let q_factor = if q <= 1.0 {
+                1.0
+            } else {
+                let target = 2.0 / q;
+                let blend = (q - 1.0).min(1.0);
+                1.0 - blend * (1.0 - target)
+            };
+
+            let g_factor = if g > 1.0 {
+                1.0 / (1.0 + 0.1 * (g - 1.0).min(5.0))
+            } else {
+                1.0
+            };
+
+            (q_factor * g_factor).clamp(0.1, 1.0)
+        };
 
         let num_channels = inputs.len().min(outputs.len()).min(2);
 

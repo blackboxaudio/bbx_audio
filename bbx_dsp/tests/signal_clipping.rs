@@ -121,10 +121,10 @@ fn test_envelope_output_range() {
     assert!(min_output >= 0.0, "Envelope min {:.6} below 0.0", min_output);
 }
 
-/// Test filter gain at various resonance levels WITH compensation enabled (default).
-/// With compensation, output should stay near unity even at high Q.
+/// Test filter gain at various resonance levels.
+/// With 2/Q compensation, resonance peak is limited to ~2.0 while preserving passband.
 #[test]
-fn test_filter_resonance_gain_with_compensation() {
+fn test_filter_resonance_gain() {
     let sample_rate = 44100.0;
     let buffer_size = 4096;
     let cutoff = 1000.0;
@@ -133,7 +133,6 @@ fn test_filter_resonance_gain_with_compensation() {
     for q in q_values {
         let mut filter = LowPassFilterBlock::<f64>::new(cutoff, q);
         filter.set_sample_rate(sample_rate);
-        // compensate_resonance defaults to true
 
         let context = make_context(sample_rate, buffer_size);
         let test_freq = cutoff;
@@ -161,72 +160,16 @@ fn test_filter_resonance_gain_with_compensation() {
 
         let gain_db = 20.0 * max_output.log10();
         eprintln!(
-            "Filter Q={:.3} (compensated): peak = {:.4} ({:.2}dB)",
+            "Filter Q={:.3}: peak = {:.4} ({:.2}dB)",
             q, max_output, gain_db
         );
 
-        // With compensation, output should stay bounded
         assert!(
-            max_output <= 1.1,
-            "Q={} with compensation should not exceed 1.1, got {:.4}",
+            max_output <= 2.05,
+            "Q={} should not exceed 2.05, got {:.4}",
             q,
             max_output
         );
-    }
-}
-
-/// Test filter gain WITHOUT compensation to document the resonance behavior.
-#[test]
-fn test_filter_resonance_gain_without_compensation() {
-    let sample_rate = 44100.0;
-    let buffer_size = 4096;
-    let cutoff = 1000.0;
-    let q_values = [0.5, 0.707, 1.0, 2.0, 5.0, 10.0];
-
-    for q in q_values {
-        let mut filter = LowPassFilterBlock::<f64>::new(cutoff, q);
-        filter.set_sample_rate(sample_rate);
-        filter.compensate_resonance = false; // Disable compensation
-
-        let context = make_context(sample_rate, buffer_size);
-        let test_freq = cutoff;
-        let mut max_output = 0.0f64;
-
-        for buffer_idx in 0..50 {
-            let mut input = vec![0.0f64; buffer_size];
-            let mut output = vec![0.0f64; buffer_size];
-
-            for i in 0..buffer_size {
-                let t = (buffer_idx * buffer_size + i) as f64 / sample_rate;
-                input[i] = (2.0 * std::f64::consts::PI * test_freq * t).sin();
-            }
-
-            let inputs: [&[f64]; 1] = [&input];
-            let mut outputs: [&mut [f64]; 1] = [&mut output];
-            filter.process(&inputs, &mut outputs, &[], &context);
-
-            if buffer_idx > 5 {
-                for sample in output {
-                    max_output = max_output.max(sample.abs());
-                }
-            }
-        }
-
-        let gain_db = 20.0 * max_output.log10();
-        eprintln!(
-            "Filter Q={:.3} (uncompensated): peak = {:.4} ({:.2}dB)",
-            q, max_output, gain_db
-        );
-
-        // Without compensation, Q > 1.0 should exhibit gain
-        if q > 1.0 {
-            assert!(
-                max_output > 1.0,
-                "Q={} without compensation should exceed 1.0, got {:.4}",
-                q,
-                max_output
-            );
-        }
     }
 }
 
@@ -404,5 +347,57 @@ fn test_full_synth_chain() {
     // Document that high Q causes clipping in the full chain
     if max_amplitude > 1.0 {
         eprintln!("  -> Full chain clips at high resonance");
+    }
+}
+
+/// Test filter at high cutoff (20kHz) with low Q values.
+/// The g-factor compensation should prevent clipping near Nyquist.
+#[test]
+fn test_filter_high_cutoff_low_q() {
+    let sample_rate = 44100.0;
+    let buffer_size = 4096;
+    let cutoff = 20000.0;
+    let q_values = [0.707, 1.0, 1.1, 1.2];
+
+    for q in q_values {
+        let mut filter = LowPassFilterBlock::<f64>::new(cutoff, q);
+        filter.set_sample_rate(sample_rate);
+
+        let context = make_context(sample_rate, buffer_size);
+        let test_freq = 18000.0;
+        let mut max_output = 0.0f64;
+
+        for buffer_idx in 0..100 {
+            let mut input = vec![0.0f64; buffer_size];
+            let mut output = vec![0.0f64; buffer_size];
+
+            for i in 0..buffer_size {
+                let t = (buffer_idx * buffer_size + i) as f64 / sample_rate;
+                input[i] = (2.0 * std::f64::consts::PI * test_freq * t).sin();
+            }
+
+            let inputs: [&[f64]; 1] = [&input];
+            let mut outputs: [&mut [f64]; 1] = [&mut output];
+            filter.process(&inputs, &mut outputs, &[], &context);
+
+            if buffer_idx > 10 {
+                for sample in output {
+                    max_output = max_output.max(sample.abs());
+                }
+            }
+        }
+
+        let gain_db = 20.0 * max_output.log10();
+        eprintln!(
+            "High cutoff (20kHz), Q={:.3}: peak = {:.4} ({:.2}dB)",
+            q, max_output, gain_db
+        );
+
+        assert!(
+            max_output <= 1.05,
+            "High cutoff Q={} should not exceed 1.05, got {:.4}",
+            q,
+            max_output
+        );
     }
 }
