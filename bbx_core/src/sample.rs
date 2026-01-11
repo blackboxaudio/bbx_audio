@@ -4,6 +4,7 @@
 //! types used for audio processing. This allows blocks and graphs to be generic
 //! over sample precision (`f32` or `f64`).
 
+#![allow(clippy::approx_constant)]
 #![allow(clippy::excessive_precision)]
 
 #[cfg(feature = "simd")]
