@@ -45,6 +45,38 @@ If you want to use Rust for your audio plugin DSP while keeping your UI and plug
 2. [JUCE Plugin Integration](juce/overview.md) - Full integration guide
 3. [Parameter System](juce/parameters.md) - Managing plugin parameters
 
+### Game Audio Developers
+
+If you're building audio systems for games and want real-time safe DSP in Rust:
+
+1. [Quick Start](getting-started/quick-start.md) - Build your first DSP graph
+2. [Real-Time Safety](architecture/realtime-safety.md) - Allocation-free, lock-free processing
+3. [Graph Architecture](architecture/graph-architecture.md) - Efficient audio routing
+
+### Audio Programmers
+
+If you're exploring Rust for audio software and want to understand real-time DSP patterns:
+
+1. [Quick Start](getting-started/quick-start.md) - Build your first DSP graph
+2. [Graph Architecture](architecture/graph-architecture.md) - Core design patterns
+3. [Real-Time Safety](architecture/realtime-safety.md) - Allocation-free, lock-free processing
+
+### Experimental Musicians
+
+If you're building instruments, exploring synthesis, or experimenting with sound design:
+
+1. [Terminal Synthesizer](tutorials/terminal-synth.md) - Build a MIDI-controlled synth from scratch
+2. [Parameter Modulation](tutorials/modulation.md) - LFOs, envelopes, and modulation routing
+3. [MIDI Integration](tutorials/midi.md) - Connect keyboards and controllers
+
+### Generative Artists
+
+If you're creating sound installations, audio visualizations, or experimenting with procedural audio:
+
+1. [Quick Start](getting-started/quick-start.md) - Build your first DSP graph
+2. [Real-Time Visualization](tutorials/visualization.md) - Visualize audio with nannou
+3. [Sketch Discovery](tutorials/sketchbook.md) - Manage and organize visual sketches
+
 ### Library Contributors
 
 If you want to contribute to bbx_audio or understand its internals:
