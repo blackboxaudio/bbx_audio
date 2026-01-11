@@ -5,7 +5,7 @@ use bbx_core::random::XorShiftRng;
 #[cfg(feature = "simd")]
 use crate::sample::SIMD_LANES;
 #[cfg(feature = "simd")]
-use crate::waveform::generate_waveform_samples_simd_generic;
+use crate::waveform::generate_waveform_samples_simd;
 use crate::{
     block::{Block, DEFAULT_GENERATOR_INPUT_COUNT, DEFAULT_GENERATOR_OUTPUT_COUNT},
     context::DspContext,
@@ -18,6 +18,8 @@ use crate::{
 ///
 /// Supports standard waveforms (sine, square, sawtooth, triangle, pulse, noise).
 /// Frequency can be controlled via parameter modulation or MIDI note messages.
+///
+/// Uses PolyBLEP/PolyBLAMP for band-limited output, reducing aliasing artifacts.
 pub struct OscillatorBlock<S: Sample> {
     /// Base frequency in Hz (can be modulated).
     pub frequency: Parameter<S>,
@@ -34,12 +36,6 @@ pub struct OscillatorBlock<S: Sample> {
 
 impl<S: Sample> OscillatorBlock<S> {
     /// Create a new oscillator with the given frequency and waveform.
-    ///
-    /// # Arguments
-    ///
-    /// * `frequency` - Base frequency in Hz
-    /// * `waveform` - The waveform shape to generate
-    /// * `seed` - Optional RNG seed for noise waveform
     pub fn new(frequency: S, waveform: Waveform, seed: Option<u64>) -> Self {
         Self {
             frequency: Parameter::Constant(frequency),
@@ -75,8 +71,6 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
         let freq_hz = match &self.frequency {
             Parameter::Constant(f) => self.midi_frequency.unwrap_or(*f),
             Parameter::Modulated(block_id) => {
-                // Add modulation to base (allows vibrato on top of MIDI note)
-                // Safe lookup to prevent panic in audio thread
                 let mod_value = modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO);
                 base + mod_value
             }
@@ -84,13 +78,9 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
 
         let pitch_offset_semitones = match &self.pitch_offset {
             Parameter::Constant(offset) => *offset,
-            Parameter::Modulated(block_id) => {
-                // Safe lookup to prevent panic in audio thread
-                modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO)
-            }
+            Parameter::Modulated(block_id) => modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO),
         };
 
-        // Convert semitones to frequency multiplier: 2^(semitones/12)
         let freq = if pitch_offset_semitones != S::ZERO {
             let multiplier = S::from_f64(2.0f64.powf(pitch_offset_semitones.to_f64() / 12.0));
             freq_hz * multiplier
@@ -98,7 +88,7 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
             freq_hz
         };
 
-        let phase_increment = freq.to_f64() / context.sample_rate * std::f64::consts::TAU;
+        let phase_increment = freq.to_f64() / context.sample_rate * S::TAU.to_f64();
 
         #[cfg(feature = "simd")]
         {
@@ -115,13 +105,30 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                 let mut phases = base_phase + S::simd_lane_offsets() * sample_inc_simd;
                 let chunk_inc_simd = S::simd_splat(S::from_f64(chunk_phase_step));
                 let duty = S::from_f64(DEFAULT_DUTY_CYCLE);
-                let two_pi = S::simd_splat(S::from_f64(std::f64::consts::TAU));
-                let inv_two_pi = S::simd_splat(S::from_f64(1.0 / std::f64::consts::TAU));
+                let two_pi = S::simd_splat(S::TAU);
+                let inv_two_pi = S::simd_splat(S::INV_TAU);
+                let phase_inc_normalized = S::from_f64(phase_increment * S::INV_TAU.to_f64());
+                let tau = S::TAU.to_f64();
+                let inv_tau = 1.0 / tau;
 
                 for chunk_idx in 0..chunks {
-                    if let Some(samples) =
-                        generate_waveform_samples_simd_generic::<S>(self.waveform, phases, duty, two_pi, inv_two_pi)
-                    {
+                    let phases_array = S::simd_to_array(phases);
+                    let phases_normalized: [S; SIMD_LANES] = [
+                        S::from_f64(phases_array[0].to_f64().rem_euclid(tau) * inv_tau),
+                        S::from_f64(phases_array[1].to_f64().rem_euclid(tau) * inv_tau),
+                        S::from_f64(phases_array[2].to_f64().rem_euclid(tau) * inv_tau),
+                        S::from_f64(phases_array[3].to_f64().rem_euclid(tau) * inv_tau),
+                    ];
+
+                    if let Some(samples) = generate_waveform_samples_simd::<S>(
+                        self.waveform,
+                        phases,
+                        phases_normalized,
+                        phase_inc_normalized,
+                        duty,
+                        two_pi,
+                        inv_two_pi,
+                    ) {
                         let base = chunk_idx * SIMD_LANES;
                         outputs[0][base..base + SIMD_LANES].copy_from_slice(&samples);
                     }
@@ -130,7 +137,7 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                 }
 
                 self.phase += chunk_phase_step * chunks as f64;
-                self.phase = self.phase.rem_euclid(std::f64::consts::TAU);
+                self.phase = self.phase.rem_euclid(S::TAU.to_f64());
 
                 process_waveform_scalar(
                     &mut outputs[0][remainder_start..],

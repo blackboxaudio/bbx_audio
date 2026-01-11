@@ -92,13 +92,11 @@ impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
             return;
         }
 
+        let half = S::from_f64(0.5);
+
         for i in 0..num_samples {
-            let l_sample = left_in[i].to_f64();
-            let r_sample = if inputs.len() > 1 {
-                right_in[i].to_f64()
-            } else {
-                l_sample
-            };
+            let l_sample = left_in[i];
+            let r_sample = if inputs.len() > 1 { right_in[i] } else { l_sample };
 
             let (mut l_out, mut r_out) = match self.mode {
                 ChannelMode::Stereo => (l_sample, r_sample),
@@ -108,7 +106,7 @@ impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
             };
 
             if self.mono {
-                let mono = (l_out + r_out) * 0.5;
+                let mono = (l_out + r_out) * half;
                 l_out = mono;
                 r_out = mono;
             }
@@ -120,12 +118,11 @@ impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
                 r_out = -r_out;
             }
 
-            // Write outputs
             if !outputs.is_empty() {
-                outputs[0][i] = S::from_f64(l_out);
+                outputs[0][i] = l_out;
             }
             if outputs.len() > 1 {
-                outputs[1][i] = S::from_f64(r_out);
+                outputs[1][i] = r_out;
             }
         }
     }

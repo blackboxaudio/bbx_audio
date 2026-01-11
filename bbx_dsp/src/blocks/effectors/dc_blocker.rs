@@ -46,7 +46,7 @@ impl<S: Sample> DcBlockerBlock<S> {
         // DC blocker coefficient: R = 1 - (2 * PI * fc / fs)
         // For fc = 5Hz, this gives approximately 0.9993 at 44.1kHz
         let cutoff_hz = 5.0;
-        self.coeff = 1.0 - (2.0 * std::f64::consts::PI * cutoff_hz / sample_rate);
+        self.coeff = 1.0 - (2.0 * S::PI.to_f64() * cutoff_hz / sample_rate);
         self.coeff = self.coeff.clamp(0.9, 0.9999);
     }
 

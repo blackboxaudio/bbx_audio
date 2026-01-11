@@ -75,7 +75,7 @@ use bbx_dsp::context::DspContext;
 fn calculate_filter_coefficient(cutoff_hz: f64, context: &DspContext) -> f64 {
     let normalized_freq = cutoff_hz / context.sample_rate;
     // Calculate coefficient...
-    1.0 - (-2.0 * std::f64::consts::PI * normalized_freq).exp()
+    1.0 - (-2.0 * f64::PI * normalized_freq).exp()
 }
 ```
 

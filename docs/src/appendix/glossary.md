@@ -6,6 +6,8 @@ Audio DSP and bbx_audio terminology.
 
 **ADSR**: Attack-Decay-Sustain-Release. An envelope shape for amplitude or parameter control.
 
+**Anti-aliasing**: Techniques to prevent aliasing artifacts when generating waveforms with sharp discontinuities. See PolyBLEP, PolyBLAMP.
+
 **Audio Thread**: The high-priority thread that processes audio. Must be real-time safe.
 
 ## B
@@ -63,6 +65,10 @@ Audio DSP and bbx_audio terminology.
 **Oscillator**: A block that generates periodic waveforms.
 
 ## P
+
+**PolyBLAMP**: Polynomial Band-Limited rAMP. Anti-aliasing technique for waveforms with slope discontinuities (triangle waves). Applies polynomial corrections near transition points.
+
+**PolyBLEP**: Polynomial Band-Limited stEP. Anti-aliasing technique for waveforms with step discontinuities (sawtooth, square, pulse waves). Applies polynomial corrections near transition points to reduce aliasing.
 
 **Port**: An input or output connection point on a block.
 
