@@ -37,6 +37,14 @@ The core DSP system is built around a **Graph** of connected **Blocks**:
 
 ## Who is this documentation for?
 
+### Audio Programmers
+
+If you're exploring Rust for audio software and want to understand real-time DSP patterns:
+
+1. [Quick Start](getting-started/quick-start.md) - Build your first DSP graph
+2. [Graph Architecture](architecture/graph-architecture.md) - Core design patterns
+3. [Real-Time Safety](architecture/realtime-safety.md) - Allocation-free, lock-free processing
+
 ### Plugin Developers
 
 If you want to use Rust for your audio plugin DSP while keeping your UI and plugin framework in C++/JUCE, start with:
@@ -52,14 +60,6 @@ If you're building audio systems for games and want real-time safe DSP in Rust:
 1. [Quick Start](getting-started/quick-start.md) - Build your first DSP graph
 2. [Real-Time Safety](architecture/realtime-safety.md) - Allocation-free, lock-free processing
 3. [Graph Architecture](architecture/graph-architecture.md) - Efficient audio routing
-
-### Audio Programmers
-
-If you're exploring Rust for audio software and want to understand real-time DSP patterns:
-
-1. [Quick Start](getting-started/quick-start.md) - Build your first DSP graph
-2. [Graph Architecture](architecture/graph-architecture.md) - Core design patterns
-3. [Real-Time Safety](architecture/realtime-safety.md) - Allocation-free, lock-free processing
 
 ### Experimental Musicians
 
