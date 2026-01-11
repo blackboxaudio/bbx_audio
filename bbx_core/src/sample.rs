@@ -51,7 +51,7 @@ pub trait Sample:
     /// The unit value for this sample type (full scale).
     const ONE: Self;
 
-    /// Machine epsilon, which is the difference between
+    /// Machine epsilon i.e. the difference between
     /// 1.0 and the next larger representable number.
     const EPSILON: Self;
 
@@ -73,7 +73,7 @@ pub trait Sample:
     /// Tau; full circle constant (τ = 2π).
     const TAU: Self;
 
-    /// Inverse tau (1/τ = 1/2π)
+    /// Inverse tau (1/τ = 1/2π).
     const INV_TAU: Self;
 
     /// The golden ratio (φ).
