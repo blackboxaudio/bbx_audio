@@ -17,14 +17,10 @@ jobs:
               run: sudo apt install alsa libasound2-dev libssl-dev pkg-config
 
             - name: Setup Rust
-              uses: actions-rs/toolchain@v1
+              uses: dtolnay/rust-toolchain@master
               with:
-                  profile: minimal
-                  toolchain: nightly
-                  override: true
+                  toolchain: nightly-2025-06-08
+                  components: clippy
 
-            - name: Install `clippy` Component
-              run: rustup component add --toolchain nightly clippy
-
-            - name: Run Format
-              run: cargo +nightly clippy
+            - name: Cargo Clippy
+              run: cargo clippy
