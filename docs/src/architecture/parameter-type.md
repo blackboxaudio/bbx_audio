@@ -1,77 +1,112 @@
 # Parameter\<S\> Type
 
-The generic parameter type for static and modulated values.
+A smoothed parameter type that combines value sources with built-in interpolation.
 
 ## Definition
 
 ```rust
-pub enum Parameter<S: Sample> {
-    /// Fixed value
-    Static(S),
+pub struct Parameter<S: Sample, T: SmoothingStrategy = Linear> {
+    source: ParameterSource<S>,
+    smoother: SmoothedValue<S, T>,
+    ramp_length_ms: f64,
+}
 
-    /// Value controlled by a modulator block
+pub enum ParameterSource<S: Sample> {
+    Constant(S),
     Modulated(BlockId),
 }
 ```
 
-## Usage in Blocks
-
-Blocks store parameters as `Parameter<S>`:
+## Creating Parameters
 
 ```rust
-pub struct OscillatorBlock<S: Sample> {
-    frequency: Parameter<S>,
-    waveform: Waveform,
-    phase: S,
-}
+use bbx_dsp::parameter::Parameter;
+
+// Constant value with default linear smoothing (50ms ramp)
+let gain = Parameter::<f32>::constant(0.5);
+
+// Modulated by a block (e.g., LFO) with initial value
+let freq = Parameter::<f32>::modulated(lfo_id, 440.0);
+
+// Custom ramp time
+let pan = Parameter::<f32>::constant(0.0).with_ramp_ms(100.0);
 ```
 
-## Resolving Values
+## Usage in Blocks
 
-During processing, resolve the actual value:
+Blocks store parameters and use the built-in smoothing:
 
 ```rust
-impl<S: Sample> OscillatorBlock<S> {
-    fn get_frequency(&self, modulation: &[S]) -> S {
-        match &self.frequency {
-            Parameter::Static(value) => *value,
-            Parameter::Modulated(block_id) => {
-                let base = S::from_f64(440.0);
-                let mod_value = modulation[block_id.0];
-                base * (S::ONE + mod_value * S::from_f64(0.1))  // ±10%
-            }
+pub struct GainBlock<S: Sample> {
+    pub level_db: Parameter<S>,
+}
+
+impl<S: Sample> Block<S> for GainBlock<S> {
+    fn prepare(&mut self, context: &DspContext) {
+        self.level_db.prepare(context.sample_rate);
+    }
+
+    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]],
+               modulation_values: &[S], context: &DspContext) {
+        // Get raw value and apply transform (dB to linear)
+        let db = self.level_db.get_raw_value(modulation_values);
+        let linear = db_to_linear(db);
+        self.level_db.set_target(linear);
+
+        // Fast path when not smoothing
+        if !self.level_db.is_smoothing() {
+            let gain = self.level_db.current();
+            // Apply constant gain...
+            return;
+        }
+
+        // Smoothing path: generate per-sample values
+        for i in 0..context.buffer_size {
+            let gain = self.level_db.next_value();
+            outputs[0][i] = inputs[0][i] * gain;
         }
     }
 }
 ```
 
-## Static vs Modulated
+## Smoothing Strategies
 
-### Static
+Two strategies are available via the generic parameter:
 
-- Value known at creation
-- No per-block overhead
-- Simple and direct
+### Linear (default)
 
-```rust
-let gain = Parameter::Static(S::from_f64(-6.0));
-```
+Additive interpolation using `current + increment`. Best for parameters with linear perception like pan position.
 
-### Modulated
+### Multiplicative
 
-- Value changes each buffer
-- Requires modulator block
-- Adds routing complexity
+Exponential interpolation using `current * e^increment`. Best for parameters with logarithmic perception like gain and frequency.
 
 ```rust
-let frequency = Parameter::Modulated(lfo_block_id);
+use bbx_dsp::smoothing::Multiplicative;
+
+// Use multiplicative smoothing for frequency
+let freq: Parameter<f32, Multiplicative> = Parameter::constant(440.0);
 ```
+
+## Key Methods
+
+| Method | Description |
+|--------|-------------|
+| `prepare(sample_rate)` | Initialize smoother for given sample rate |
+| `get_raw_value(modulation)` | Get unsmoothed source value |
+| `update_target(modulation)` | Set smoother target from source |
+| `set_target(value)` | Set smoother target directly (for transformed values) |
+| `next_value()` | Get next smoothed sample |
+| `current()` | Get current value without advancing |
+| `is_smoothing()` | Check if actively interpolating |
+| `fill_buffer(buffer, modulation)` | Fill buffer with smoothed values |
 
 ## Design Rationale
 
-The `Parameter` enum:
+The `Parameter` type:
 
-1. **Unifies static and dynamic** - Same API for both
-2. **Type-safe modulation** - Compile-time block ID checking
-3. **Zero-cost static** - No indirection for static values
-4. **Sample-type generic** - Works with f32 and f64
+1. **Unifies value source and smoothing** - Blocks don't manage separate smoothers
+2. **Click-free changes** - Built-in interpolation prevents audible artifacts
+3. **Configurable strategy** - Choose linear or multiplicative based on perception
+4. **Optimizable** - `is_smoothing()` enables fast-path when values are stable
+5. **Sample-type generic** - Works with f32 and f64
