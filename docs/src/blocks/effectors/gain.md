@@ -17,7 +17,7 @@ use bbx_dsp::{
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));  // -6 dB
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));  // -6 dB
 ```
 
 ## dB to Linear Conversion
@@ -62,7 +62,7 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let source = builder.add_oscillator(440.0, Waveform::Sine, None);
-let volume = builder.add_block(BlockType::Gain(GainBlock::new(-12.0)));  // -12 dB
+let volume = builder.add_block(BlockType::Gain(GainBlock::new(-12.0, None)));  // -12 dB
 
 builder.connect(source, 0, volume, 0);
 ```
@@ -82,13 +82,13 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let source = builder.add_oscillator(440.0, Waveform::Sine, None);
 
 // Input gain before processing
-let input_gain = builder.add_block(BlockType::Gain(GainBlock::new(6.0)));
+let input_gain = builder.add_block(BlockType::Gain(GainBlock::new(6.0, None)));
 
 // Processing
 let effect = builder.add_overdrive(3.0, 1.0, 1.0, 44100.0);
 
 // Output gain after processing
-let output_gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let output_gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 
 builder.connect(source, 0, input_gain, 0);
 builder.connect(input_gain, 0, effect, 0);
@@ -114,7 +114,7 @@ let osc2 = builder.add_oscillator(329.63, Waveform::Sine, None);
 let osc3 = builder.add_oscillator(392.00, Waveform::Sine, None);
 
 // Mix with headroom
-let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-9.0)));
+let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-9.0, None)));
 
 builder.connect(osc1, 0, mixer, 0);
 builder.connect(osc2, 0, mixer, 0);
@@ -139,7 +139,7 @@ let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 let lfo = builder.add_lfo(6.0, 1.0, None);
 
 // Gain block
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 
 builder.connect(osc, 0, gain, 0);
 

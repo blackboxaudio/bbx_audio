@@ -30,7 +30,7 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));  // -6 dB
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));  // -6 dB
 
 builder.connect(osc, 0, gain, 0);
 
@@ -143,7 +143,7 @@ let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
 // Effect chain
 let overdrive = builder.add_overdrive(3.0, 1.0, 0.8, 44100.0);
 let dc_blocker = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
 
 // Connect: Osc -> Overdrive -> DC Blocker -> Gain -> Pan
@@ -172,11 +172,11 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
 
 // Two parallel paths
-let clean_gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let clean_gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 let dirty_overdrive = builder.add_overdrive(8.0, 1.0, 0.5, 44100.0);
 
 // Mix them back together
-let mix = builder.add_block(BlockType::Gain(GainBlock::new(-3.0)));
+let mix = builder.add_block(BlockType::Gain(GainBlock::new(-3.0, None)));
 
 // Split to both paths
 builder.connect(osc, 0, clean_gain, 0);

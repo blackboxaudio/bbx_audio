@@ -317,7 +317,7 @@ fn test_full_synth_chain() {
     let env = builder.add_envelope(0.01, 0.1, 0.8, 0.2);
     let vca = builder.add_vca();
     let filter = builder.add_low_pass_filter(1000.0, 5.0); // High resonance
-    let gain = builder.add_gain(0.0); // 0 dB = unity
+    let gain = builder.add_gain(0.0, None); // 0 dB = unity
 
     builder.connect(osc, 0, vca, 0);
     builder.connect(env, 0, vca, 1);

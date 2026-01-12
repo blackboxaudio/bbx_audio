@@ -97,7 +97,7 @@ let vca = builder.add_vca();
 
 // Filter and output gain
 let filter = builder.add_low_pass_filter(2000.0, 1.5);
-let gain = builder.add_gain(-6.0);
+let gain = builder.add_gain(-6.0, None);
 
 // Connect: Osc → VCA → Filter → Gain
 builder
