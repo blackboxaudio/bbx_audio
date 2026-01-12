@@ -476,8 +476,12 @@ impl<S: Sample> GraphBuilder<S> {
     /// Add a `GainBlock` to the `Graph`.
     ///
     /// Level is specified in decibels (dB), clamped to -80 to +30 dB.
-    pub fn add_gain(&mut self, level_db: f64) -> BlockId {
-        let block = BlockType::Gain(GainBlock::new(S::from_f64(level_db)));
+    /// An optional base gain multiplier (linear) can be applied in addition to the dB level.
+    pub fn add_gain(&mut self, level_db: f64, base_gain: Option<f64>) -> BlockId {
+        let block = BlockType::Gain(GainBlock::new(
+            S::from_f64(level_db),
+            Some(S::from_f64(base_gain.unwrap_or(<f64 as Sample>::ONE))),
+        ));
         self.graph.add_block(block)
     }
 

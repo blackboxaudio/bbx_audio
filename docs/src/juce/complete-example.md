@@ -103,7 +103,7 @@ impl Default for PluginGraph {
 impl PluginDsp for PluginGraph {
     fn new() -> Self {
         Self {
-            gain: GainBlock::new(0.0),
+            gain: GainBlock::new(0.0, None),
             panner: PannerBlock::new(0.0),
             mono: false,
         }

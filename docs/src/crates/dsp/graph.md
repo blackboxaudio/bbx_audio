@@ -51,7 +51,7 @@ use bbx_dsp::{
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_gain(-6.0, None);
 let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
 let dc = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
 ```
@@ -157,7 +157,7 @@ let osc1 = builder.add_oscillator(440.0, Waveform::Saw, None);
 let osc2 = builder.add_oscillator(441.0, Waveform::Saw, None);  // Slight detune
 
 // Mix them
-let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 builder.connect(osc1, 0, mixer, 0);
 builder.connect(osc2, 0, mixer, 0);
 

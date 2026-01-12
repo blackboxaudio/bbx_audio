@@ -36,7 +36,7 @@ Create a new instance with default configuration.
 ```rust
 fn new() -> Self {
     Self {
-        gain: GainBlock::new(0.0),
+        gain: GainBlock::new(0.0, None),
         panner: PannerBlock::new(0.0),
     }
 }
@@ -149,7 +149,7 @@ impl Default for PluginGraph {
 impl PluginDsp for PluginGraph {
     fn new() -> Self {
         Self {
-            gain: GainBlock::new(0.0),
+            gain: GainBlock::new(0.0, None),
             panner: PannerBlock::new(0.0),
             dc_blocker: DcBlockerBlock::new(),
             dc_block_enabled: false,

@@ -117,7 +117,7 @@ fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
     let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 
     builder.connect(osc, 0, gain, 0);
     builder.build()
@@ -204,7 +204,7 @@ fn create_synth_voice() -> (Graph<f32>, BlockId, BlockId) {
     let filter_id = builder.add_low_pass_filter(2000.0, 1.5);
 
     // Output gain: -6dB for comfortable listening
-    let gain_id = builder.add_gain(-6.0);
+    let gain_id = builder.add_gain(-6.0, None);
 
     // Connect the signal chain
     builder
@@ -326,7 +326,7 @@ impl MidiSynth {
         let envelope_id = builder.add_envelope(0.01, 0.1, 0.7, 0.3);
         let vca_id = builder.add_vca();
         let filter_id = builder.add_low_pass_filter(2000.0, 1.5);
-        let gain_id = builder.add_gain(-6.0);
+        let gain_id = builder.add_gain(-6.0, None);
 
         builder
             .connect(oscillator_id, 0, vca_id, 0)

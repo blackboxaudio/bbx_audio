@@ -39,7 +39,7 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let file_in = builder.add_file_input(Box::new(reader));
 
 // Process through effects
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 builder.connect(file_in, 0, gain, 0);
 ```
 
@@ -54,7 +54,7 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let file_in = builder.add_file_input(Box::new(reader));
 
 // Connect both channels
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
 
 // Left channel

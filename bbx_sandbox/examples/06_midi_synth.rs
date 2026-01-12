@@ -82,7 +82,7 @@ impl MidiSynth {
         let envelope_id = builder.add_envelope(0.01, 0.1, 0.7, 0.3);
         let vca_id = builder.add_vca();
         let filter_id = builder.add_low_pass_filter(1000.0, 1.5);
-        let gain_id = builder.add_gain(-6.0);
+        let gain_id = builder.add_gain(-6.0, None);
 
         builder
             .connect(oscillator_id, 0, vca_id, 0)

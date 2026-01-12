@@ -11,16 +11,13 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout Repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
 
             - name: Setup Linux Dependencies
               run: sudo apt install alsa libasound2-dev libssl-dev pkg-config
 
             - name: Setup Rust
-              uses: dtolnay/rust-toolchain@master
-              with:
-                  toolchain: nightly-2025-06-08
-                  components: rustfmt
+              uses: dtolnay/rust-toolchain@stable
 
             - name: Cargo Format
               run: cargo fmt --check

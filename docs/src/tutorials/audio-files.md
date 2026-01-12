@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_input = builder.add_file_input(Box::new(reader));
 
     // Connect to effects
-    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
     builder.connect(file_input, 0, gain, 0);
 
     let graph = builder.build();
@@ -161,7 +161,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_in = builder.add_file_input(Box::new(reader));
 
     // Process: add some effects
-    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-3.0)));
+    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-3.0, None)));
     let pan = builder.add_block(BlockType::Panner(PannerBlock::new(25.0)));
 
     builder.connect(file_in, 0, gain, 0);

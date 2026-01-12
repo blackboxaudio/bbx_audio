@@ -60,7 +60,7 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Create graph: Input -> Effect -> Output
 let file_in = builder.add_file_input(Box::new(reader));
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 let file_out = builder.add_file_output(Box::new(writer));
 
 builder.connect(file_in, 0, gain, 0);

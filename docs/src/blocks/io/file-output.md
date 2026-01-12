@@ -38,7 +38,7 @@ let writer = WavFileWriter::new("synth_output.wav", 44100.0, 2)?;
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 let file_out = builder.add_file_output(Box::new(writer));
 
 builder.connect(osc, 0, gain, 0);

@@ -15,6 +15,9 @@ use crate::{
 /// - Stable at all cutoff frequencies
 /// - Has no delay-free loops
 /// - Maintains consistent behavior regardless of sample rate
+///
+/// Output is scaled by a compensation factor based on Q and cutoff frequency
+/// to preserve passband gain while limiting the resonance peak (target ≤ 2.0).
 pub struct LowPassFilterBlock<S: Sample> {
     /// Cutoff frequency in Hz (20-20000).
     pub cutoff: Parameter<S>,
@@ -75,6 +78,24 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
         let a2 = g * a1;
         let a3 = g * a2;
 
+        let compensation = {
+            let q_factor = if q <= 1.0 {
+                1.0
+            } else {
+                let target = 2.0 / q;
+                let blend = (q - 1.0).min(1.0);
+                1.0 - blend * (1.0 - target)
+            };
+
+            let g_factor = if g > 1.0 {
+                1.0 / (1.0 + 0.1 * (g - 1.0).min(5.0))
+            } else {
+                1.0
+            };
+
+            (q_factor * g_factor).clamp(0.1, 1.0)
+        };
+
         let num_channels = inputs.len().min(outputs.len()).min(2);
 
         for ch in 0..num_channels {
@@ -94,7 +115,7 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
                 ic1 = 2.0 * v1 - ic1;
                 ic2 = 2.0 * v2 - ic2;
 
-                output[i] = S::from_f64(v2);
+                output[i] = S::from_f64(v2 * compensation);
             }
 
             self.ic1eq[ch] = flush_denormal_f64(ic1);

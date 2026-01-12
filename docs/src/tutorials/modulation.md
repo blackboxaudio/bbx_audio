@@ -66,7 +66,7 @@ let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 let tremolo_lfo = builder.add_lfo(6.0, 1.0, None);
 
 // Gain block
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 
 // Connect oscillator to gain
 builder.connect(osc, 0, gain, 0);
@@ -131,7 +131,7 @@ let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 builder.modulate(fast_lfo, osc, "frequency");
 
 // Gain with slow amplitude modulation
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 builder.connect(osc, 0, gain, 0);
 builder.modulate(slow_lfo, gain, "level");
 
@@ -175,7 +175,7 @@ let osc = builder.add_oscillator(55.0, Waveform::Saw, None);
 let wobble_lfo = builder.add_lfo(2.0, 0.8, None);
 
 // Gain block for wobble effect
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 builder.connect(osc, 0, gain, 0);
 builder.modulate(wobble_lfo, gain, "level");
 
