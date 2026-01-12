@@ -36,7 +36,7 @@ pub struct MyEffectBlock<S: Sample> {
 impl<S: Sample> MyEffectBlock<S> {
     pub fn new(gain: f64) -> Self {
         Self {
-            gain: Parameter::constant(S::from_f64(gain)),
+            gain: Parameter::Constant(S::from_f64(gain)),
             state: S::ZERO,
         }
     }
@@ -112,10 +112,10 @@ Parameters combine value source with built-in smoothing:
 
 ```rust
 // Constant parameter (50ms default ramp)
-let gain = Parameter::constant(S::from_f64(0.5));
+let gain = Parameter::Constant(S::from_f64(0.5));
 
 // Custom ramp time
-let freq = Parameter::constant(S::from_f64(440.0)).with_ramp_ms(100.0);
+let freq = Parameter::Constant(S::from_f64(440.0)).with_ramp_ms(100.0);
 ```
 
 ### Processing Flow

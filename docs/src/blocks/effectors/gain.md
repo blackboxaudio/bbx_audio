@@ -4,7 +4,7 @@ Level control in decibels with built-in parameter smoothing.
 
 ## Overview
 
-`GainBlock` applies a gain (volume change) to audio signals, specified in decibels. Parameter changes are automatically smoothed to prevent clicks.
+`GainBlock` applies a gain (volume change) to audio signals, specified in decibels.
 
 ## Creating a Gain Block
 
@@ -129,8 +129,6 @@ builder.modulate(lfo, gain, "level");
 
 ## Implementation Notes
 
-- Uses `Parameter<S>` for click-free gain changes via linear smoothing (50ms default ramp)
-- dB values are converted to linear internally before smoothing
-- Fast-path optimization skips per-sample processing when value is stable
+- Click-free gain changes via linear smoothing
 - Handles all channel counts
 - Range clamped to -80 to +30 dB
