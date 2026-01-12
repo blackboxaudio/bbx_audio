@@ -23,7 +23,7 @@ pub use crate::{
     buffer::AudioBuffer,
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE, DspContext},
     graph::{Graph, GraphBuilder},
-    parameter::{Parameter, ParameterSource},
+    parameter::Parameter,
     sample::Sample,
     smoothing::{
         Linear, LinearSmoothedValue, Multiplicative, MultiplicativeSmoothedValue, SmoothedValue, SmoothingStrategy,

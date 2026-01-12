@@ -40,8 +40,8 @@ impl<S: Sample> LfoBlock<S> {
     /// Create an `LfoBlock` with a given frequency, depth, waveform, and optional seed (used for noise waveforms).
     pub fn new(frequency: S, depth: S, waveform: Waveform, seed: Option<u64>) -> Self {
         Self {
-            frequency: Parameter::constant(frequency),
-            depth: Parameter::constant(depth),
+            frequency: Parameter::Constant(frequency),
+            depth: Parameter::Constant(depth),
             phase: 0.0,
             waveform,
             rng: XorShiftRng::new(seed.unwrap_or_default()),
@@ -51,8 +51,8 @@ impl<S: Sample> LfoBlock<S> {
 
 impl<S: Sample> Block<S> for LfoBlock<S> {
     fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        let frequency = self.frequency.get_raw_value(modulation_values);
-        let depth = self.depth.get_raw_value(modulation_values).to_f64();
+        let frequency = self.frequency.get_value(modulation_values);
+        let depth = self.depth.get_value(modulation_values).to_f64();
         let phase_increment = frequency.to_f64() / context.sample_rate * S::TAU.to_f64();
 
         #[cfg(feature = "simd")]

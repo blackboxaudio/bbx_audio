@@ -21,7 +21,7 @@ use crate::{
     },
     buffer::{AudioBuffer, Buffer},
     context::DspContext,
-    parameter::ParameterSource,
+    parameter::Parameter,
     reader::Reader,
     sample::Sample,
     waveform::Waveform,
@@ -206,8 +206,8 @@ impl<S: Sample> Graph<S> {
     /// Prepares the graph for audio processing.
     ///
     /// Must be called after all blocks are added and connected, but before
-    /// [`process_buffers`](Self::process_buffers). Computes execution order,
-    /// pre-allocates buffers, and prepares all blocks with sample rate info.
+    /// [`process_buffers`](Self::process_buffers). Computes execution order
+    /// and pre-allocates buffers.
     pub fn prepare_for_playback(&mut self) {
         self.execution_order = self.topological_sort();
         self.modulation_values.resize(self.blocks.len(), S::ZERO);
@@ -217,11 +217,6 @@ impl<S: Sample> Graph<S> {
         for conn in &self.connections {
             let buffer_idx = self.get_buffer_index(conn.from, conn.from_output);
             self.block_input_buffers[conn.to.0].push(buffer_idx);
-        }
-
-        // Prepare all blocks with context (sample rate, etc.)
-        for block in &mut self.blocks {
-            block.prepare(&self.context);
         }
 
         #[cfg(debug_assertions)]
@@ -544,10 +539,9 @@ impl<S: Sample> GraphBuilder<S> {
         self
     }
 
-    /// Specify a parameter to be modulated by a modulator block.
+    /// Specify a `Parameter` to be modulated by a `Modulator` block.
     pub fn modulate(&mut self, source: BlockId, target: BlockId, parameter: &str) -> &mut Self {
-        if let Err(e) = self.graph.blocks[target.0].set_parameter_source(parameter, ParameterSource::Modulated(source))
-        {
+        if let Err(e) = self.graph.blocks[target.0].set_parameter(parameter, Parameter::Modulated(source)) {
             eprintln!("Modulation error: {e}");
         }
         self

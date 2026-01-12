@@ -10,6 +10,7 @@ use crate::{
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
+    smoothing::LinearSmoothedValue,
 };
 
 /// Maximum buffer size for stack-allocated gain arrays.
@@ -21,13 +22,17 @@ const MAX_BUFFER_SIZE: usize = 4096;
 pub struct PannerBlock<S: Sample> {
     /// Pan position: -100 (left) to +100 (right).
     pub position: Parameter<S>,
+
+    /// Smoothed position value for click-free panning.
+    position_smoother: LinearSmoothedValue<S>,
 }
 
 impl<S: Sample> PannerBlock<S> {
     /// Create a new `PannerBlock` with the given position.
     pub fn new(position: S) -> Self {
         Self {
-            position: Parameter::constant(position),
+            position: Parameter::Constant(position),
+            position_smoother: LinearSmoothedValue::new(position),
         }
     }
 
@@ -53,16 +58,15 @@ impl<S: Sample> PannerBlock<S> {
 }
 
 impl<S: Sample> Block<S> for PannerBlock<S> {
-    fn prepare(&mut self, context: &DspContext) {
-        self.position.prepare(context.sample_rate);
-    }
-
     fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], _context: &DspContext) {
         if inputs.is_empty() || outputs.is_empty() {
             return;
         }
 
-        self.position.update_target(modulation_values);
+        let target_position = self.position.get_value(modulation_values);
+        if (target_position.to_f64() - self.position_smoother.target().to_f64()).abs() > 1e-9 {
+            self.position_smoother.set_target_value(target_position);
+        }
 
         let left_in = inputs[0];
         let right_in = inputs.get(1).copied().unwrap_or(left_in);
@@ -76,7 +80,7 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
 
         let mut positions: [f64; MAX_BUFFER_SIZE] = [0.0; MAX_BUFFER_SIZE];
         for position in positions.iter_mut().take(num_samples) {
-            *position = self.position.next_value().to_f64();
+            *position = self.position_smoother.get_next_value().to_f64();
         }
 
         // Compute gains in f64 for precision, then convert to S for SIMD sample processing

@@ -9,7 +9,7 @@ use crate::waveform::generate_waveform_samples_simd;
 use crate::{
     block::{Block, DEFAULT_GENERATOR_INPUT_COUNT, DEFAULT_GENERATOR_OUTPUT_COUNT},
     context::DspContext,
-    parameter::{ModulationOutput, Parameter, ParameterSource},
+    parameter::{ModulationOutput, Parameter},
     sample::Sample,
     waveform::{Waveform, process_waveform_scalar},
 };
@@ -38,8 +38,8 @@ impl<S: Sample> OscillatorBlock<S> {
     /// Create a new oscillator with the given frequency and waveform.
     pub fn new(frequency: S, waveform: Waveform, seed: Option<u64>) -> Self {
         Self {
-            frequency: Parameter::constant(frequency),
-            pitch_offset: Parameter::constant(S::ZERO),
+            frequency: Parameter::Constant(frequency),
+            pitch_offset: Parameter::Constant(S::ZERO),
             base_frequency: frequency,
             midi_frequency: None,
             phase: 0.0,
@@ -68,17 +68,17 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
     fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
         let base = self.midi_frequency.unwrap_or(self.base_frequency);
 
-        let freq_hz = match self.frequency.source() {
-            ParameterSource::Constant(f) => self.midi_frequency.unwrap_or(*f),
-            ParameterSource::Modulated(block_id) => {
+        let freq_hz = match &self.frequency {
+            Parameter::Constant(f) => self.midi_frequency.unwrap_or(*f),
+            Parameter::Modulated(block_id) => {
                 let mod_value = modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO);
                 base + mod_value
             }
         };
 
-        let pitch_offset_semitones = match self.pitch_offset.source() {
-            ParameterSource::Constant(offset) => *offset,
-            ParameterSource::Modulated(block_id) => modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO),
+        let pitch_offset_semitones = match &self.pitch_offset {
+            Parameter::Constant(offset) => *offset,
+            Parameter::Modulated(block_id) => modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO),
         };
 
         let freq = if pitch_offset_semitones != S::ZERO {

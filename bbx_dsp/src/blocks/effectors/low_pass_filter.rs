@@ -38,8 +38,8 @@ impl<S: Sample> LowPassFilterBlock<S> {
     /// Create a new low-pass filter with the given cutoff and resonance.
     pub fn new(cutoff: S, resonance: S) -> Self {
         Self {
-            cutoff: Parameter::constant(cutoff),
-            resonance: Parameter::constant(resonance),
+            cutoff: Parameter::Constant(cutoff),
+            resonance: Parameter::Constant(resonance),
             ic1eq: [0.0; 2],
             ic2eq: [0.0; 2],
             sample_rate: 44100.0,
@@ -62,13 +62,13 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
     fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
         let cutoff_hz = self
             .cutoff
-            .get_raw_value(modulation_values)
+            .get_value(modulation_values)
             .to_f64()
             .clamp(Self::MIN_CUTOFF, Self::MAX_CUTOFF);
 
         let q = self
             .resonance
-            .get_raw_value(modulation_values)
+            .get_value(modulation_values)
             .to_f64()
             .clamp(Self::MIN_Q, Self::MAX_Q);
 
