@@ -38,6 +38,7 @@
 pub mod block;
 pub mod blocks;
 pub mod buffer;
+pub mod channel;
 pub mod context;
 pub mod frame;
 pub mod graph;
@@ -58,6 +59,7 @@ pub mod waveform;
 pub mod writer;
 
 pub use block::BlockCategory;
+pub use channel::{ChannelConfig, ChannelLayout};
 pub use frame::{Frame, MAX_FRAME_SAMPLES};
 pub use plugin::PluginDsp;
 pub use voice::VoiceState;

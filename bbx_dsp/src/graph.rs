@@ -20,6 +20,7 @@ use crate::{
         modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
     },
     buffer::{AudioBuffer, Buffer},
+    channel::ChannelLayout,
     context::DspContext,
     parameter::Parameter,
     reader::Reader,
@@ -29,9 +30,11 @@ use crate::{
 };
 
 /// Maximum number of inputs a block can have (realtime-safe stack allocation).
-const MAX_BLOCK_INPUTS: usize = 8;
+/// Set to 16 to support third-order ambisonics (16 channels).
+pub const MAX_BLOCK_INPUTS: usize = 16;
 /// Maximum number of outputs a block can have (realtime-safe stack allocation).
-const MAX_BLOCK_OUTPUTS: usize = 8;
+/// Set to 16 to support third-order ambisonics (16 channels).
+pub const MAX_BLOCK_OUTPUTS: usize = 16;
 
 /// Describes an audio connection between two blocks.
 ///
@@ -136,6 +139,7 @@ impl<S: Sample> Graph<S> {
             buffer_size,
             num_channels,
             current_sample: 0,
+            channel_layout: ChannelLayout::default(),
         };
 
         Self {

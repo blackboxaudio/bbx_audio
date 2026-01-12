@@ -66,7 +66,7 @@ impl<S: Sample> Block<S> for VcaBlock<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::DspContext;
+    use crate::{channel::ChannelLayout, context::DspContext};
 
     fn test_context(buffer_size: usize) -> DspContext {
         DspContext {
@@ -74,6 +74,7 @@ mod tests {
             num_channels: 1,
             buffer_size,
             current_sample: 0,
+            channel_layout: ChannelLayout::default(),
         }
     }
 

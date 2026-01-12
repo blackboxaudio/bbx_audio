@@ -9,6 +9,7 @@ use bbx_dsp::{
         effectors::low_pass_filter::LowPassFilterBlock, generators::oscillator::OscillatorBlock,
         modulators::envelope::EnvelopeBlock,
     },
+    channel::ChannelLayout,
     context::DspContext,
     graph::GraphBuilder,
     waveform::Waveform,
@@ -20,6 +21,7 @@ fn make_context(sample_rate: f64, buffer_size: usize) -> DspContext {
         num_channels: 1,
         buffer_size,
         current_sample: 0,
+        channel_layout: ChannelLayout::default(),
     }
 }
 
