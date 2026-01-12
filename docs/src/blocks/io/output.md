@@ -61,7 +61,7 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
 
 builder.connect(osc, 0, gain, 0);

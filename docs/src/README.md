@@ -93,7 +93,7 @@ use bbx_dsp::{GraphBuilder, blocks::*};
 // Build a simple oscillator -> gain -> output chain
 let graph = GraphBuilder::new()
     .add_block(OscillatorBlock::new(440.0, Waveform::Sine))
-    .add_block(GainBlock::new(-6.0))
+    .add_block(GainBlock::new(-6.0, None))
     .add_block(OutputBlock::new(2))
     .connect(0, 0, 1, 0)?  // Oscillator -> Gain
     .connect(1, 0, 2, 0)?  // Gain -> Output

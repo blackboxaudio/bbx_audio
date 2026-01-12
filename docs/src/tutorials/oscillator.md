@@ -114,7 +114,7 @@ let e4 = builder.add_oscillator(329.63, Waveform::Sine, None);
 let g4 = builder.add_oscillator(392.00, Waveform::Sine, None);
 
 // Mix them together with a gain block
-let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-9.0)));  // -9 dB for headroom
+let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-9.0, None)));  // -9 dB for headroom
 
 builder.connect(c4, 0, mixer, 0);
 builder.connect(e4, 0, mixer, 0);
@@ -150,7 +150,7 @@ let osc_center = builder.add_oscillator(base_freq as f64, Waveform::Saw, None);
 let osc_up = builder.add_oscillator(freq_up as f64, Waveform::Saw, None);
 let osc_down = builder.add_oscillator(freq_down as f64, Waveform::Saw, None);
 
-let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-9.0)));
+let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-9.0, None)));
 builder.connect(osc_center, 0, mixer, 0);
 builder.connect(osc_up, 0, mixer, 0);
 builder.connect(osc_down, 0, mixer, 0);

@@ -17,7 +17,7 @@ jobs:
               run: sudo apt install alsa libasound2-dev libssl-dev pkg-config
 
             - name: Setup Rust
-              uses: dtolnay/rust-toolchain@master
+              uses: dtolnay/rust-toolchain@stable
 
             - name: Cargo Clippy
               run: cargo clippy

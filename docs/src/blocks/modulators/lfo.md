@@ -78,7 +78,7 @@ let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 let lfo = builder.add_lfo(6.0, 1.0, None);
 
 // Gain block
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 builder.connect(osc, 0, gain, 0);
 
 // Modulate gain level

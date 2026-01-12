@@ -5,42 +5,39 @@ The `Block` trait defines the interface for DSP processing blocks.
 ## Trait Definition
 
 ```rust
-pub trait Block<S: Sample>: Send {
+pub trait Block<S: Sample> {
+    /// Prepare for playback with given context
+    fn prepare(&mut self, _context: &DspContext) {}
+
     /// Process audio through the block
     fn process(
         &mut self,
         inputs: &[&[S]],
         outputs: &mut [&mut [S]],
+        modulation_values: &[S],
         context: &DspContext,
-        modulation: &[S],
     );
 
     /// Number of input ports
-    fn num_inputs(&self) -> usize;
+    fn input_count(&self) -> usize;
 
     /// Number of output ports
-    fn num_outputs(&self) -> usize;
+    fn output_count(&self) -> usize;
 
-    /// Number of modulation outputs (for LFOs, envelopes)
-    fn num_modulation_outputs(&self) -> usize {
-        0  // Default: no modulation outputs
-    }
-
-    /// Prepare for playback with given context
-    fn prepare(&mut self, _context: &DspContext) {}
-
-    /// Reset DSP state
-    fn reset(&mut self) {}
-
-    /// Finalize (for file output blocks)
-    fn finalize(&mut self) {}
+    /// Modulation outputs provided by this block
+    fn modulation_outputs(&self) -> &[ModulationOutput];
 }
 ```
 
 ## Implementing a Custom Block
 
 ```rust
-use bbx_dsp::{block::Block, context::DspContext, sample::Sample};
+use bbx_dsp::{
+    block::Block,
+    context::DspContext,
+    parameter::ModulationOutput,
+    sample::Sample,
+};
 
 struct MyGainBlock<S: Sample> {
     gain: S,
@@ -60,8 +57,8 @@ impl<S: Sample> Block<S> for MyGainBlock<S> {
         &mut self,
         inputs: &[&[S]],
         outputs: &mut [&mut [S]],
+        _modulation_values: &[S],
         context: &DspContext,
-        _modulation: &[S],
     ) {
         for ch in 0..inputs.len().min(outputs.len()) {
             for i in 0..context.buffer_size {
@@ -70,8 +67,9 @@ impl<S: Sample> Block<S> for MyGainBlock<S> {
         }
     }
 
-    fn num_inputs(&self) -> usize { 1 }
-    fn num_outputs(&self) -> usize { 1 }
+    fn input_count(&self) -> usize { 1 }
+    fn output_count(&self) -> usize { 1 }
+    fn modulation_outputs(&self) -> &[ModulationOutput] { &[] }
 }
 ```
 
@@ -81,18 +79,18 @@ The `process` method receives:
 
 - `inputs` - Slice of input channel buffers
 - `outputs` - Mutable slice of output channel buffers
+- `modulation_values` - Values from connected modulator blocks
 - `context` - Processing context (sample rate, buffer size)
-- `modulation` - Values from connected modulator blocks
 
 ### Input/Output Layout
 
 ```rust
 fn process(
     &mut self,
-    inputs: &[&[S]],      // inputs[channel][sample]
+    inputs: &[&[S]],           // inputs[channel][sample]
     outputs: &mut [&mut [S]],  // outputs[channel][sample]
+    modulation_values: &[S],
     context: &DspContext,
-    modulation: &[S],
 ) {
     // inputs.len() = number of input channels
     // inputs[0].len() = number of samples per channel
@@ -108,41 +106,53 @@ fn process(
     &mut self,
     inputs: &[&[S]],
     outputs: &mut [&mut [S]],
+    modulation_values: &[S],
     context: &DspContext,
-    modulation: &[S],
 ) {
-    // modulation[0] = value from first connected modulator
+    // modulation_values[0] = value from first connected modulator
     // Use for per-block (not per-sample) modulation
-    let mod_depth = modulation.get(0).copied().unwrap_or(S::ZERO);
+    let mod_depth = modulation_values.get(0).copied().unwrap_or(S::ZERO);
 }
 ```
 
 ## Port Counts
 
-### num_inputs / num_outputs
+### input_count / output_count
 
 Return the number of audio ports:
 
 ```rust
 // Mono effect
-fn num_inputs(&self) -> usize { 1 }
-fn num_outputs(&self) -> usize { 1 }
+fn input_count(&self) -> usize { 1 }
+fn output_count(&self) -> usize { 1 }
 
 // Stereo panner
-fn num_inputs(&self) -> usize { 1 }
-fn num_outputs(&self) -> usize { 2 }
+fn input_count(&self) -> usize { 1 }
+fn output_count(&self) -> usize { 2 }
 
 // Mixer (4 inputs, 1 output)
-fn num_inputs(&self) -> usize { 4 }
-fn num_outputs(&self) -> usize { 1 }
+fn input_count(&self) -> usize { 4 }
+fn output_count(&self) -> usize { 1 }
 ```
 
-### num_modulation_outputs
+### modulation_outputs
 
-For modulator blocks (LFO, envelope):
+For modulator blocks (LFO, envelope), return a slice describing each modulation output:
 
 ```rust
-fn num_modulation_outputs(&self) -> usize { 1 }
+fn modulation_outputs(&self) -> &[ModulationOutput] {
+    &[ModulationOutput {
+        name: "LFO",
+        min_value: -1.0,
+        max_value: 1.0,
+    }]
+}
+```
+
+For non-modulator blocks, return an empty slice:
+
+```rust
+fn modulation_outputs(&self) -> &[ModulationOutput] { &[] }
 ```
 
 ## Lifecycle Methods
@@ -158,30 +168,9 @@ fn prepare(&mut self, context: &DspContext) {
 }
 ```
 
-### reset
+## Real-Time Safety
 
-Clear all state:
-
-```rust
-fn reset(&mut self) {
-    self.filter_state = 0.0;
-    self.delay_buffer.fill(0.0);
-}
-```
-
-### finalize
-
-For file output blocks:
-
-```rust
-fn finalize(&mut self) {
-    self.writer.flush().ok();
-}
-```
-
-## Thread Safety
-
-The `Send` bound ensures blocks can be sent to the audio thread. Blocks should:
+Blocks should follow real-time safety guidelines:
 
 - Avoid allocating memory in `process()`
 - Use atomic operations for cross-thread communication

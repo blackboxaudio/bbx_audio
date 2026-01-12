@@ -111,7 +111,7 @@ fn bench_gain<S: Sample>(c: &mut Criterion, type_name: &str) {
 
         group.bench_with_input(bench_id, buffer_size, |b, &size| {
             let context = create_context(size);
-            let mut block = GainBlock::<S>::new(S::from_f64(-6.0));
+            let mut block = GainBlock::<S>::new(S::from_f64(-6.0), Some(S::ONE));
             let inputs = create_input_buffers::<S>(size, 1);
             let mut outputs = create_output_buffers::<S>(size, 1);
             let modulation_values: Vec<S> = vec![];

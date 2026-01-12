@@ -8,24 +8,26 @@ The graph system uses `BlockType` to store heterogeneous blocks:
 
 ```rust
 pub enum BlockType<S: Sample> {
-    // Generators
-    Oscillator(OscillatorBlock<S>),
-
-    // Effectors
-    Gain(GainBlock<S>),
-    Panner(PannerBlock<S>),
-    Overdrive(OverdriveBlock<S>),
-    DcBlocker(DcBlockerBlock<S>),
-    ChannelRouter(ChannelRouterBlock<S>),
-
-    // Modulators
-    Lfo(LfoBlock<S>),
-    Envelope(EnvelopeBlock<S>),
-
     // I/O
     FileInput(FileInputBlock<S>),
     FileOutput(FileOutputBlock<S>),
     Output(OutputBlock<S>),
+
+    // Generators
+    Oscillator(OscillatorBlock<S>),
+
+    // Effectors
+    ChannelRouter(ChannelRouterBlock<S>),
+    DcBlocker(DcBlockerBlock<S>),
+    Gain(GainBlock<S>),
+    LowPassFilter(LowPassFilterBlock<S>),
+    Overdrive(OverdriveBlock<S>),
+    Panner(PannerBlock<S>),
+    Vca(VcaBlock<S>),
+
+    // Modulators
+    Envelope(EnvelopeBlock<S>),
+    Lfo(LfoBlock<S>),
 }
 ```
 
@@ -40,7 +42,7 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // These return BlockId, not BlockType
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 ```
 
 ## Block Trait Implementation
@@ -48,25 +50,25 @@ let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
 `BlockType` implements `Block` by delegating to the wrapped type:
 
 ```rust
-impl<S: Sample> Block<S> for BlockType<S> {
+impl<S: Sample> BlockType<S> {
     fn process(
         &mut self,
         inputs: &[&[S]],
         outputs: &mut [&mut [S]],
+        modulation_values: &[S],
         context: &DspContext,
-        modulation: &[S],
     ) {
         match self {
-            BlockType::Oscillator(b) => b.process(inputs, outputs, context, modulation),
-            BlockType::Gain(b) => b.process(inputs, outputs, context, modulation),
+            BlockType::Oscillator(b) => b.process(inputs, outputs, modulation_values, context),
+            BlockType::Gain(b) => b.process(inputs, outputs, modulation_values, context),
             // ... etc
         }
     }
 
-    fn num_inputs(&self) -> usize {
+    fn input_count(&self) -> usize {
         match self {
-            BlockType::Oscillator(b) => b.num_inputs(),
-            BlockType::Gain(b) => b.num_inputs(),
+            BlockType::Oscillator(b) => b.input_count(),
+            BlockType::Gain(b) => b.input_count(),
             // ... etc
         }
     }
@@ -108,6 +110,6 @@ Blocks are organized into categories:
 | Category | Variants |
 |----------|----------|
 | Generators | `Oscillator` |
-| Effectors | `Gain`, `Panner`, `Overdrive`, `DcBlocker`, `ChannelRouter` |
-| Modulators | `Lfo`, `Envelope` |
+| Effectors | `ChannelRouter`, `DcBlocker`, `Gain`, `LowPassFilter`, `Overdrive`, `Panner`, `Vca` |
+| Modulators | `Envelope`, `Lfo` |
 | I/O | `FileInput`, `FileOutput`, `Output` |
