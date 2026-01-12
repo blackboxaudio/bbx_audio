@@ -25,11 +25,7 @@ jobs:
               run: sudo apt install alsa libasound2-dev libssl-dev pkg-config
 
             - name: Setup Rust
-              uses: actions-rs/toolchain@v1
-              with:
-                  profile: minimal
-                  toolchain: nightly
-                  override: true
+              uses: dtolnay/rust-toolchain@master
 
             - name: Setup mdbook
               run: |
@@ -45,7 +41,7 @@ jobs:
               run: mdbook build docs
 
             - name: Build API Docs
-              run: RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo +nightly doc --no-deps
+              run: RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo doc --no-deps
 
             - name: Move API Docs
               run: |
