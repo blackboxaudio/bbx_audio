@@ -7,6 +7,7 @@ use bbx_core::flush_denormal_f64;
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
+    graph::MAX_BLOCK_OUTPUTS,
     parameter::ModulationOutput,
     sample::Sample,
 };
@@ -18,9 +19,8 @@ pub struct DcBlockerBlock<S: Sample> {
     /// Whether the DC blocker is enabled.
     pub enabled: bool,
 
-    // Filter state per channel (up to 2 channels)
-    x_prev: [f64; 2],
-    y_prev: [f64; 2],
+    x_prev: [f64; MAX_BLOCK_OUTPUTS],
+    y_prev: [f64; MAX_BLOCK_OUTPUTS],
 
     // Filter coefficient (~0.995 for 5Hz at 44.1kHz)
     coeff: f64,
@@ -33,8 +33,8 @@ impl<S: Sample> DcBlockerBlock<S> {
     pub fn new(enabled: bool) -> Self {
         Self {
             enabled,
-            x_prev: [0.0; 2],
-            y_prev: [0.0; 2],
+            x_prev: [0.0; MAX_BLOCK_OUTPUTS],
+            y_prev: [0.0; MAX_BLOCK_OUTPUTS],
             coeff: 0.995, // Will be recalculated on prepare
             _phantom: PhantomData,
         }
@@ -52,8 +52,8 @@ impl<S: Sample> DcBlockerBlock<S> {
 
     /// Reset the filter state.
     pub fn reset(&mut self) {
-        self.x_prev = [0.0; 2];
-        self.y_prev = [0.0; 2];
+        self.x_prev = [0.0; MAX_BLOCK_OUTPUTS];
+        self.y_prev = [0.0; MAX_BLOCK_OUTPUTS];
     }
 }
 
@@ -71,7 +71,7 @@ impl<S: Sample> Block<S> for DcBlockerBlock<S> {
 
         // Process each channel
         for (ch, input) in inputs.iter().enumerate() {
-            if ch >= outputs.len() || ch >= 2 {
+            if ch >= outputs.len() || ch >= MAX_BLOCK_OUTPUTS {
                 break;
             }
 
@@ -103,5 +103,60 @@ impl<S: Sample> Block<S> for DcBlockerBlock<S> {
     #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::channel::ChannelLayout;
+
+    fn test_context(buffer_size: usize) -> DspContext {
+        DspContext {
+            sample_rate: 44100.0,
+            num_channels: 6,
+            buffer_size,
+            current_sample: 0,
+            channel_layout: ChannelLayout::Surround51,
+        }
+    }
+
+    #[test]
+    fn test_dc_blocker_6_channels() {
+        let mut blocker = DcBlockerBlock::<f32>::new(true);
+        blocker.set_sample_rate(44100.0);
+        let context = test_context(4);
+
+        let input: [[f32; 4]; 6] = [[0.5; 4]; 6];
+        let mut outputs: [[f32; 4]; 6] = [[0.0; 4]; 6];
+
+        let input_refs: Vec<&[f32]> = input.iter().map(|ch| ch.as_slice()).collect();
+        let mut output_refs: Vec<&mut [f32]> = outputs.iter_mut().map(|ch| ch.as_mut_slice()).collect();
+
+        blocker.process(&input_refs, &mut output_refs, &[], &context);
+
+        for ch in 0..6 {
+            assert!(outputs[ch][3].abs() > 0.0, "Channel {ch} should have output");
+        }
+    }
+
+    #[test]
+    fn test_dc_blocker_removes_dc_offset() {
+        let mut blocker = DcBlockerBlock::<f32>::new(true);
+        blocker.set_sample_rate(44100.0);
+        let context = test_context(1024);
+
+        let input: [f32; 1024] = [0.5; 1024];
+        let mut output: [f32; 1024] = [0.0; 1024];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        for _ in 0..100 {
+            blocker.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        let final_val = output[1023].abs();
+        assert!(final_val < 0.1, "DC should be mostly removed, got {final_val}");
     }
 }

@@ -2,7 +2,7 @@
 
 use std::marker::PhantomData;
 
-use crate::{block::Block, context::DspContext, parameter::ModulationOutput, sample::Sample};
+use crate::{block::Block, channel::ChannelConfig, context::DspContext, parameter::ModulationOutput, sample::Sample};
 
 /// Channel routing mode for stereo signals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -140,5 +140,21 @@ impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
     #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
+    }
+
+    #[inline]
+    fn channel_config(&self) -> ChannelConfig {
+        ChannelConfig::Explicit
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_channel_router_returns_explicit_config() {
+        let router = ChannelRouterBlock::<f32>::default_new();
+        assert_eq!(router.channel_config(), ChannelConfig::Explicit);
     }
 }

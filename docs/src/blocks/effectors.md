@@ -8,10 +8,14 @@ Effector blocks process and transform audio signals.
 |-------|-------------|
 | [GainBlock](effectors/gain.md) | Level control in dB |
 | [VcaBlock](effectors/vca.md) | Voltage controlled amplifier |
-| [PannerBlock](effectors/panner.md) | Stereo panning |
+| [PannerBlock](effectors/panner.md) | Stereo, surround (VBAP), and ambisonic panning |
 | [OverdriveBlock](effectors/overdrive.md) | Soft-clipping distortion |
 | [DcBlockerBlock](effectors/dc-blocker.md) | DC offset removal |
-| [ChannelRouterBlock](effectors/channel-router.md) | Channel routing |
+| [ChannelRouterBlock](effectors/channel-router.md) | Simple stereo channel routing |
+| [ChannelSplitterBlock](effectors/channel-splitter.md) | Split multi-channel to mono outputs |
+| [ChannelMergerBlock](effectors/channel-merger.md) | Merge mono inputs to multi-channel |
+| [MatrixMixerBlock](effectors/matrix-mixer.md) | NxM mixing matrix |
+| [AmbisonicDecoderBlock](effectors/ambisonic-decoder.md) | Ambisonics B-format decoder |
 | [LowPassFilterBlock](effectors/low-pass-filter.md) | SVF low-pass filter |
 
 ## Characteristics

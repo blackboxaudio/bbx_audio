@@ -5,6 +5,7 @@ use bbx_core::flush_denormal_f64;
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
+    graph::MAX_BLOCK_OUTPUTS,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
 };
@@ -24,8 +25,8 @@ pub struct LowPassFilterBlock<S: Sample> {
     /// Resonance (Q factor, 0.5-10.0, default 0.707 = Butterworth).
     pub resonance: Parameter<S>,
 
-    ic1eq: [f64; 2],
-    ic2eq: [f64; 2],
+    ic1eq: [f64; MAX_BLOCK_OUTPUTS],
+    ic2eq: [f64; MAX_BLOCK_OUTPUTS],
     sample_rate: f64,
 }
 
@@ -40,8 +41,8 @@ impl<S: Sample> LowPassFilterBlock<S> {
         Self {
             cutoff: Parameter::Constant(cutoff),
             resonance: Parameter::Constant(resonance),
-            ic1eq: [0.0; 2],
-            ic2eq: [0.0; 2],
+            ic1eq: [0.0; MAX_BLOCK_OUTPUTS],
+            ic2eq: [0.0; MAX_BLOCK_OUTPUTS],
             sample_rate: 44100.0,
         }
     }
@@ -53,8 +54,8 @@ impl<S: Sample> LowPassFilterBlock<S> {
 
     /// Reset filter state (clear delay lines).
     pub fn reset(&mut self) {
-        self.ic1eq = [0.0; 2];
-        self.ic2eq = [0.0; 2];
+        self.ic1eq = [0.0; MAX_BLOCK_OUTPUTS];
+        self.ic2eq = [0.0; MAX_BLOCK_OUTPUTS];
     }
 }
 
@@ -96,7 +97,7 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
             (q_factor * g_factor).clamp(0.1, 1.0)
         };
 
-        let num_channels = inputs.len().min(outputs.len()).min(2);
+        let num_channels = inputs.len().min(outputs.len()).min(MAX_BLOCK_OUTPUTS);
 
         for ch in 0..num_channels {
             let input = inputs[ch];
@@ -136,5 +137,62 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
     #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::channel::ChannelLayout;
+
+    fn test_context(buffer_size: usize) -> DspContext {
+        DspContext {
+            sample_rate: 44100.0,
+            num_channels: 6,
+            buffer_size,
+            current_sample: 0,
+            channel_layout: ChannelLayout::Surround51,
+        }
+    }
+
+    #[test]
+    fn test_low_pass_filter_6_channels() {
+        let mut filter = LowPassFilterBlock::<f32>::new(1000.0, 0.707);
+        let context = test_context(4);
+
+        let input: [[f32; 4]; 6] = [[1.0; 4]; 6];
+        let mut outputs: [[f32; 4]; 6] = [[0.0; 4]; 6];
+
+        let input_refs: Vec<&[f32]> = input.iter().map(|ch| ch.as_slice()).collect();
+        let mut output_refs: Vec<&mut [f32]> = outputs.iter_mut().map(|ch| ch.as_mut_slice()).collect();
+
+        filter.process(&input_refs, &mut output_refs, &[], &context);
+
+        for ch in 0..6 {
+            assert!(outputs[ch][3].abs() > 0.0, "Channel {ch} should have output");
+        }
+    }
+
+    #[test]
+    fn test_low_pass_filter_independent_channels() {
+        let mut filter = LowPassFilterBlock::<f32>::new(5000.0, 0.707);
+        let context = test_context(64);
+
+        let mut input: [[f32; 64]; 4] = [[0.0; 64]; 4];
+        input[0] = [1.0; 64];
+        input[1] = [0.0; 64];
+        input[2] = [0.5; 64];
+        input[3] = [-0.5; 64];
+
+        let mut outputs: [[f32; 64]; 4] = [[0.0; 64]; 4];
+
+        let input_refs: Vec<&[f32]> = input.iter().map(|ch| ch.as_slice()).collect();
+        let mut output_refs: Vec<&mut [f32]> = outputs.iter_mut().map(|ch| ch.as_mut_slice()).collect();
+
+        filter.process(&input_refs, &mut output_refs, &[], &context);
+
+        assert!(outputs[0][63].abs() > outputs[1][63].abs());
+        assert!(outputs[2][63].abs() < outputs[0][63].abs());
+        assert!(outputs[3][63] < 0.0);
     }
 }

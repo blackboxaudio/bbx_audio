@@ -18,9 +18,13 @@ A block-based audio DSP system for building signal processing graphs.
 ### Effectors
 - `GainBlock` - Level control in dB
 - `OverdriveBlock` - Asymmetric soft-clipping distortion
-- `PannerBlock` - Stereo panning with constant power law
+- `PannerBlock` - Stereo, surround (VBAP), and ambisonic panning
 - `DcBlockerBlock` - DC offset removal
-- `ChannelRouterBlock` - Channel routing and manipulation
+- `ChannelRouterBlock` - Simple stereo channel routing
+- `ChannelSplitterBlock` - Split multi-channel to mono outputs
+- `ChannelMergerBlock` - Merge mono inputs to multi-channel
+- `MatrixMixerBlock` - NxM mixing matrix
+- `AmbisonicDecoderBlock` - Ambisonics B-format decoder
 - `LowPassFilterBlock` - SVF-based TPT low-pass filter with cutoff/resonance
 
 ### Modulators
@@ -31,6 +35,28 @@ A block-based audio DSP system for building signal processing graphs.
 - `FileInputBlock` - Read audio from files
 - `FileOutputBlock` - Write audio to files (non-blocking I/O)
 - `OutputBlock` - Terminal graph output
+
+## Multi-Channel System
+
+Beyond basic stereo, bbx_dsp supports surround and ambisonic formats:
+
+### Channel Layouts
+- `Mono` - 1 channel
+- `Stereo` - 2 channels (default)
+- `Surround51` - 6 channels (5.1)
+- `Surround71` - 8 channels (7.1)
+- `AmbisonicFoa` - 4 channels (1st order)
+- `AmbisonicSoa` - 9 channels (2nd order)
+- `AmbisonicToa` - 16 channels (3rd order)
+- `Custom(n)` - Arbitrary channel count
+
+### Channel Config
+
+Blocks declare how they handle multi-channel audio:
+- `Parallel` (default) - Process each channel independently
+- `Explicit` - Block handles routing internally (panners, mixers, decoders)
+
+Use `GraphBuilder::with_layout()` to create graphs with specific channel configurations.
 
 ## Cargo Features
 

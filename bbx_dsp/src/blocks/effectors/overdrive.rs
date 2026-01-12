@@ -5,6 +5,7 @@ use bbx_core::flush_denormal_f64;
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
+    graph::MAX_BLOCK_OUTPUTS,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
     smoothing::LinearSmoothedValue,
@@ -26,7 +27,7 @@ pub struct OverdriveBlock<S: Sample> {
     pub level: Parameter<S>,
 
     tone: f64,
-    filter_state: f64,
+    filter_state: [f64; MAX_BLOCK_OUTPUTS],
     filter_coefficient: f64,
 
     /// Smoothed drive value for click-free changes.
@@ -45,7 +46,7 @@ impl<S: Sample> OverdriveBlock<S> {
             drive: Parameter::Constant(drive),
             level: Parameter::Constant(level),
             tone,
-            filter_state: 0.0,
+            filter_state: [0.0; MAX_BLOCK_OUTPUTS],
             filter_coefficient: 0.0,
             drive_smoother: LinearSmoothedValue::new(S::from_f64(drive_val)),
             level_smoother: LinearSmoothedValue::new(S::from_f64(level_val)),
@@ -101,7 +102,10 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
             level_values[i] = self.level_smoother.get_next_value();
         }
 
-        for (input_index, input_buffer) in inputs.iter().enumerate() {
+        for (ch, input_buffer) in inputs.iter().enumerate() {
+            if ch >= outputs.len() || ch >= MAX_BLOCK_OUTPUTS {
+                break;
+            }
             let ch_len = input_buffer.len().min(len);
             for (sample_index, sample_value) in input_buffer.iter().enumerate().take(ch_len) {
                 let drive = drive_values[sample_index];
@@ -110,9 +114,9 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
                 let driven = sample_value.to_f64() * drive.to_f64();
                 let clipped = self.asymmetric_saturation(driven);
 
-                self.filter_state += self.filter_coefficient * (clipped - self.filter_state);
-                self.filter_state = flush_denormal_f64(self.filter_state);
-                outputs[input_index][sample_index] = S::from_f64(self.filter_state * level.to_f64());
+                self.filter_state[ch] += self.filter_coefficient * (clipped - self.filter_state[ch]);
+                self.filter_state[ch] = flush_denormal_f64(self.filter_state[ch]);
+                outputs[ch][sample_index] = S::from_f64(self.filter_state[ch] * level.to_f64());
             }
         }
     }
@@ -130,5 +134,62 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
     #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::channel::ChannelLayout;
+
+    fn test_context(buffer_size: usize) -> DspContext {
+        DspContext {
+            sample_rate: 44100.0,
+            num_channels: 6,
+            buffer_size,
+            current_sample: 0,
+            channel_layout: ChannelLayout::Surround51,
+        }
+    }
+
+    #[test]
+    fn test_overdrive_6_channels() {
+        let mut overdrive = OverdriveBlock::<f32>::new(2.0, 0.8, 0.5, 44100.0);
+        let context = test_context(4);
+
+        let input: [[f32; 4]; 6] = [[0.5; 4]; 6];
+        let mut outputs: [[f32; 4]; 6] = [[0.0; 4]; 6];
+
+        let input_refs: Vec<&[f32]> = input.iter().map(|ch| ch.as_slice()).collect();
+        let mut output_refs: Vec<&mut [f32]> = outputs.iter_mut().map(|ch| ch.as_mut_slice()).collect();
+
+        overdrive.process(&input_refs, &mut output_refs, &[], &context);
+
+        for ch in 0..6 {
+            assert!(outputs[ch][3].abs() > 0.0, "Channel {ch} should have output");
+        }
+    }
+
+    #[test]
+    fn test_overdrive_independent_channel_state() {
+        let mut overdrive = OverdriveBlock::<f32>::new(3.0, 1.0, 0.5, 44100.0);
+        let context = test_context(64);
+
+        let mut input: [[f32; 64]; 4] = [[0.0; 64]; 4];
+        input[0] = [0.8; 64];
+        input[1] = [0.0; 64];
+        input[2] = [0.4; 64];
+        input[3] = [-0.4; 64];
+
+        let mut outputs: [[f32; 64]; 4] = [[0.0; 64]; 4];
+
+        let input_refs: Vec<&[f32]> = input.iter().map(|ch| ch.as_slice()).collect();
+        let mut output_refs: Vec<&mut [f32]> = outputs.iter_mut().map(|ch| ch.as_mut_slice()).collect();
+
+        overdrive.process(&input_refs, &mut output_refs, &[], &context);
+
+        assert!(outputs[0][63].abs() > outputs[1][63].abs());
+        assert!(outputs[2][63].abs() < outputs[0][63].abs());
+        assert!(outputs[3][63] < 0.0);
     }
 }

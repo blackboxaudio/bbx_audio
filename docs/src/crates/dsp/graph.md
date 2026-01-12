@@ -18,6 +18,20 @@ let mut builder = GraphBuilder::<f32>::new(
 );
 ```
 
+### Creating with Channel Layout
+
+For multi-channel support beyond stereo, use `with_layout`:
+
+```rust
+use bbx_dsp::{channel::ChannelLayout, graph::GraphBuilder};
+
+// 5.1 surround graph
+let builder = GraphBuilder::<f32>::with_layout(44100.0, 512, ChannelLayout::Surround51);
+
+// First-order ambisonics graph
+let builder = GraphBuilder::<f32>::with_layout(44100.0, 512, ChannelLayout::AmbisonicFoa);
+```
+
 ### Adding Blocks
 
 The builder provides convenience methods for common blocks:
@@ -54,6 +68,28 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let gain = builder.add_gain(-6.0, None);
 let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
 let dc = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
+```
+
+### Multi-Channel Blocks
+
+The builder provides convenience methods for multi-channel routing:
+
+```rust
+use bbx_dsp::{channel::ChannelLayout, graph::GraphBuilder};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 6);
+
+// Channel routing
+let splitter = builder.add_channel_splitter(6);   // Split to mono outputs
+let merger = builder.add_channel_merger(6);       // Merge mono inputs
+let mixer = builder.add_matrix_mixer(4, 2);       // NxM matrix mixer
+
+// Surround and ambisonic panning
+let surround = builder.add_panner_surround(ChannelLayout::Surround51);
+let ambisonic = builder.add_panner_ambisonic(1);  // FOA encoder
+
+// Ambisonic decoding
+let decoder = builder.add_ambisonic_decoder(1, ChannelLayout::Stereo);
 ```
 
 ### Connecting Blocks

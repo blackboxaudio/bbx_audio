@@ -26,6 +26,11 @@ pub trait Block<S: Sample> {
 
     /// Modulation outputs provided by this block
     fn modulation_outputs(&self) -> &[ModulationOutput];
+
+    /// How this block handles multi-channel audio
+    fn channel_config(&self) -> ChannelConfig {
+        ChannelConfig::Parallel
+    }
 }
 ```
 
@@ -167,6 +172,36 @@ fn prepare(&mut self, context: &DspContext) {
     self.coefficient = calculate_coefficient(context.sample_rate);
 }
 ```
+
+## Channel Configuration
+
+The `channel_config()` method declares how a block handles multi-channel audio:
+
+### Parallel (default)
+
+Process each channel independently through the same algorithm:
+
+```rust
+fn channel_config(&self) -> ChannelConfig {
+    ChannelConfig::Parallel
+}
+```
+
+Use for: filters, gain, distortion, DC blockers.
+
+### Explicit
+
+Block handles channel routing internally:
+
+```rust
+fn channel_config(&self) -> ChannelConfig {
+    ChannelConfig::Explicit
+}
+```
+
+Use for: panners, mixers, splitters, mergers, decoders.
+
+Blocks with `Explicit` config typically have different input/output counts and implement custom routing logic.
 
 ## Real-Time Safety
 

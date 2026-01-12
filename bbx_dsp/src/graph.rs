@@ -14,7 +14,11 @@ use bbx_core::StackVec;
 use crate::{
     block::{BlockCategory, BlockId, BlockType},
     blocks::{
-        effectors::{gain::GainBlock, low_pass_filter::LowPassFilterBlock, overdrive::OverdriveBlock, vca::VcaBlock},
+        effectors::{
+            ambisonic_decoder::AmbisonicDecoderBlock, channel_merger::ChannelMergerBlock,
+            channel_splitter::ChannelSplitterBlock, gain::GainBlock, low_pass_filter::LowPassFilterBlock,
+            matrix_mixer::MatrixMixerBlock, overdrive::OverdriveBlock, panner::PannerBlock, vca::VcaBlock,
+        },
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
         modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
@@ -431,6 +435,19 @@ impl<S: Sample> GraphBuilder<S> {
         }
     }
 
+    /// Create a `GraphBuilder` with a specific channel layout.
+    ///
+    /// This constructor sets both the channel count and the layout, which enables
+    /// layout-aware processing for blocks like panners and decoders.
+    pub fn with_layout(sample_rate: f64, buffer_size: usize, layout: ChannelLayout) -> Self {
+        let num_channels = layout.channel_count();
+        let mut builder = Self {
+            graph: Graph::new(sample_rate, buffer_size, num_channels),
+        };
+        builder.graph.context.channel_layout = layout;
+        builder
+    }
+
     // I/O
 
     /// Add a `FileInputBlock` to the `Graph`, which is useful for processing
@@ -499,6 +516,83 @@ impl<S: Sample> GraphBuilder<S> {
     /// * `resonance` - Q factor (clamped to 0.5-10.0, default 0.707 is Butterworth)
     pub fn add_low_pass_filter(&mut self, cutoff: f64, resonance: f64) -> BlockId {
         let block = BlockType::LowPassFilter(LowPassFilterBlock::new(S::from_f64(cutoff), S::from_f64(resonance)));
+        self.graph.add_block(block)
+    }
+
+    /// Add a `MatrixMixerBlock` to the `Graph`.
+    ///
+    /// Creates an NxM mixing matrix for flexible channel routing.
+    /// Use `set_gain()` on the block to configure routing weights.
+    ///
+    /// # Arguments
+    ///
+    /// * `inputs` - Number of input channels (1-16)
+    /// * `outputs` - Number of output channels (1-16)
+    pub fn add_matrix_mixer(&mut self, inputs: usize, outputs: usize) -> BlockId {
+        let block = BlockType::MatrixMixer(MatrixMixerBlock::new(inputs, outputs));
+        self.graph.add_block(block)
+    }
+
+    /// Add a `ChannelSplitterBlock` to the `Graph`.
+    ///
+    /// Splits multi-channel input into individual mono outputs.
+    ///
+    /// # Arguments
+    ///
+    /// * `channels` - Number of channels to split (1-16)
+    pub fn add_channel_splitter(&mut self, channels: usize) -> BlockId {
+        let block = BlockType::ChannelSplitter(ChannelSplitterBlock::new(channels));
+        self.graph.add_block(block)
+    }
+
+    /// Add a `ChannelMergerBlock` to the `Graph`.
+    ///
+    /// Merges individual mono inputs into a multi-channel output.
+    ///
+    /// # Arguments
+    ///
+    /// * `channels` - Number of channels to merge (1-16)
+    pub fn add_channel_merger(&mut self, channels: usize) -> BlockId {
+        let block = BlockType::ChannelMerger(ChannelMergerBlock::new(channels));
+        self.graph.add_block(block)
+    }
+
+    /// Add a surround `PannerBlock` to the `Graph`.
+    ///
+    /// Uses VBAP (Vector Base Amplitude Panning) for surround layouts.
+    /// Control azimuth and elevation parameters for positioning.
+    ///
+    /// # Arguments
+    ///
+    /// * `layout` - Target speaker layout (Surround51 or Surround71)
+    pub fn add_panner_surround(&mut self, layout: ChannelLayout) -> BlockId {
+        let block = BlockType::Panner(PannerBlock::new_surround(layout));
+        self.graph.add_block(block)
+    }
+
+    /// Add an ambisonic encoder `PannerBlock` to the `Graph`.
+    ///
+    /// Encodes mono input to SN3D normalized, ACN ordered B-format.
+    /// Control azimuth and elevation parameters for source positioning.
+    ///
+    /// # Arguments
+    ///
+    /// * `order` - Ambisonic order (1 = FOA/4ch, 2 = SOA/9ch, 3 = TOA/16ch)
+    pub fn add_panner_ambisonic(&mut self, order: usize) -> BlockId {
+        let block = BlockType::Panner(PannerBlock::new_ambisonic(order));
+        self.graph.add_block(block)
+    }
+
+    /// Add an `AmbisonicDecoderBlock` to the `Graph`.
+    ///
+    /// Decodes ambisonics B-format to a speaker layout using mode-matching.
+    ///
+    /// # Arguments
+    ///
+    /// * `order` - Ambisonic order (1, 2, or 3)
+    /// * `output_layout` - Target speaker layout for decoding
+    pub fn add_ambisonic_decoder(&mut self, order: usize, output_layout: ChannelLayout) -> BlockId {
+        let block = BlockType::AmbisonicDecoder(AmbisonicDecoderBlock::new(order, output_layout));
         self.graph.add_block(block)
     }
 

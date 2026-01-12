@@ -82,6 +82,14 @@ impl ChannelLayout {
             _ => None,
         }
     }
+
+    /// Returns the number of channels for a given ambisonic order.
+    ///
+    /// Formula: (order + 1)^2
+    #[inline]
+    pub const fn ambisonic_channel_count(order: usize) -> usize {
+        (order + 1) * (order + 1)
+    }
 }
 
 /// Describes how a block handles multi-channel audio.
@@ -159,6 +167,13 @@ mod tests {
             Some(ChannelLayout::AmbisonicToa)
         );
         assert_eq!(ChannelLayout::from_ambisonic_order(4), None);
+    }
+
+    #[test]
+    fn channel_layout_ambisonic_channel_count() {
+        assert_eq!(ChannelLayout::ambisonic_channel_count(1), 4);
+        assert_eq!(ChannelLayout::ambisonic_channel_count(2), 9);
+        assert_eq!(ChannelLayout::ambisonic_channel_count(3), 16);
     }
 
     #[test]
