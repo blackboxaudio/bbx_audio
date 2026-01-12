@@ -6,8 +6,7 @@
 use bbx_dsp::{
     block::{Block, BlockType},
     blocks::{
-        effectors::low_pass_filter::LowPassFilterBlock,
-        generators::oscillator::OscillatorBlock,
+        effectors::low_pass_filter::LowPassFilterBlock, generators::oscillator::OscillatorBlock,
         modulators::envelope::EnvelopeBlock,
     },
     context::DspContext,
@@ -62,7 +61,11 @@ fn test_oscillator_peak_amplitude_by_waveform() {
 
             // Triangle wave has overshoot at high frequencies due to PolyBLAMP scaling (8x factor)
             // This is a known limitation that increases with frequency - investigate separately
-            let tolerance = if matches!(waveform, Waveform::Triangle) { 1.15 } else { 1.05 };
+            let tolerance = if matches!(waveform, Waveform::Triangle) {
+                1.15
+            } else {
+                1.05
+            };
             assert!(
                 max_amplitude <= tolerance,
                 "{} at {}Hz: peak amplitude {:.6} exceeds {} tolerance",
@@ -113,11 +116,7 @@ fn test_envelope_output_range() {
         }
     }
 
-    assert!(
-        max_output <= 1.0,
-        "Envelope max {:.6} exceeds 1.0",
-        max_output
-    );
+    assert!(max_output <= 1.0, "Envelope max {:.6} exceeds 1.0", max_output);
     assert!(min_output >= 0.0, "Envelope min {:.6} below 0.0", min_output);
 }
 
@@ -159,10 +158,7 @@ fn test_filter_resonance_gain() {
         }
 
         let gain_db = 20.0 * max_output.log10();
-        eprintln!(
-            "Filter Q={:.3}: peak = {:.4} ({:.2}dB)",
-            q, max_output, gain_db
-        );
+        eprintln!("Filter Q={:.3}: peak = {:.4} ({:.2}dB)", q, max_output, gain_db);
 
         assert!(
             max_output <= 2.05,
@@ -183,12 +179,7 @@ fn test_chain_oscillator_only() {
     let sample_rate = 44100.0;
     let buffer_size = 512;
 
-    for waveform in [
-        Waveform::Sawtooth,
-        Waveform::Square,
-        Waveform::Sine,
-        Waveform::Triangle,
-    ] {
+    for waveform in [Waveform::Sawtooth, Waveform::Square, Waveform::Sine, Waveform::Triangle] {
         let mut builder = GraphBuilder::<f64>::new(sample_rate, buffer_size, 2);
         builder.add_oscillator(440.0, waveform, Some(42));
         let mut graph = builder.build();
@@ -251,11 +242,7 @@ fn test_chain_oscillator_plus_vca() {
     }
 
     eprintln!("Osc + VCA: max = {:.6}", max_amplitude);
-    assert!(
-        max_amplitude <= 1.05,
-        "Osc+VCA exceeds bounds: {:.6}",
-        max_amplitude
-    );
+    assert!(max_amplitude <= 1.05, "Osc+VCA exceeds bounds: {:.6}", max_amplitude);
 }
 
 /// Test oscillator + VCA + filter at various Q values.
@@ -295,10 +282,7 @@ fn test_chain_oscillator_vca_filter() {
             }
         }
 
-        eprintln!(
-            "Osc + VCA + Filter (Q={}): max = {:.6}",
-            q, max_amplitude
-        );
+        eprintln!("Osc + VCA + Filter (Q={}): max = {:.6}", q, max_amplitude);
 
         if q > 1.0 && max_amplitude > 1.0 {
             eprintln!("  -> CLIPPING DETECTED at Q={}", q);

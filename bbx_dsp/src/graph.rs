@@ -546,7 +546,8 @@ impl<S: Sample> GraphBuilder<S> {
 
     /// Specify a parameter to be modulated by a modulator block.
     pub fn modulate(&mut self, source: BlockId, target: BlockId, parameter: &str) -> &mut Self {
-        if let Err(e) = self.graph.blocks[target.0].set_parameter_source(parameter, ParameterSource::Modulated(source)) {
+        if let Err(e) = self.graph.blocks[target.0].set_parameter_source(parameter, ParameterSource::Modulated(source))
+        {
             eprintln!("Modulation error: {e}");
         }
         self

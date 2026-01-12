@@ -34,9 +34,7 @@ impl<S: Sample> ParameterSource<S> {
     pub fn get_value(&self, modulation_values: &[S]) -> S {
         match self {
             ParameterSource::Constant(value) => *value,
-            ParameterSource::Modulated(block_id) => {
-                modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO)
-            }
+            ParameterSource::Modulated(block_id) => modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO),
         }
     }
 }
