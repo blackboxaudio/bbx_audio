@@ -54,10 +54,10 @@ impl<S: Sample> EnvelopeBlock<S> {
     /// Times are in seconds, sustain is a level from 0.0 to 1.0.
     pub fn new(attack: S, decay: S, sustain: S, release: S) -> Self {
         Self {
-            attack: Parameter::Constant(attack),
-            decay: Parameter::Constant(decay),
-            sustain: Parameter::Constant(sustain),
-            release: Parameter::Constant(release),
+            attack: Parameter::constant(attack),
+            decay: Parameter::constant(decay),
+            sustain: Parameter::constant(sustain),
+            release: Parameter::constant(release),
             stage: EnvelopeStage::Idle,
             level: 0.0,
             stage_time: 0.0,
@@ -96,10 +96,10 @@ impl<S: Sample> EnvelopeBlock<S> {
 
 impl<S: Sample> Block<S> for EnvelopeBlock<S> {
     fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        let attack_time = Self::clamp_time(self.attack.get_value(modulation_values).to_f64());
-        let decay_time = Self::clamp_time(self.decay.get_value(modulation_values).to_f64());
-        let sustain_level = self.sustain.get_value(modulation_values).to_f64().clamp(0.0, 1.0);
-        let release_time = Self::clamp_time(self.release.get_value(modulation_values).to_f64());
+        let attack_time = Self::clamp_time(self.attack.get_raw_value(modulation_values).to_f64());
+        let decay_time = Self::clamp_time(self.decay.get_raw_value(modulation_values).to_f64());
+        let sustain_level = self.sustain.get_raw_value(modulation_values).to_f64().clamp(0.0, 1.0);
+        let release_time = Self::clamp_time(self.release.get_raw_value(modulation_values).to_f64());
 
         let time_per_sample = 1.0 / context.sample_rate;
 

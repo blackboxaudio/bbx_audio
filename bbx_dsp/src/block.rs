@@ -14,7 +14,7 @@ use crate::{
         modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
     },
     context::DspContext,
-    parameter::{ModulationOutput, Parameter},
+    parameter::{ModulationOutput, ParameterSource},
     sample::Sample,
 };
 
@@ -59,6 +59,12 @@ pub enum BlockCategory {
 /// that processes audio buffers. Blocks are connected together in a [`Graph`](crate::graph::Graph)
 /// to form a complete signal processing chain.
 pub trait Block<S: Sample> {
+    /// Prepare the block for processing with the given context.
+    ///
+    /// Called by the graph during `prepare_for_playback()`. Use this to
+    /// initialize parameters with the correct sample rate.
+    fn prepare(&mut self, _context: &DspContext) {}
+
     /// Process audio through this block.
     ///
     /// # Arguments
@@ -123,6 +129,33 @@ pub enum BlockType<S: Sample> {
 }
 
 impl<S: Sample> BlockType<S> {
+    /// Prepare the block for processing with the given context.
+    #[inline]
+    pub fn prepare(&mut self, context: &DspContext) {
+        match self {
+            // I/O
+            BlockType::FileInput(block) => block.prepare(context),
+            BlockType::FileOutput(block) => block.prepare(context),
+            BlockType::Output(block) => block.prepare(context),
+
+            // GENERATORS
+            BlockType::Oscillator(block) => block.prepare(context),
+
+            // EFFECTORS
+            BlockType::ChannelRouter(block) => block.prepare(context),
+            BlockType::DcBlocker(block) => block.prepare(context),
+            BlockType::Gain(block) => block.prepare(context),
+            BlockType::LowPassFilter(block) => block.prepare(context),
+            BlockType::Overdrive(block) => block.prepare(context),
+            BlockType::Panner(block) => block.prepare(context),
+            BlockType::Vca(block) => block.prepare(context),
+
+            // MODULATORS
+            BlockType::Envelope(block) => block.prepare(context),
+            BlockType::Lfo(block) => block.prepare(context),
+        }
+    }
+
     /// Perform the calculation of the underlying `Block`.
     #[inline]
     pub fn process(
@@ -237,8 +270,11 @@ impl<S: Sample> BlockType<S> {
         }
     }
 
-    /// Set a given `Parameter` of the underlying `Block`.
-    pub fn set_parameter(&mut self, parameter_name: &str, parameter: Parameter<S>) -> Result<(), String> {
+    /// Set the source of a parameter in the underlying `Block`.
+    ///
+    /// This updates the parameter's source (constant or modulated) without
+    /// affecting its smoothing state.
+    pub fn set_parameter_source(&mut self, parameter_name: &str, source: ParameterSource<S>) -> Result<(), String> {
         match self {
             // I/O
             BlockType::FileInput(_) => Err("File input blocks have no modulated parameters".to_string()),
@@ -248,11 +284,11 @@ impl<S: Sample> BlockType<S> {
             // GENERATORS
             BlockType::Oscillator(block) => match parameter_name.to_lowercase().as_str() {
                 "frequency" => {
-                    block.frequency = parameter;
+                    block.frequency.set_source(source);
                     Ok(())
                 }
                 "pitch_offset" => {
-                    block.pitch_offset = parameter;
+                    block.pitch_offset.set_source(source);
                     Ok(())
                 }
                 _ => Err(format!("Unknown oscillator parameter: {parameter_name}")),
@@ -263,36 +299,36 @@ impl<S: Sample> BlockType<S> {
             BlockType::DcBlocker(_) => Err("DC blocker uses direct field access, not Parameter<S>".to_string()),
             BlockType::Gain(block) => match parameter_name.to_lowercase().as_str() {
                 "level" | "level_db" => {
-                    block.level_db = parameter;
+                    block.level_db.set_source(source);
                     Ok(())
                 }
                 _ => Err(format!("Unknown gain parameter: {parameter_name}")),
             },
             BlockType::LowPassFilter(block) => match parameter_name.to_lowercase().as_str() {
                 "cutoff" | "frequency" => {
-                    block.cutoff = parameter;
+                    block.cutoff.set_source(source);
                     Ok(())
                 }
                 "resonance" | "q" => {
-                    block.resonance = parameter;
+                    block.resonance.set_source(source);
                     Ok(())
                 }
                 _ => Err(format!("Unknown low-pass filter parameter: {parameter_name}")),
             },
             BlockType::Overdrive(block) => match parameter_name.to_lowercase().as_str() {
                 "drive" => {
-                    block.drive = parameter;
+                    block.drive.set_source(source);
                     Ok(())
                 }
                 "level" => {
-                    block.level = parameter;
+                    block.level.set_source(source);
                     Ok(())
                 }
                 _ => Err(format!("Unknown overdrive parameter: {parameter_name}")),
             },
             BlockType::Panner(block) => match parameter_name.to_lowercase().as_str() {
                 "position" | "pan" => {
-                    block.position = parameter;
+                    block.position.set_source(source);
                     Ok(())
                 }
                 _ => Err(format!("Unknown panner parameter: {parameter_name}")),
@@ -302,30 +338,30 @@ impl<S: Sample> BlockType<S> {
             // MODULATORS
             BlockType::Envelope(block) => match parameter_name.to_lowercase().as_str() {
                 "attack" => {
-                    block.attack = parameter;
+                    block.attack.set_source(source);
                     Ok(())
                 }
                 "decay" => {
-                    block.decay = parameter;
+                    block.decay.set_source(source);
                     Ok(())
                 }
                 "sustain" => {
-                    block.sustain = parameter;
+                    block.sustain.set_source(source);
                     Ok(())
                 }
                 "release" => {
-                    block.release = parameter;
+                    block.release.set_source(source);
                     Ok(())
                 }
                 _ => Err(format!("Unknown envelope parameter: {parameter_name}")),
             },
             BlockType::Lfo(block) => match parameter_name.to_lowercase().as_str() {
                 "frequency" => {
-                    block.frequency = parameter;
+                    block.frequency.set_source(source);
                     Ok(())
                 }
                 "depth" => {
-                    block.depth = parameter;
+                    block.depth.set_source(source);
                     Ok(())
                 }
                 _ => Err(format!("Unknown LFO parameter: {parameter_name}")),
@@ -393,10 +429,10 @@ impl<S: Sample> BlockType<S> {
             BlockType::FileInput(_) | BlockType::FileOutput(_) | BlockType::Output(_) => {}
 
             BlockType::Oscillator(block) => {
-                if let Parameter::Modulated(id) = &block.frequency {
+                if let ParameterSource::Modulated(id) = block.frequency.source() {
                     result.push(("frequency", *id));
                 }
-                if let Parameter::Modulated(id) = &block.pitch_offset {
+                if let ParameterSource::Modulated(id) = block.pitch_offset.source() {
                     result.push(("pitch_offset", *id));
                 }
             }
@@ -404,55 +440,55 @@ impl<S: Sample> BlockType<S> {
             BlockType::ChannelRouter(_) | BlockType::DcBlocker(_) | BlockType::Vca(_) => {}
 
             BlockType::Gain(block) => {
-                if let Parameter::Modulated(id) = &block.level_db {
+                if let ParameterSource::Modulated(id) = block.level_db.source() {
                     result.push(("level", *id));
                 }
             }
 
             BlockType::LowPassFilter(block) => {
-                if let Parameter::Modulated(id) = &block.cutoff {
+                if let ParameterSource::Modulated(id) = block.cutoff.source() {
                     result.push(("cutoff", *id));
                 }
-                if let Parameter::Modulated(id) = &block.resonance {
+                if let ParameterSource::Modulated(id) = block.resonance.source() {
                     result.push(("resonance", *id));
                 }
             }
 
             BlockType::Overdrive(block) => {
-                if let Parameter::Modulated(id) = &block.drive {
+                if let ParameterSource::Modulated(id) = block.drive.source() {
                     result.push(("drive", *id));
                 }
-                if let Parameter::Modulated(id) = &block.level {
+                if let ParameterSource::Modulated(id) = block.level.source() {
                     result.push(("level", *id));
                 }
             }
 
             BlockType::Panner(block) => {
-                if let Parameter::Modulated(id) = &block.position {
+                if let ParameterSource::Modulated(id) = block.position.source() {
                     result.push(("position", *id));
                 }
             }
 
             BlockType::Envelope(block) => {
-                if let Parameter::Modulated(id) = &block.attack {
+                if let ParameterSource::Modulated(id) = block.attack.source() {
                     result.push(("attack", *id));
                 }
-                if let Parameter::Modulated(id) = &block.decay {
+                if let ParameterSource::Modulated(id) = block.decay.source() {
                     result.push(("decay", *id));
                 }
-                if let Parameter::Modulated(id) = &block.sustain {
+                if let ParameterSource::Modulated(id) = block.sustain.source() {
                     result.push(("sustain", *id));
                 }
-                if let Parameter::Modulated(id) = &block.release {
+                if let ParameterSource::Modulated(id) = block.release.source() {
                     result.push(("release", *id));
                 }
             }
 
             BlockType::Lfo(block) => {
-                if let Parameter::Modulated(id) = &block.frequency {
+                if let ParameterSource::Modulated(id) = block.frequency.source() {
                     result.push(("frequency", *id));
                 }
-                if let Parameter::Modulated(id) = &block.depth {
+                if let ParameterSource::Modulated(id) = block.depth.source() {
                     result.push(("depth", *id));
                 }
             }
