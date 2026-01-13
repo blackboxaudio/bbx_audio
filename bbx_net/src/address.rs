@@ -1,7 +1,7 @@
-//! Node identification and address parsing for network messages.
+//! Block identification and address parsing for network messages.
 //!
-//! Provides `NodeId` for unique node identification and `AddressPath` for
-//! parsing OSC-style address patterns.
+//! Provides `NodeId` for unique identification and `AddressPath` for
+//! parsing OSC-style address patterns that target DSP blocks.
 
 use bbx_core::random::XorShiftRng;
 
@@ -90,12 +90,12 @@ impl NodeId {
 /// Parsed OSC-style address path.
 ///
 /// Supports formats:
-/// - `/bbx/<uuid>/param/<name>` - Node-specific parameter
-/// - `/param/<name>` - Broadcast to all nodes
+/// - `/block/<uuid>/param/<name>` - Specific block parameter
+/// - `/blocks/param/<name>` - Broadcast to all blocks
 #[derive(Debug, Clone)]
 pub struct AddressPath {
-    /// Target node (None for broadcast).
-    pub node_id: Option<NodeId>,
+    /// Target block (None for broadcast).
+    pub block_id: Option<NodeId>,
     /// Parameter name.
     pub param_name: String,
 }
@@ -105,31 +105,31 @@ impl AddressPath {
     ///
     /// # Supported Formats
     ///
-    /// - `/bbx/<uuid>/param/<name>` - Node-specific parameter
-    /// - `/param/<name>` - Broadcast to all nodes
+    /// - `/block/<uuid>/param/<name>` - Specific block parameter
+    /// - `/blocks/param/<name>` - Broadcast to all blocks
     ///
     /// # Example
     ///
     /// ```
     /// use bbx_net::address::AddressPath;
     ///
-    /// let path = AddressPath::parse("/param/gain").unwrap();
-    /// assert!(path.node_id.is_none());
+    /// let path = AddressPath::parse("/blocks/param/gain").unwrap();
+    /// assert!(path.block_id.is_none());
     /// assert_eq!(path.param_name, "gain");
     /// ```
     pub fn parse(address: &str) -> Result<Self> {
         let parts: Vec<&str> = address.split('/').filter(|s| !s.is_empty()).collect();
 
         match parts.as_slice() {
-            ["bbx", uuid, "param", name] => {
-                let node_id = NodeId::from_uuid_string(uuid)?;
+            ["block", uuid, "param", name] => {
+                let block_id = NodeId::from_uuid_string(uuid)?;
                 Ok(Self {
-                    node_id: Some(node_id),
+                    block_id: Some(block_id),
                     param_name: (*name).to_string(),
                 })
             }
-            ["param", name] => Ok(Self {
-                node_id: None,
+            ["blocks", "param", name] => Ok(Self {
+                block_id: None,
                 param_name: (*name).to_string(),
             }),
             _ => Err(NetError::InvalidAddress),
@@ -138,9 +138,9 @@ impl AddressPath {
 
     /// Format as an OSC address string.
     pub fn to_address_string(&self) -> String {
-        match &self.node_id {
-            Some(id) => format!("/bbx/{}/param/{}", id.to_uuid_string(), self.param_name),
-            None => format!("/param/{}", self.param_name),
+        match &self.block_id {
+            Some(id) => format!("/block/{}/param/{}", id.to_uuid_string(), self.param_name),
+            None => format!("/blocks/param/{}", self.param_name),
         }
     }
 }
@@ -199,39 +199,39 @@ mod tests {
 
     #[test]
     fn test_address_path_broadcast() {
-        let path = AddressPath::parse("/param/gain").unwrap();
-        assert!(path.node_id.is_none());
+        let path = AddressPath::parse("/blocks/param/gain").unwrap();
+        assert!(path.block_id.is_none());
         assert_eq!(path.param_name, "gain");
     }
 
     #[test]
     fn test_address_path_targeted() {
         let id = NodeId::from_parts(0x12345678_abcd_ef01, 0x2345_6789abcdef01);
-        let address = format!("/bbx/{}/param/volume", id.to_uuid_string());
+        let address = format!("/block/{}/param/volume", id.to_uuid_string());
 
         let path = AddressPath::parse(&address).unwrap();
-        assert_eq!(path.node_id, Some(id));
+        assert_eq!(path.block_id, Some(id));
         assert_eq!(path.param_name, "volume");
     }
 
     #[test]
     fn test_address_path_roundtrip() {
         let original = AddressPath {
-            node_id: Some(NodeId::from_parts(0xaabb_ccdd_eeff_0011, 0x2233_445566778899)),
+            block_id: Some(NodeId::from_parts(0xaabb_ccdd_eeff_0011, 0x2233_445566778899)),
             param_name: "frequency".to_string(),
         };
 
         let address_str = original.to_address_string();
         let parsed = AddressPath::parse(&address_str).unwrap();
 
-        assert_eq!(original.node_id, parsed.node_id);
+        assert_eq!(original.block_id, parsed.block_id);
         assert_eq!(original.param_name, parsed.param_name);
     }
 
     #[test]
     fn test_address_path_invalid() {
         assert!(AddressPath::parse("/invalid/path").is_err());
-        assert!(AddressPath::parse("/bbx/notauuid/param/test").is_err());
+        assert!(AddressPath::parse("/block/notauuid/param/test").is_err());
         assert!(AddressPath::parse("").is_err());
     }
 }

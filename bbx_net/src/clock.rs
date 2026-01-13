@@ -85,6 +85,13 @@ impl ClockSync {
     /// Get the current synchronized timestamp.
     ///
     /// This reads the system clock and converts to microseconds since start.
+    ///
+    /// # Realtime Safety
+    ///
+    /// This method is NOT realtime-safe as it calls `Instant::elapsed()` which
+    /// may invoke a system call. For audio thread use, call [`tick()`](Self::tick)
+    /// from a non-audio thread and use [`cached_now()`](Self::cached_now) from
+    /// the audio thread.
     #[inline]
     pub fn now(&self) -> SyncedTimestamp {
         let elapsed = self.start_instant.elapsed();
@@ -95,6 +102,13 @@ impl ClockSync {
     ///
     /// Call this periodically (e.g., at the start of each audio buffer)
     /// to update the cached time value.
+    ///
+    /// # Realtime Safety
+    ///
+    /// This method is NOT realtime-safe as it calls [`now()`](Self::now)
+    /// internally. Call this from your main thread or audio device callback
+    /// thread, then use [`cached_now()`](Self::cached_now) from the audio
+    /// processing code.
     pub fn tick(&self) {
         let now = self.now();
         self.current_time.store(now.0, Ordering::Relaxed);

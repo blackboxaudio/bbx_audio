@@ -88,8 +88,11 @@ impl NetBufferConsumer {
     ///
     /// Returns the number of messages drained.
     ///
-    /// **Note**: This method allocates and is NOT realtime-safe.
-    /// Use `drain_into_stack()` in the audio thread instead.
+    /// # Warning
+    ///
+    /// This method allocates heap memory and is **NOT suitable for realtime
+    /// audio processing**. Use [`drain_into_stack()`](Self::drain_into_stack)
+    /// instead for audio thread code.
     #[inline]
     pub fn drain_into(&mut self, buffer: &mut Vec<NetMessage>) -> usize {
         let mut count = 0;

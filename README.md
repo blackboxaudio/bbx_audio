@@ -24,6 +24,7 @@ Optional SIMD optimizations are available via the `simd` feature flag (requires 
 | [`bbx_dsp`](./bbx_dsp) | DSP graph system, blocks, and `PluginDsp` trait |
 | [`bbx_file`](./bbx_file) | Audio file I/O (WAV/MP3) |
 | [`bbx_midi`](./bbx_midi) | MIDI messages, events, and streaming |
+| [`bbx_net`](./bbx_net) | Network audio control (OSC/WebSocket) |
 | [`bbx_plugin`](./bbx_plugin) | C FFI bindings for JUCE integration |
 | [`bbx_sandbox`](./bbx_sandbox) | Examples and testing playground |
 

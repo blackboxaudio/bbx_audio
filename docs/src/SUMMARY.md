@@ -17,6 +17,7 @@
 - [Parameter Modulation with LFOs](tutorials/modulation.md) — *dynamic control*
 - [Working with Audio Files](tutorials/audio-files.md) — *file I/O*
 - [MIDI Integration](tutorials/midi.md) — *external control*
+- [Network Audio Control](tutorials/network-audio.md) — *OSC & WebSocket*
 - [Real-Time Visualization](tutorials/visualization.md) — *visual feedback*
 - [Sketch Discovery](tutorials/sketchbook.md) — *project organization*
 
@@ -69,6 +70,9 @@
 - [bbx_midi](crates/bbx-midi.md)
     - [MIDI Messages](crates/midi/messages.md)
     - [Message Buffer](crates/midi/buffer.md)
+- [bbx_net](crates/bbx-net.md)
+    - [OSC Server](crates/net/osc.md)
+    - [WebSocket Server](crates/net/websocket.md)
 
 # Blocks Reference
 

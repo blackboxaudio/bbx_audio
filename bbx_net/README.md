@@ -70,19 +70,19 @@ let handle = server.spawn(); // Runs in background thread
 
 ### OSC Address Format
 
-Messages must follow the pattern `/param/<name>`:
+Messages must follow one of these patterns:
 
 | Address | Description |
 |---------|-------------|
-| `/param/gain` | Broadcast gain parameter to all nodes |
-| `/param/freq` | Broadcast frequency parameter |
-| `/bbx/<uuid>/param/gain` | Target specific node by UUID |
+| `/blocks/param/gain` | Broadcast gain parameter to all blocks |
+| `/blocks/param/freq` | Broadcast frequency parameter to all blocks |
+| `/block/<uuid>/param/gain` | Target specific block by UUID |
 
 ### TouchOSC Setup
 
 1. Set **Host** to your computer's IP address
 2. Set **Port** to 9000
-3. Create faders with addresses like `/param/freq`, `/param/cutoff`, `/param/gain`
+3. Create faders with addresses like `/blocks/param/freq`, `/blocks/param/cutoff`, `/blocks/param/gain`
 4. Set fader range to 0.0–1.0
 
 ## WebSocket Server

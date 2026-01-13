@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn test_parse_float_message() {
         let msg = OscMessage {
-            addr: "/param/gain".to_string(),
+            addr: "/blocks/param/gain".to_string(),
             args: vec![OscType::Float(0.75)],
         };
         let packet = OscPacket::Message(msg);
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn test_parse_int_message() {
         let msg = OscMessage {
-            addr: "/param/level".to_string(),
+            addr: "/blocks/param/level".to_string(),
             args: vec![OscType::Int(100)],
         };
         let packet = OscPacket::Message(msg);
@@ -123,7 +123,7 @@ mod tests {
     #[test]
     fn test_parse_bool_message() {
         let msg = OscMessage {
-            addr: "/param/enabled".to_string(),
+            addr: "/blocks/param/enabled".to_string(),
             args: vec![OscType::Bool(true)],
         };
         let packet = OscPacket::Message(msg);

@@ -7,16 +7,16 @@
 //!
 //! # OSC Address Format
 //!
-//! All addresses follow the pattern `/param/<name>`:
-//! - `/param/freq` - Oscillator frequency (0.0-1.0 → 20-2000 Hz)
-//! - `/param/cutoff` - Filter cutoff (0.0-1.0 → 100-5000 Hz)
-//! - `/param/gain` - Output gain (0.0-1.0 → -60 to 0 dB)
+//! All addresses follow the pattern `/blocks/param/<name>`:
+//! - `/blocks/param/freq` - Oscillator frequency (0.0-1.0 → 20-2000 Hz)
+//! - `/blocks/param/cutoff` - Filter cutoff (0.0-1.0 → 100-5000 Hz)
+//! - `/blocks/param/gain` - Output gain (0.0-1.0 → -60 to 0 dB)
 //!
 //! # TouchOSC Setup
 //!
 //! 1. Set OSC host to your computer's IP address
 //! 2. Set OSC port to 9000
-//! 3. Create faders with addresses `/param/freq`, `/param/cutoff`, `/param/gain`
+//! 3. Create faders with addresses `/blocks/param/freq`, `/blocks/param/cutoff`, `/blocks/param/gain`
 //!
 //! # Usage
 //!
@@ -267,9 +267,9 @@ fn main() {
     }
 
     println!("\nOSC Address Mappings:");
-    println!("  /param/freq   - Oscillator frequency (0.0-1.0)");
-    println!("  /param/cutoff - Filter cutoff (0.0-1.0)");
-    println!("  /param/gain   - Output gain (0.0-1.0)");
+    println!("  /blocks/param/freq   - Oscillator frequency (0.0-1.0)");
+    println!("  /blocks/param/cutoff - Filter cutoff (0.0-1.0)");
+    println!("  /blocks/param/gain   - Output gain (0.0-1.0)");
     println!("\nPress Ctrl+C to exit.\n");
 
     let synth = OscSynth::new(consumer);
