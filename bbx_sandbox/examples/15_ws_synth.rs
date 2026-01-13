@@ -3,7 +3,7 @@
 //! A simple synthesizer that responds to WebSocket messages for real-time parameter control.
 //! Connect via a WebSocket client (browser, websocat, etc.) to control the synth.
 //!
-//! Signal chain: Oscillator → LowPassFilter → Gain → Output
+//! Signal chain: Oscillator → LowPassFilter → Gain → Panner → Output
 //!
 //! # WebSocket Protocol
 //!
@@ -44,7 +44,7 @@ use std::{
 
 use bbx_dsp::{
     block::BlockId,
-    blocks::{GainBlock, LowPassFilterBlock, OscillatorBlock},
+    blocks::{GainBlock, LowPassFilterBlock, OscillatorBlock, PannerBlock},
     buffer::{AudioBuffer, Buffer},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
@@ -101,10 +101,12 @@ impl WsSynth {
         let oscillator_id = builder.add(OscillatorBlock::new(220.0, Waveform::Sawtooth, None));
         let filter_id = builder.add(LowPassFilterBlock::new(1000.0, 2.0));
         let gain_id = builder.add(GainBlock::new(-12.0, None));
+        let panner_id = builder.add(PannerBlock::new(0.0));
 
         builder
             .connect(oscillator_id, 0, filter_id, 0)
-            .connect(filter_id, 0, gain_id, 0);
+            .connect(filter_id, 0, gain_id, 0)
+            .connect(gain_id, 0, panner_id, 0);
 
         let graph = builder.build();
 
