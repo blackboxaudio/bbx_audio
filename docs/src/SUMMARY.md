@@ -103,6 +103,7 @@
     - [Buffer Management](architecture/buffer-management.md)
     - [Connection System](architecture/connections.md)
     - [Multi-Channel System](architecture/multi-channel.md)
+    - [HRTF Binaural Rendering](architecture/hrtf.md)
 - [Real-Time Safety](architecture/realtime-safety.md)
     - [Stack Allocation Strategy](architecture/stack-allocation.md)
     - [Denormal Prevention](architecture/denormals.md)

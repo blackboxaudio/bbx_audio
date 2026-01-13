@@ -20,8 +20,7 @@ const NUM_SOURCES: usize = 4;
 fn create_graph() -> Graph<f32> {
     let num_ambi_channels = ChannelLayout::ambisonic_channel_count(AMBISONIC_ORDER);
 
-    let mut builder =
-        GraphBuilder::with_layout(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, ChannelLayout::Stereo);
+    let mut builder = GraphBuilder::with_layout(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, ChannelLayout::Stereo);
 
     let mixer_id = builder.add_mixer(NUM_SOURCES, num_ambi_channels);
     let decoder = builder.add_binaural_decoder(AMBISONIC_ORDER);

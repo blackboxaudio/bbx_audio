@@ -1,10 +1,30 @@
 # BinauralDecoderBlock
 
-Decodes ambisonics B-format to stereo for headphone listening.
+Decodes multi-channel audio to stereo for headphone listening using HRTF convolution.
 
 ## Overview
 
-`BinauralDecoderBlock` converts SN3D normalized, ACN ordered ambisonic signals to stereo headphone output using psychoacoustically-informed matrix coefficients. It approximates binaural cues (primarily ILD - Interaural Level Difference) without full HRTF convolution, providing a lightweight, realtime-safe decoder for basic spatial audio reproduction on headphones.
+`BinauralDecoderBlock` converts ambisonic B-format or surround sound signals to binaural stereo output. Two decoding strategies are available:
+
+- **HRTF (default)**: Full Head-Related Transfer Function convolution for accurate 3D spatial rendering with proper externalization
+- **Matrix**: Lightweight ILD-based approximation for lower CPU usage
+
+The HRTF strategy uses measured impulse responses from the MIT KEMAR database to model how sounds from different directions are filtered by the head and ears.
+
+## Decoding Strategies
+
+### BinauralStrategy::Hrtf (Default)
+
+Uses time-domain convolution with Head-Related Impulse Responses (HRIRs) from virtual speaker positions. Provides accurate:
+- **ITD** (Interaural Time Difference): Timing differences between ears
+- **ILD** (Interaural Level Difference): Level differences from head shadowing
+- **Spectral cues**: Frequency-dependent filtering from pinnae
+
+Results in sounds that appear "outside the head" with convincing 3D positioning.
+
+### BinauralStrategy::Matrix
+
+Uses pre-computed psychoacoustic coefficients for basic left/right panning. Lower CPU but limited spatial accuracy—sounds may appear "inside the head".
 
 ## Creating a Decoder
 
@@ -13,8 +33,14 @@ use bbx_dsp::graph::GraphBuilder;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-// Decode first-order ambisonics to stereo binaural
+// Default: HRTF decoding for first-order ambisonics
 let decoder = builder.add_binaural_decoder(1);
+
+// Explicit: Matrix decoding (lightweight)
+let matrix_decoder = builder.add_binaural_decoder_matrix(1);
+
+// Surround sound (5.1 or 7.1) with HRTF
+let surround_decoder = builder.add_binaural_decoder_surround(6);
 ```
 
 Or with direct construction:
@@ -22,20 +48,31 @@ Or with direct construction:
 ```rust
 use bbx_dsp::{
     block::BlockType,
-    blocks::BinauralDecoderBlock,
+    blocks::effectors::binaural_decoder::{BinauralDecoderBlock, BinauralStrategy},
     graph::GraphBuilder,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let decoder = builder.add_block(BlockType::BinauralDecoder(
-    BinauralDecoderBlock::new(2)
+// HRTF decoding (default)
+let hrtf_decoder = builder.add_block(BlockType::BinauralDecoder(
+    BinauralDecoderBlock::new(1)
+));
+
+// Matrix decoding
+let matrix_decoder = builder.add_block(BlockType::BinauralDecoder(
+    BinauralDecoderBlock::with_strategy(2, BinauralStrategy::Matrix)
+));
+
+// Surround 5.1 with HRTF
+let surround = builder.add_block(BlockType::BinauralDecoder(
+    BinauralDecoderBlock::new_surround(6, BinauralStrategy::Hrtf)
 ));
 ```
 
 ## Supported Configurations
 
-### Input Orders
+### Ambisonic Input
 
 | Order | Channels | Format |
 |-------|----------|--------|
@@ -43,27 +80,30 @@ let decoder = builder.add_block(BlockType::BinauralDecoder(
 | 2 (SOA) | 9 | W, Y, Z, X, V, T, R, S, U |
 | 3 (TOA) | 16 | Full third-order |
 
-### Output
+### Surround Input
 
 | Layout | Channels | Description |
 |--------|----------|-------------|
-| Stereo | 2 | Left, Right (headphone output) |
+| 5.1 | 6 | L, R, C, LFE, Ls, Rs |
+| 7.1 | 8 | L, R, C, LFE, Ls, Rs, Lrs, Rrs |
 
-Output is always stereo regardless of input order.
+### Output
+
+Always stereo (2 channels): Left ear, Right ear.
 
 ## Port Layout
 
 | Port | Direction | Description |
 |------|-----------|-------------|
-| 0..N | Input | Ambisonic channels (4/9/16) |
+| 0..N | Input | Multi-channel audio (4/6/8/9/16) |
 | 0 | Output | Left ear |
 | 1 | Output | Right ear |
 
-Input count depends on order: `(order + 1)^2`
+Input count depends on configuration: `(order + 1)^2` for ambisonics, or 6/8 for surround.
 
 ## Usage Examples
 
-### First-Order to Binaural
+### First-Order Ambisonics to Binaural
 
 ```rust
 use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
@@ -75,7 +115,7 @@ let encoder = builder.add_panner_ambisonic(1);
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 builder.connect(osc, 0, encoder, 0);
 
-// Decode to binaural stereo
+// Decode to binaural stereo (HRTF by default)
 let decoder = builder.add_binaural_decoder(1);
 
 // Connect all 4 FOA channels
@@ -85,7 +125,7 @@ builder.connect(encoder, 2, decoder, 2);  // Z
 builder.connect(encoder, 3, decoder, 3);  // X
 ```
 
-### Full Ambisonics Pipeline with Modulation
+### Rotating Sound with LFO Modulation
 
 ```rust
 use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
@@ -101,7 +141,7 @@ let lfo = builder.add_lfo(0.5, 1.0, None);
 builder.connect(osc, 0, encoder, 0);
 builder.modulate(lfo, encoder, "azimuth");
 
-// Decode to headphones
+// Decode to headphones with HRTF
 let decoder = builder.add_binaural_decoder(1);
 builder.connect(encoder, 0, decoder, 0);
 builder.connect(encoder, 1, decoder, 1);
@@ -109,11 +149,83 @@ builder.connect(encoder, 2, decoder, 2);
 builder.connect(encoder, 3, decoder, 3);
 ```
 
+### Surround Sound Downmix
+
+```rust
+use bbx_dsp::graph::GraphBuilder;
+
+let mut builder = GraphBuilder::<f32>::new(48000.0, 512, 2);
+
+// File input with 5.1 surround content
+let file = builder.add_file_input("surround.wav");
+
+// Decode to binaural for headphone listening
+let decoder = builder.add_binaural_decoder_surround(6);
+
+// Connect all 6 channels
+for ch in 0..6 {
+    builder.connect(file, ch, decoder, ch);
+}
+```
+
+### Comparing Strategies
+
+```rust
+use bbx_dsp::{
+    blocks::effectors::binaural_decoder::{BinauralDecoderBlock, BinauralStrategy},
+    block::BlockType,
+    graph::GraphBuilder,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// High-quality HRTF rendering
+let hrtf = builder.add_binaural_decoder(1);
+
+// Lightweight matrix rendering
+let matrix = builder.add_binaural_decoder_matrix(1);
+```
+
+## HRTF Implementation Details
+
+The HRTF strategy uses a virtual speaker approach:
+
+1. **Virtual speaker layout**: 4 speakers at ±45° and ±135° azimuth for FOA
+2. **Spherical harmonic decoding**: Input channels weighted by SH coefficients for each speaker position
+3. **HRIR convolution**: Each speaker signal convolved with position-specific HRIRs
+4. **Binaural summation**: All convolved outputs summed for left and right ears
+
+### HRIR Data Source
+
+HRIRs are from the MIT KEMAR database (Gardner & Martin, 1994):
+- 256 samples per impulse response
+- Measured on KEMAR mannequin
+- Positions quantized to cardinal and 45° diagonal directions
+
+For detailed mathematical background, see [HRTF Architecture](../../architecture/hrtf.md).
+
 ## Implementation Notes
 
-- Uses ILD-based psychoacoustic weighting (not HRTF convolution)
-- Matrix coefficients are pre-computed at construction time
-- SN3D normalization and ACN channel ordering
+- **Default strategy is HRTF** for best spatial quality
 - Uses `ChannelConfig::Explicit` (handles routing internally)
-- Panics if order is not 1, 2, or 3
-- Suitable for basic spatial audio; for high-fidelity binaural reproduction, consider external HRTF convolution
+- SN3D normalization and ACN channel ordering for ambisonics
+- Pre-allocated circular buffers for realtime-safe convolution
+- `reset()` clears convolution state (useful when seeking in playback)
+- Panics if ambisonic order is not 1, 2, or 3
+- Panics if surround channel count is not 6 or 8
+
+## Performance Comparison
+
+| Strategy | CPU Usage | Spatial Accuracy | Externalization |
+|----------|-----------|------------------|-----------------|
+| HRTF | Higher | Excellent | Yes |
+| Matrix | Lower | Basic | Limited |
+
+HRTF complexity: O(samples × speakers × hrir_length) per buffer.
+
+## See Also
+
+- [HRTF Architecture](../../architecture/hrtf.md) — Mathematical foundations and implementation details
+- [AmbisonicDecoderBlock](ambisonic-decoder.md) — Decode to speaker arrays
+- [PannerBlock](panner.md) — Ambisonic encoding
+- [Multi-Channel System](../../architecture/multi-channel.md) — Channel layout architecture

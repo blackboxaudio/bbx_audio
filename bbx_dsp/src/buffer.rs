@@ -68,10 +68,7 @@ impl<S: Sample> AudioBuffer<S> {
     #[inline]
     pub fn fill(&mut self, value: S) {
         #[cfg(feature = "simd")]
-        {
-            simd_fill(self.data.as_mut_slice(), value);
-            return;
-        }
+        simd_fill(self.data.as_mut_slice(), value);
 
         #[cfg(not(feature = "simd"))]
         self.data.fill(value);
@@ -145,10 +142,7 @@ impl<S: Sample> Buffer<S> for AudioBuffer<S> {
     #[inline]
     fn zeroize(&mut self) {
         #[cfg(feature = "simd")]
-        {
-            simd_fill(self.data.as_mut_slice(), S::ZERO);
-            return;
-        }
+        simd_fill(self.data.as_mut_slice(), S::ZERO);
 
         #[cfg(not(feature = "simd"))]
         self.data.fill(S::ZERO);
