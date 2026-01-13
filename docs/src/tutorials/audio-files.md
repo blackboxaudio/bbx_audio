@@ -223,6 +223,8 @@ fn main() {
 3. **Memory**: Large files are streamed, not loaded entirely into memory
 4. **Finalization**: Always call `finalize()` to flush buffers and close files
 
+See the `13_file_processing` example for a complete offline processing pipeline.
+
 ## Next Steps
 
 - [MIDI Integration](midi.md) - Control playback with MIDI

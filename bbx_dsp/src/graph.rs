@@ -16,7 +16,8 @@ use crate::{
     blocks::{
         effectors::{
             ambisonic_decoder::AmbisonicDecoderBlock, binaural_decoder::BinauralDecoderBlock,
-            channel_merger::ChannelMergerBlock, channel_splitter::ChannelSplitterBlock, gain::GainBlock,
+            channel_merger::ChannelMergerBlock, channel_router::{ChannelMode, ChannelRouterBlock},
+            channel_splitter::ChannelSplitterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock,
             low_pass_filter::LowPassFilterBlock, matrix_mixer::MatrixMixerBlock, overdrive::OverdriveBlock,
             panner::PannerBlock, vca::VcaBlock,
         },
@@ -449,6 +450,14 @@ impl<S: Sample> GraphBuilder<S> {
         builder
     }
 
+    /// Add a pre-configured block to the graph.
+    ///
+    /// Use this when you need to configure a block before adding it,
+    /// such as setting matrix mixer gains or other complex initialization.
+    pub fn add_block(&mut self, block: BlockType<S>) -> BlockId {
+        self.graph.add_block(block)
+    }
+
     // I/O
 
     /// Add a `FileInputBlock` to the `Graph`, which is useful for processing
@@ -558,6 +567,18 @@ impl<S: Sample> GraphBuilder<S> {
         self.graph.add_block(block)
     }
 
+    /// Add a stereo `PannerBlock` to the `Graph`.
+    ///
+    /// Uses constant-power pan law for smooth stereo positioning.
+    ///
+    /// # Arguments
+    ///
+    /// * `position` - Pan position from -100 (left) to +100 (right), 0 = center
+    pub fn add_panner_stereo(&mut self, position: f64) -> BlockId {
+        let block = BlockType::Panner(PannerBlock::new(S::from_f64(position)));
+        self.graph.add_block(block)
+    }
+
     /// Add a surround `PannerBlock` to the `Graph`.
     ///
     /// Uses VBAP (Vector Base Amplitude Panning) for surround layouts.
@@ -607,6 +628,41 @@ impl<S: Sample> GraphBuilder<S> {
     /// * `order` - Ambisonic order (1, 2, or 3)
     pub fn add_binaural_decoder(&mut self, order: usize) -> BlockId {
         let block = BlockType::BinauralDecoder(BinauralDecoderBlock::new(order));
+        self.graph.add_block(block)
+    }
+
+    /// Add a `DcBlockerBlock` to the `Graph`.
+    ///
+    /// Removes DC offset from audio signals using a first-order high-pass filter
+    /// with approximately 5Hz cutoff. Useful after distortion effects.
+    ///
+    /// # Arguments
+    ///
+    /// * `enabled` - Whether the DC blocker is active
+    pub fn add_dc_blocker(&mut self, enabled: bool) -> BlockId {
+        let block = BlockType::DcBlocker(DcBlockerBlock::new(enabled));
+        self.graph.add_block(block)
+    }
+
+    /// Add a `ChannelRouterBlock` to the `Graph`.
+    ///
+    /// Routes and manipulates stereo signals with channel selection, mono summing,
+    /// and phase inversion.
+    ///
+    /// # Arguments
+    ///
+    /// * `mode` - Channel routing mode (Stereo, Left, Right, Swap)
+    /// * `mono` - Sum to mono (L+R)/2 on both channels
+    /// * `invert_left` - Invert left channel phase
+    /// * `invert_right` - Invert right channel phase
+    pub fn add_channel_router(
+        &mut self,
+        mode: ChannelMode,
+        mono: bool,
+        invert_left: bool,
+        invert_right: bool,
+    ) -> BlockId {
+        let block = BlockType::ChannelRouter(ChannelRouterBlock::new(mode, mono, invert_left, invert_right));
         self.graph.add_block(block)
     }
 

@@ -13,6 +13,8 @@ This tutorial covers the effect blocks available in bbx_audio.
 - `OverdriveBlock` - Soft-clipping distortion
 - `DcBlockerBlock` - DC offset removal
 - `ChannelRouterBlock` - Channel routing/manipulation
+- `ChannelSplitterBlock` - Split multi-channel to individual outputs
+- `ChannelMergerBlock` - Merge individual inputs to multi-channel
 - `LowPassFilterBlock` - SVF-based low-pass filter
 
 ## GainBlock
@@ -122,6 +124,98 @@ Use DC blockers after:
 - Distortion effects
 - Asymmetric waveforms
 - External audio input
+
+## LowPassFilterBlock
+
+SVF-based low-pass filter with resonance control:
+
+```rust
+use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add_oscillator(110.0, Waveform::Sawtooth, None);
+
+// Low-pass filter with cutoff and resonance (Q)
+let filter = builder.add_low_pass_filter(
+    800.0,   // Cutoff frequency in Hz
+    2.0      // Resonance (Q factor, 0.5-10.0)
+);
+
+builder.connect(osc, 0, filter, 0);
+
+let graph = builder.build();
+```
+
+The filter cutoff can be modulated by an LFO for classic wah/sweep effects. See the `10_filter_modulation` example.
+
+## ChannelSplitterBlock
+
+Split multi-channel audio into individual mono outputs:
+
+```rust
+use bbx_dsp::graph::GraphBuilder;
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Split stereo into two mono outputs
+let splitter = builder.add_channel_splitter(2);
+
+// splitter output 0 = left channel
+// splitter output 1 = right channel
+```
+
+## ChannelMergerBlock
+
+Merge individual mono inputs into multi-channel output:
+
+```rust
+use bbx_dsp::graph::GraphBuilder;
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Merge two mono inputs into stereo
+let merger = builder.add_channel_merger(2);
+
+// merger input 0 = left channel
+// merger input 1 = right channel
+```
+
+### Parallel Processing with Split/Merge
+
+Process channels independently then recombine:
+
+```rust
+use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add_oscillator(110.0, Waveform::Sawtooth, None);
+let panner = builder.add_panner_stereo(0.0);
+
+// Split stereo signal
+let splitter = builder.add_channel_splitter(2);
+
+// Different filters for each channel
+let filter_left = builder.add_low_pass_filter(500.0, 2.0);   // Darker
+let filter_right = builder.add_low_pass_filter(2000.0, 2.0); // Brighter
+
+// Merge back to stereo
+let merger = builder.add_channel_merger(2);
+
+// Build chain
+builder.connect(osc, 0, panner, 0);
+builder.connect(panner, 0, splitter, 0);
+builder.connect(panner, 1, splitter, 1);
+builder.connect(splitter, 0, filter_left, 0);
+builder.connect(splitter, 1, filter_right, 0);
+builder.connect(filter_left, 0, merger, 0);
+builder.connect(filter_right, 0, merger, 1);
+
+let graph = builder.build();
+```
+
+See the `11_channel_split_merge` example for a complete demonstration.
 
 ## Building Effect Chains
 

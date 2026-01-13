@@ -156,6 +156,33 @@ let intense_lfo = builder.add_lfo(2.0, 1.0, None);
 
 ## Practical Examples
 
+### Filter Sweep (Wah Effect)
+
+Modulate filter cutoff for classic wah/sweep effects:
+
+```rust
+use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Rich harmonic source
+let osc = builder.add_oscillator(110.0, Waveform::Sawtooth, None);
+
+// Resonant low-pass filter
+let filter = builder.add_low_pass_filter(800.0, 4.0);
+
+// LFO to sweep the cutoff
+let lfo = builder.add_lfo(0.5, 3000.0, None);
+
+// Build chain
+builder.connect(osc, 0, filter, 0);
+builder.modulate(lfo, filter, "cutoff");
+
+let graph = builder.build();
+```
+
+See the `10_filter_modulation` example for a working demonstration.
+
 ### Wobble Bass
 
 ```rust
@@ -208,6 +235,8 @@ builder.modulate(pan_lfo, pan, "position");
 
 let graph = builder.build();
 ```
+
+See the `07_stereo_panner` example for a multi-layer drone with independent pan modulation.
 
 ## Next Steps
 
