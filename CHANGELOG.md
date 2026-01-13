@@ -2,6 +2,12 @@
 
 All notable changes to bbx_audio will be documented in this file.
 
+## [0.4.1] - 2026-01-13
+
+### Features
+
+- Enable network-based audio control (#73) ([#73](https://github.com/blackboxaudio/bbx_audio/pull/73))
+
 ## [0.4.0] - 2026-01-13
 
 ### Bug Fixes
