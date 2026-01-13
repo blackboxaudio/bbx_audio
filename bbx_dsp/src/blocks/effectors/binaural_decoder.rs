@@ -344,8 +344,8 @@ mod tests {
         decoder.process(&inputs, &mut outputs, &[], &context);
 
         for i in 0..4 {
-            assert_eq!(left_out[i], 0.0);
-            assert_eq!(right_out[i], 0.0);
+            assert!(left_out[i].abs() < 1e-10, "Left output should be silence");
+            assert!(right_out[i].abs() < 1e-10, "Right output should be silence");
         }
     }
 

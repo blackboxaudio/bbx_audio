@@ -124,5 +124,6 @@ builder.modulate(lfo, pan, "position");
 
 - Generates per-block (control-rate, not per-sample)
 - Phase is continuous across blocks
-- Waveform is fixed to Sine
-- Uses deterministic random when seed is provided
+- `GraphBuilder::add_lfo()` always uses Sine waveform; use `BlockType::Lfo(LfoBlock::new(...))` for other waveforms
+- Uses deterministic random when seed is provided (useful for Noise waveform)
+- SIMD optimizations when `simd` feature is enabled

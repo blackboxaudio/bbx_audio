@@ -56,14 +56,22 @@ Level
 
 ## Usage Examples
 
-### Amplitude Envelope
+### Amplitude Envelope with VCA
+
+The typical pattern for envelope-controlled amplitude uses a VCA:
 
 ```rust
+use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
 let env = builder.add_envelope(0.01, 0.1, 0.7, 0.3);
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_gain_with_modulation(-6.0, Some(env));
+let vca = builder.add_vca();
 
-builder.connect(osc, 0, gain, 0);
+// Audio to VCA input 0, envelope to VCA input 1
+builder.connect(osc, 0, vca, 0);
+builder.connect(env, 0, vca, 1);
 ```
 
 ### Pluck Sound (Short Decay)

@@ -115,8 +115,8 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
 
-// LFO for tremolo (6 Hz)
-let lfo = builder.add_lfo(6.0, Waveform::Sine);
+// LFO for tremolo (6 Hz, full depth)
+let lfo = builder.add_lfo(6.0, 1.0, None);
 
 // Gain block
 let gain = builder.add_gain(-6.0, None);
@@ -130,5 +130,6 @@ builder.modulate(lfo, gain, "level");
 ## Implementation Notes
 
 - Click-free gain changes via linear smoothing
-- Handles all channel counts
+- Processes all channel counts in parallel
 - Range clamped to -80 to +30 dB
+- SIMD optimizations when `simd` feature is enabled

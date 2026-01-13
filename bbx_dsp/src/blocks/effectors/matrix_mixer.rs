@@ -185,7 +185,10 @@ mod tests {
 
         mixer.process(&inputs, &mut outputs, &[], &context);
 
-        assert_eq!(mono_out, [1.0, 2.0, 3.0, 4.0]);
+        let expected = [1.0, 2.0, 3.0, 4.0];
+        for (actual, exp) in mono_out.iter().zip(expected.iter()) {
+            assert!((actual - exp).abs() < 1e-6, "Mono sum mismatch: {} vs {}", actual, exp);
+        }
     }
 
     #[test]

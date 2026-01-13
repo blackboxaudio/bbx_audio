@@ -7,7 +7,7 @@ The generic parameter type for static and modulated values.
 ```rust
 pub enum Parameter<S: Sample> {
     /// Fixed value
-    Static(S),
+    Constant(S),
 
     /// Value controlled by a modulator block
     Modulated(BlockId),
@@ -34,7 +34,7 @@ During processing, resolve the actual value:
 impl<S: Sample> OscillatorBlock<S> {
     fn get_frequency(&self, modulation: &[S]) -> S {
         match &self.frequency {
-            Parameter::Static(value) => *value,
+            Parameter::Constant(value) => *value,
             Parameter::Modulated(block_id) => {
                 let base = S::from_f64(440.0);
                 let mod_value = modulation[block_id.0];
@@ -45,16 +45,16 @@ impl<S: Sample> OscillatorBlock<S> {
 }
 ```
 
-## Static vs Modulated
+## Constant vs Modulated
 
-### Static
+### Constant
 
 - Value known at creation
 - No per-block overhead
 - Simple and direct
 
 ```rust
-let gain = Parameter::Static(S::from_f64(-6.0));
+let gain = Parameter::Constant(S::from_f64(-6.0));
 ```
 
 ### Modulated
@@ -71,7 +71,7 @@ let frequency = Parameter::Modulated(lfo_block_id);
 
 The `Parameter` enum:
 
-1. **Unifies static and dynamic** - Same API for both
+1. **Unifies constant and dynamic** - Same API for both
 2. **Type-safe modulation** - Compile-time block ID checking
-3. **Zero-cost static** - No indirection for static values
+3. **Zero-cost constant** - No indirection for constant values
 4. **Sample-type generic** - Works with f32 and f64

@@ -484,6 +484,11 @@ impl<S: Sample> BlockType<S> {
     ///
     /// Returns a list of (parameter_name, source_block_id) for each parameter
     /// that is modulated by another block.
+    ///
+    /// # Note
+    ///
+    /// This method allocates and is NOT realtime-safe. Only call during
+    /// graph setup or from non-audio threads.
     pub fn get_modulated_parameters(&self) -> Vec<(&'static str, BlockId)> {
         let mut result = Vec::new();
 
