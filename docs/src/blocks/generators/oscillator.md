@@ -242,16 +242,6 @@ let noise1 = builder.add(OscillatorBlock::new(0.0, Waveform::Noise, Some(12345))
 let noise2 = builder.add(OscillatorBlock::new(0.0, Waveform::Noise, Some(12345)));  // Same as noise1
 ```
 
-### Deterministic Noise
-
-For reproducible noise output:
-
-```rust
-// Same seed produces same noise pattern
-let noise1 = builder.add_oscillator(0.0, Waveform::Noise, Some(12345));
-let noise2 = builder.add_oscillator(0.0, Waveform::Noise, Some(12345));  // Same as noise1
-```
-
 ## Implementation Notes
 
 - Phase accumulator runs continuously

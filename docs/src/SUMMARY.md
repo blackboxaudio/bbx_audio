@@ -17,6 +17,8 @@
 - [Parameter Modulation with LFOs](tutorials/modulation.md) — *dynamic control*
 - [Working with Audio Files](tutorials/audio-files.md) — *file I/O*
 - [MIDI Integration](tutorials/midi.md) — *external control*
+- [OSC Audio Control](tutorials/osc-audio.md) — *TouchOSC & external apps*
+- [WebSocket Audio Control](tutorials/websocket-audio.md) — *browser & web clients*
 - [Real-Time Visualization](tutorials/visualization.md) — *visual feedback*
 - [Sketch Discovery](tutorials/sketchbook.md) — *project organization*
 
@@ -69,6 +71,9 @@
 - [bbx_midi](crates/bbx-midi.md)
     - [MIDI Messages](crates/midi/messages.md)
     - [Message Buffer](crates/midi/buffer.md)
+- [bbx_net](crates/bbx-net.md)
+    - [OSC Server](crates/net/osc.md)
+    - [WebSocket Server](crates/net/websocket.md)
 
 # Blocks Reference
 
@@ -119,6 +124,7 @@
     - [Zero-Allocation Processing](architecture/zero-allocation.md)
     - [Cache Efficiency](architecture/cache-efficiency.md)
     - [SIMD Optimizations](architecture/simd.md)
+- [Network Architecture](architecture/networking.md)
 
 # Contributing
 

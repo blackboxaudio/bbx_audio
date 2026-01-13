@@ -8,8 +8,10 @@ publish = false
 bbx_dsp = { workspace = true, features = ["ftz-daz", "simd"] }
 bbx_file.workspace = true
 bbx_midi = { workspace = true, features = ["streaming"] }
+bbx_net = { workspace = true, features = ["full"] }
 
 ctrlc = "3.4"
 midir.workspace = true
 rand.workspace = true
 rodio.workspace = true
+tokio = { version = "1.40", features = ["rt-multi-thread", "sync"] }

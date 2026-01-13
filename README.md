@@ -24,6 +24,7 @@ Optional SIMD optimizations are available via the `simd` feature flag (requires 
 | [`bbx_dsp`](./bbx_dsp) | DSP graph system, blocks, and `PluginDsp` trait |
 | [`bbx_file`](./bbx_file) | Audio file I/O (WAV/MP3) |
 | [`bbx_midi`](./bbx_midi) | MIDI messages, events, and streaming |
+| [`bbx_net`](./bbx_net) | Network audio control (OSC/WebSocket) |
 | [`bbx_plugin`](./bbx_plugin) | C FFI bindings for JUCE integration |
 | [`bbx_sandbox`](./bbx_sandbox) | Examples and testing playground |
 
@@ -39,12 +40,12 @@ bbx_dsp = { git = "https://github.com/blackboxaudio/bbx_audio" }
 Build a simple DSP graph:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{OscillatorBlock, OverdriveBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let drive = builder.add_overdrive(5.0, 1.0, 1.0, 44100.0);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let drive = builder.add(OverdriveBlock::new(5.0, 1.0, 1.0, 44100.0));
 builder.connect(osc, 0, drive, 0);
 
 let graph = builder.build();
