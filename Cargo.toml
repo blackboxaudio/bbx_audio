@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Black Box Audio, LLC"]
 edition = "2024"
 license = "MIT"
@@ -21,12 +21,12 @@ rust-version = "1.89.0"
 
 [workspace.dependencies]
 # Internal crates (version + path for publishing)
-bbx_core = { version = "0.4.0", path = "bbx_core" }
-bbx_dsp = { version = "0.4.0", path = "bbx_dsp" }
-bbx_file = { version = "0.4.0", path = "bbx_file" }
-bbx_midi = { version = "0.4.0", path = "bbx_midi", default-features = false }
-bbx_net = { version = "0.4.0", path = "bbx_net", default-features = false }
-bbx_plugin = { version = "0.4.0", path = "bbx_plugin" }
+bbx_core = { version = "0.4.1", path = "bbx_core" }
+bbx_dsp = { version = "0.4.1", path = "bbx_dsp" }
+bbx_file = { version = "0.4.1", path = "bbx_file" }
+bbx_midi = { version = "0.4.1", path = "bbx_midi", default-features = false }
+bbx_net = { version = "0.4.1", path = "bbx_net", default-features = false }
+bbx_plugin = { version = "0.4.1", path = "bbx_plugin" }
 
 # External dependencies
 hound = "3.5.1"
