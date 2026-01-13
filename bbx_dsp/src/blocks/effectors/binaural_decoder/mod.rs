@@ -1,34 +1,82 @@
-//! Binaural decoder block for converting B-format to stereo headphone output.
+//! Binaural decoder block for converting multi-channel audio to stereo headphone output.
+//!
+//! Supports both ambisonic (FOA/SOA/TOA) and surround (5.1, 7.1) inputs.
+//! Two decoding strategies are available:
+//!
+//! - [`BinauralStrategy::Matrix`] - Lightweight ILD-based approximation (low CPU)
+//! - [`BinauralStrategy::Hrtf`] - Full HRTF convolution for accurate binaural rendering (default)
+
+mod hrir_data;
+mod hrtf;
+mod matrix;
+mod virtual_speaker;
 
 use std::marker::PhantomData;
+
+use hrtf::HrtfConvolver;
 
 use crate::{
     block::Block, channel::ChannelConfig, context::DspContext, graph::MAX_BLOCK_INPUTS, parameter::ModulationOutput,
     sample::Sample,
 };
 
-/// Decodes ambisonics B-format to stereo for headphone listening.
+/// Binaural decoding strategy.
 ///
-/// Uses psychoacoustically-informed matrix coefficients to approximate
-/// binaural cues (primarily ILD - Interaural Level Difference) without
-/// HRTF convolution. This provides a lightweight, realtime-safe decoder
-/// suitable for basic spatial audio reproduction on headphones.
+/// Determines how multi-channel audio is converted to binaural stereo.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinauralStrategy {
+    /// Lightweight matrix-based decoder using ILD (Interaural Level Difference).
+    ///
+    /// Uses psychoacoustically-informed coefficients to approximate binaural cues.
+    /// Low CPU usage but limited spatial accuracy.
+    Matrix,
+
+    /// Full HRTF (Head-Related Transfer Function) convolution.
+    ///
+    /// Uses measured impulse responses to accurately model how sounds arrive
+    /// at each ear from different directions. Higher CPU usage but superior
+    /// spatial rendering with proper externalization.
+    Hrtf,
+}
+
+impl Default for BinauralStrategy {
+    fn default() -> Self {
+        Self::Hrtf
+    }
+}
+
+/// Decodes multi-channel audio to stereo for headphone listening.
 ///
-/// # Supported Input Orders
-/// - 1st order (FOA): 4 channels (W, Y, Z, X)
-/// - 2nd order (SOA): 9 channels
-/// - 3rd order (TOA): 16 channels
+/// Supports ambisonic B-format (1st, 2nd, 3rd order) and can be configured
+/// to use either lightweight matrix decoding or full HRTF convolution.
+///
+/// # Supported Input Formats
+/// - **Ambisonics**: FOA (4 ch), SOA (9 ch), TOA (16 ch)
+/// - **Surround**: 5.1 (6 ch), 7.1 (8 ch)
 ///
 /// # Output
 /// Always stereo (2 channels): Left, Right
+///
+/// # Example
+/// ```ignore
+/// use bbx_dsp::blocks::effectors::binaural_decoder::{BinauralDecoderBlock, BinauralStrategy};
+///
+/// // Create HRTF decoder (default)
+/// let hrtf_decoder = BinauralDecoderBlock::<f32>::new(1);
+///
+/// // Create lightweight matrix decoder
+/// let matrix_decoder = BinauralDecoderBlock::<f32>::with_strategy(1, BinauralStrategy::Matrix);
+/// ```
 pub struct BinauralDecoderBlock<S: Sample> {
-    input_order: usize,
+    input_count: usize,
+    strategy: BinauralStrategy,
     decoder_matrix: [[f64; MAX_BLOCK_INPUTS]; 2],
+    hrtf_convolver: Option<Box<HrtfConvolver>>,
     _phantom: PhantomData<S>,
 }
 
 impl<S: Sample> BinauralDecoderBlock<S> {
-    /// Create a new binaural decoder for the given ambisonic order.
+    /// Create a new binaural decoder for ambisonics with the default strategy (HRTF).
     ///
     /// # Arguments
     /// * `order` - Ambisonic order (1, 2, or 3)
@@ -36,123 +84,93 @@ impl<S: Sample> BinauralDecoderBlock<S> {
     /// # Panics
     /// Panics if order is not 1, 2, or 3.
     pub fn new(order: usize) -> Self {
+        Self::with_strategy(order, BinauralStrategy::default())
+    }
+
+    /// Create a new binaural decoder for ambisonics with a specific strategy.
+    ///
+    /// # Arguments
+    /// * `order` - Ambisonic order (1, 2, or 3)
+    /// * `strategy` - The decoding strategy to use
+    ///
+    /// # Panics
+    /// Panics if order is not 1, 2, or 3.
+    pub fn with_strategy(order: usize, strategy: BinauralStrategy) -> Self {
         assert!((1..=3).contains(&order), "Ambisonic order must be 1, 2, or 3");
 
-        let mut decoder = Self {
-            input_order: order,
-            decoder_matrix: [[0.0; MAX_BLOCK_INPUTS]; 2],
-            _phantom: PhantomData,
+        let input_count = (order + 1) * (order + 1);
+        let decoder_matrix = matrix::compute_matrix(order);
+
+        let hrtf_convolver = match strategy {
+            BinauralStrategy::Matrix => None,
+            BinauralStrategy::Hrtf => Some(Box::new(HrtfConvolver::new_ambisonic(order))),
         };
-        decoder.compute_binaural_matrix();
-        decoder
+
+        Self {
+            input_count,
+            strategy,
+            decoder_matrix,
+            hrtf_convolver,
+            _phantom: PhantomData,
+        }
     }
 
-    /// Returns the ambisonic order.
+    /// Create a new binaural decoder for surround sound.
+    ///
+    /// # Arguments
+    /// * `channel_count` - Number of input channels (6 for 5.1, 8 for 7.1)
+    /// * `strategy` - The decoding strategy to use
+    ///
+    /// # Panics
+    /// Panics if channel_count is not 6 or 8.
+    pub fn new_surround(channel_count: usize, strategy: BinauralStrategy) -> Self {
+        assert!(
+            channel_count == 6 || channel_count == 8,
+            "Surround channel count must be 6 (5.1) or 8 (7.1)"
+        );
+
+        let decoder_matrix = [[0.0; MAX_BLOCK_INPUTS]; 2];
+
+        let hrtf_convolver = match strategy {
+            BinauralStrategy::Matrix => None,
+            BinauralStrategy::Hrtf => Some(Box::new(HrtfConvolver::new_surround(channel_count))),
+        };
+
+        Self {
+            input_count: channel_count,
+            strategy,
+            decoder_matrix,
+            hrtf_convolver,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Returns the ambisonic order (for ambisonic inputs).
+    ///
+    /// Returns 0 for surround inputs.
     pub fn order(&self) -> usize {
-        self.input_order
-    }
-
-    fn input_channel_count(&self) -> usize {
-        (self.input_order + 1) * (self.input_order + 1)
-    }
-
-    fn compute_binaural_matrix(&mut self) {
-        match self.input_order {
-            1 => self.compute_foa_matrix(),
-            2 => self.compute_soa_matrix(),
-            3 => self.compute_toa_matrix(),
-            _ => unreachable!(),
-        }
-        self.normalize_matrix();
-    }
-
-    fn compute_foa_matrix(&mut self) {
-        // ACN ordering: W(0), Y(1), Z(2), X(3)
-        // Y is the lateral channel (positive = left, negative = right)
-        // X is front-back (positive = front)
-        // Z is up-down (minimal contribution for binaural)
-
-        // Left ear
-        self.decoder_matrix[0][0] = 0.5; // W (omnidirectional)
-        self.decoder_matrix[0][1] = 0.5; // Y (positive for left)
-        self.decoder_matrix[0][2] = 0.1; // Z (small vertical contribution)
-        self.decoder_matrix[0][3] = 0.35; // X (front emphasis for externalization)
-
-        // Right ear
-        self.decoder_matrix[1][0] = 0.5; // W
-        self.decoder_matrix[1][1] = -0.5; // Y (negative for right)
-        self.decoder_matrix[1][2] = 0.1; // Z
-        self.decoder_matrix[1][3] = 0.35; // X
-    }
-
-    fn compute_soa_matrix(&mut self) {
-        // Start with scaled FOA components
-        self.decoder_matrix[0][0] = 0.45; // W
-        self.decoder_matrix[0][1] = 0.45; // Y
-        self.decoder_matrix[0][2] = 0.09; // Z
-        self.decoder_matrix[0][3] = 0.32; // X
-
-        self.decoder_matrix[1][0] = 0.45;
-        self.decoder_matrix[1][1] = -0.45;
-        self.decoder_matrix[1][2] = 0.09;
-        self.decoder_matrix[1][3] = 0.32;
-
-        // Order 2 channels (ACN 4-8): V, T, R, S, U
-        // V (4) - lateral diagonal, contributes to ILD
-        // T (5) - vertical-lateral interaction
-        // R (6) - pure vertical
-        // S (7) - vertical-frontal interaction
-        // U (8) - front-back differentiation
-
-        self.decoder_matrix[0][4] = 0.25; // V (left positive)
-        self.decoder_matrix[0][5] = 0.08; // T
-        self.decoder_matrix[0][6] = 0.05; // R
-        self.decoder_matrix[0][7] = 0.08; // S
-        self.decoder_matrix[0][8] = 0.15; // U
-
-        self.decoder_matrix[1][4] = -0.25; // V (right negative)
-        self.decoder_matrix[1][5] = 0.08;
-        self.decoder_matrix[1][6] = 0.05;
-        self.decoder_matrix[1][7] = 0.08;
-        self.decoder_matrix[1][8] = 0.15;
-    }
-
-    fn compute_toa_matrix(&mut self) {
-        // Left ear coefficients for all 16 channels
-        let left: [f64; 16] = [
-            // Order 0-1
-            0.42, 0.42, 0.08, 0.30, // Order 2 (V, T, R, S, U)
-            0.22, 0.07, 0.04, 0.07, 0.13, // Order 3 (Q, O, M, K, L, N, P)
-            0.15, 0.10, 0.05, 0.03, 0.05, 0.10, 0.10,
-        ];
-
-        // Right ear: negate lateral components (Y-like channels)
-        let right: [f64; 16] = [
-            // Order 0-1 (Y negated)
-            0.42, -0.42, 0.08, 0.30, // Order 2 (V negated)
-            -0.22, 0.07, 0.04, 0.07, 0.13, // Order 3 (Q, O, N negated - lateral components)
-            -0.15, -0.10, 0.05, 0.03, 0.05, -0.10, 0.10,
-        ];
-
-        self.decoder_matrix[0].copy_from_slice(&left);
-        self.decoder_matrix[1].copy_from_slice(&right);
-    }
-
-    fn normalize_matrix(&mut self) {
-        let energy_scale = 1.0 / 2.0_f64.sqrt();
-        let num_channels = self.input_channel_count();
-
-        for ear in 0..2 {
-            for ch in 0..num_channels {
-                self.decoder_matrix[ear][ch] *= energy_scale;
-            }
+        match self.input_count {
+            4 => 1,
+            9 => 2,
+            16 => 3,
+            _ => 0,
         }
     }
-}
 
-impl<S: Sample> Block<S> for BinauralDecoderBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
-        let num_inputs = self.input_channel_count().min(inputs.len());
+    /// Returns the current decoding strategy.
+    pub fn strategy(&self) -> BinauralStrategy {
+        self.strategy
+    }
+
+    /// Reset the HRTF convolver state (clears convolution buffers).
+    pub fn reset(&mut self) {
+        if let Some(ref mut convolver) = self.hrtf_convolver {
+            convolver.reset();
+        }
+    }
+
+    fn process_matrix(&self, inputs: &[&[S]], outputs: &mut [&mut [S]]) {
+        let num_inputs = self.input_count.min(inputs.len());
         let num_outputs = 2.min(outputs.len());
 
         if num_inputs == 0 || num_outputs == 0 || inputs[0].is_empty() {
@@ -172,9 +190,32 @@ impl<S: Sample> Block<S> for BinauralDecoderBlock<S> {
         }
     }
 
+    fn process_hrtf(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]]) {
+        if outputs.len() < 2 {
+            return;
+        }
+
+        let num_inputs = self.input_count.min(inputs.len());
+
+        if let Some(ref mut convolver) = self.hrtf_convolver {
+            let (left_output, rest) = outputs.split_at_mut(1);
+            let right_output = &mut rest[0];
+            convolver.process(inputs, left_output[0], right_output, num_inputs);
+        }
+    }
+}
+
+impl<S: Sample> Block<S> for BinauralDecoderBlock<S> {
+    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+        match self.strategy {
+            BinauralStrategy::Matrix => self.process_matrix(inputs, outputs),
+            BinauralStrategy::Hrtf => self.process_hrtf(inputs, outputs),
+        }
+    }
+
     #[inline]
     fn input_count(&self) -> usize {
-        self.input_channel_count()
+        self.input_count
     }
 
     #[inline]
@@ -209,6 +250,23 @@ mod tests {
     }
 
     #[test]
+    fn test_default_strategy_is_hrtf() {
+        assert_eq!(BinauralStrategy::default(), BinauralStrategy::Hrtf);
+    }
+
+    #[test]
+    fn test_new_uses_default_strategy() {
+        let decoder = BinauralDecoderBlock::<f32>::new(1);
+        assert_eq!(decoder.strategy(), BinauralStrategy::Hrtf);
+    }
+
+    #[test]
+    fn test_with_strategy_matrix() {
+        let decoder = BinauralDecoderBlock::<f32>::with_strategy(1, BinauralStrategy::Matrix);
+        assert_eq!(decoder.strategy(), BinauralStrategy::Matrix);
+    }
+
+    #[test]
     fn test_binaural_foa_channel_counts() {
         let decoder = BinauralDecoderBlock::<f32>::new(1);
         assert_eq!(decoder.input_count(), 4);
@@ -232,7 +290,7 @@ mod tests {
 
     #[test]
     fn test_binaural_front_signal_balanced() {
-        let mut decoder = BinauralDecoderBlock::<f32>::new(1);
+        let mut decoder = BinauralDecoderBlock::<f32>::with_strategy(1, BinauralStrategy::Matrix);
         let context = test_context();
 
         // Front signal: W=1, Y=0, Z=0, X=1
@@ -254,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_binaural_left_signal_louder_in_left() {
-        let mut decoder = BinauralDecoderBlock::<f32>::new(1);
+        let mut decoder = BinauralDecoderBlock::<f32>::with_strategy(1, BinauralStrategy::Matrix);
         let context = test_context();
 
         // Left signal: W=1, Y=1, Z=0, X=0
@@ -280,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_binaural_right_signal_louder_in_right() {
-        let mut decoder = BinauralDecoderBlock::<f32>::new(1);
+        let mut decoder = BinauralDecoderBlock::<f32>::with_strategy(1, BinauralStrategy::Matrix);
         let context = test_context();
 
         // Right signal: W=1, Y=-1, Z=0, X=0
@@ -306,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_binaural_rear_signal_balanced() {
-        let mut decoder = BinauralDecoderBlock::<f32>::new(1);
+        let mut decoder = BinauralDecoderBlock::<f32>::with_strategy(1, BinauralStrategy::Matrix);
         let context = test_context();
 
         // Rear signal: W=1, Y=0, Z=0, X=-1
@@ -328,7 +386,7 @@ mod tests {
 
     #[test]
     fn test_binaural_silence_produces_silence() {
-        let mut decoder = BinauralDecoderBlock::<f32>::new(1);
+        let mut decoder = BinauralDecoderBlock::<f32>::with_strategy(1, BinauralStrategy::Matrix);
         let context = test_context();
 
         let w = [0.0f32; 4];
@@ -370,7 +428,7 @@ mod tests {
 
     #[test]
     fn test_binaural_soa_lateral_differentiation() {
-        let mut decoder = BinauralDecoderBlock::<f32>::new(2);
+        let mut decoder = BinauralDecoderBlock::<f32>::with_strategy(2, BinauralStrategy::Matrix);
         let context = test_context();
 
         // Only V channel active (ACN index 4)

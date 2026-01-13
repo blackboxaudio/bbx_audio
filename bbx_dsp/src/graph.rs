@@ -16,7 +16,7 @@ use crate::{
     blocks::{
         effectors::{
             ambisonic_decoder::AmbisonicDecoderBlock,
-            binaural_decoder::BinauralDecoderBlock,
+            binaural_decoder::{BinauralDecoderBlock, BinauralStrategy},
             channel_merger::ChannelMergerBlock,
             channel_router::{ChannelMode, ChannelRouterBlock},
             channel_splitter::ChannelSplitterBlock,
@@ -628,16 +628,46 @@ impl<S: Sample> GraphBuilder<S> {
         self.graph.add_block(block)
     }
 
-    /// Add a `BinauralDecoderBlock` to the `Graph`.
+    /// Add a `BinauralDecoderBlock` to the `Graph` with HRTF convolution (default).
     ///
     /// Decodes ambisonics B-format to stereo for headphone listening using
-    /// psychoacoustically-informed matrix coefficients.
+    /// HRTF (Head-Related Transfer Function) convolution for accurate spatial rendering.
     ///
     /// # Arguments
     ///
     /// * `order` - Ambisonic order (1, 2, or 3)
     pub fn add_binaural_decoder(&mut self, order: usize) -> BlockId {
         let block = BlockType::BinauralDecoder(BinauralDecoderBlock::new(order));
+        self.graph.add_block(block)
+    }
+
+    /// Add a `BinauralDecoderBlock` to the `Graph` with matrix decoding (lightweight).
+    ///
+    /// Decodes ambisonics B-format to stereo for headphone listening using
+    /// psychoacoustically-informed matrix coefficients. Lower CPU usage than HRTF
+    /// but with reduced spatial accuracy.
+    ///
+    /// # Arguments
+    ///
+    /// * `order` - Ambisonic order (1, 2, or 3)
+    pub fn add_binaural_decoder_matrix(&mut self, order: usize) -> BlockId {
+        let block = BlockType::BinauralDecoder(BinauralDecoderBlock::with_strategy(order, BinauralStrategy::Matrix));
+        self.graph.add_block(block)
+    }
+
+    /// Add a `BinauralDecoderBlock` for surround sound to the `Graph`.
+    ///
+    /// Decodes surround sound (5.1 or 7.1) to stereo for headphone listening
+    /// using HRTF convolution.
+    ///
+    /// # Arguments
+    ///
+    /// * `channel_count` - Number of input channels (6 for 5.1, 8 for 7.1)
+    pub fn add_binaural_decoder_surround(&mut self, channel_count: usize) -> BlockId {
+        let block = BlockType::BinauralDecoder(BinauralDecoderBlock::new_surround(
+            channel_count,
+            BinauralStrategy::Hrtf,
+        ));
         self.graph.add_block(block)
     }
 
