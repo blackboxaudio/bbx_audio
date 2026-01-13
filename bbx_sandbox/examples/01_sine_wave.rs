@@ -21,6 +21,7 @@ fn create_graph() -> Graph<f32> {
 }
 
 fn main() {
+    println!("Basic Sine Wave - 440Hz oscillator with -6dB gain");
     let player = Player::from_graph(create_graph());
     player.play(None);
 }

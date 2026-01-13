@@ -27,6 +27,7 @@ fn create_graph() -> Graph<f32> {
 }
 
 fn main() {
+    println!("WAV File Output - Renders FM oscillator to 05_output_wav_file.wav");
     let player = Player::from_graph(create_graph());
     player.play(Some(3));
 }

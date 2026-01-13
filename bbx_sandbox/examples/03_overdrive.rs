@@ -28,6 +28,7 @@ fn create_graph() -> Graph<f32> {
 }
 
 fn main() {
+    println!("Overdrive Demo - LFO-modulated drive with DC blocking");
     let player = Player::from_graph(create_graph());
     player.play(None);
 }

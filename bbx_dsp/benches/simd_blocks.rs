@@ -9,6 +9,7 @@ use bbx_dsp::{
         generators::oscillator::OscillatorBlock,
         modulators::lfo::LfoBlock,
     },
+    buffer::{AudioBuffer, Buffer},
     sample::Sample,
     waveform::Waveform,
 };
@@ -178,6 +179,65 @@ fn bench_lfo_f64(c: &mut Criterion) {
     bench_lfo::<f64>(c, "f64");
 }
 
+fn bench_buffer_zeroize<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("buffer_zeroize_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64));
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let mut buffer = AudioBuffer::<S>::with_data(vec![S::ONE; size]);
+
+            b.iter(|| {
+                buffer.zeroize();
+                black_box(&buffer);
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_buffer_zeroize_f32(c: &mut Criterion) {
+    bench_buffer_zeroize::<f32>(c, "f32");
+}
+
+fn bench_buffer_zeroize_f64(c: &mut Criterion) {
+    bench_buffer_zeroize::<f64>(c, "f64");
+}
+
+fn bench_buffer_fill<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("buffer_fill_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64));
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let mut buffer = AudioBuffer::<S>::new(size);
+            let value = S::from_f64(0.5);
+
+            b.iter(|| {
+                buffer.fill(value);
+                black_box(&buffer);
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_buffer_fill_f32(c: &mut Criterion) {
+    bench_buffer_fill::<f32>(c, "f32");
+}
+
+fn bench_buffer_fill_f64(c: &mut Criterion) {
+    bench_buffer_fill::<f64>(c, "f64");
+}
+
 criterion_group!(oscillator_benches, bench_oscillator_f32, bench_oscillator_f64,);
 
 criterion_group!(panner_benches, bench_panner_f32, bench_panner_f64);
@@ -186,4 +246,18 @@ criterion_group!(gain_benches, bench_gain_f32, bench_gain_f64);
 
 criterion_group!(lfo_benches, bench_lfo_f32, bench_lfo_f64);
 
-criterion_main!(oscillator_benches, panner_benches, gain_benches, lfo_benches);
+criterion_group!(
+    buffer_benches,
+    bench_buffer_zeroize_f32,
+    bench_buffer_zeroize_f64,
+    bench_buffer_fill_f32,
+    bench_buffer_fill_f64
+);
+
+criterion_main!(
+    oscillator_benches,
+    panner_benches,
+    gain_benches,
+    lfo_benches,
+    buffer_benches
+);

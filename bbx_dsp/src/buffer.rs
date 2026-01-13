@@ -5,6 +5,9 @@
 
 use std::ops::{Index, IndexMut};
 
+#[cfg(feature = "simd")]
+use bbx_core::simd::fill as simd_fill;
+
 use crate::sample::Sample;
 
 /// A generic buffer interface for DSP operations.
@@ -64,6 +67,13 @@ impl<S: Sample> AudioBuffer<S> {
     /// Fill the `AudioBuffer` with a particular value.
     #[inline]
     pub fn fill(&mut self, value: S) {
+        #[cfg(feature = "simd")]
+        {
+            simd_fill(self.data.as_mut_slice(), value);
+            return;
+        }
+
+        #[cfg(not(feature = "simd"))]
         self.data.fill(value);
     }
 
@@ -134,6 +144,13 @@ impl<S: Sample> Buffer<S> for AudioBuffer<S> {
 
     #[inline]
     fn zeroize(&mut self) {
+        #[cfg(feature = "simd")]
+        {
+            simd_fill(self.data.as_mut_slice(), S::ZERO);
+            return;
+        }
+
+        #[cfg(not(feature = "simd"))]
         self.data.fill(S::ZERO);
     }
 }
