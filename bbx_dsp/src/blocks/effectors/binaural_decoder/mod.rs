@@ -450,4 +450,104 @@ mod tests {
             right_out[0]
         );
     }
+
+    // f64 variant tests
+
+    #[test]
+    fn test_binaural_foa_channel_counts_f64() {
+        let decoder = BinauralDecoderBlock::<f64>::new(1);
+        assert_eq!(decoder.input_count(), 4);
+        assert_eq!(decoder.output_count(), 2);
+        assert_eq!(decoder.channel_config(), ChannelConfig::Explicit);
+    }
+
+    #[test]
+    fn test_binaural_soa_channel_counts_f64() {
+        let decoder = BinauralDecoderBlock::<f64>::new(2);
+        assert_eq!(decoder.input_count(), 9);
+        assert_eq!(decoder.output_count(), 2);
+    }
+
+    #[test]
+    fn test_binaural_toa_channel_counts_f64() {
+        let decoder = BinauralDecoderBlock::<f64>::new(3);
+        assert_eq!(decoder.input_count(), 16);
+        assert_eq!(decoder.output_count(), 2);
+    }
+
+    #[test]
+    fn test_binaural_front_signal_balanced_f64() {
+        let mut decoder = BinauralDecoderBlock::<f64>::with_strategy(1, BinauralStrategy::Matrix);
+        let context = test_context();
+
+        let w = [1.0f64; 4];
+        let y = [0.0f64; 4];
+        let z = [0.0f64; 4];
+        let x = [1.0f64; 4];
+        let mut left_out = [0.0f64; 4];
+        let mut right_out = [0.0f64; 4];
+
+        let inputs: [&[f64]; 4] = [&w, &y, &z, &x];
+        let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
+
+        decoder.process(&inputs, &mut outputs, &[], &context);
+
+        let diff = (left_out[0] - right_out[0]).abs();
+        assert!(diff < 0.01, "Front signal should be balanced, diff={}", diff);
+    }
+
+    #[test]
+    fn test_binaural_left_signal_louder_in_left_f64() {
+        let mut decoder = BinauralDecoderBlock::<f64>::with_strategy(1, BinauralStrategy::Matrix);
+        let context = test_context();
+
+        let w = [1.0f64; 4];
+        let y = [1.0f64; 4];
+        let z = [0.0f64; 4];
+        let x = [0.0f64; 4];
+        let mut left_out = [0.0f64; 4];
+        let mut right_out = [0.0f64; 4];
+
+        let inputs: [&[f64]; 4] = [&w, &y, &z, &x];
+        let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
+
+        decoder.process(&inputs, &mut outputs, &[], &context);
+
+        assert!(
+            left_out[0] > right_out[0],
+            "Left signal should be louder in left channel: L={}, R={}",
+            left_out[0],
+            right_out[0]
+        );
+    }
+
+    #[test]
+    fn test_binaural_silence_produces_silence_f64() {
+        let mut decoder = BinauralDecoderBlock::<f64>::with_strategy(1, BinauralStrategy::Matrix);
+        let context = test_context();
+
+        let w = [0.0f64; 4];
+        let y = [0.0f64; 4];
+        let z = [0.0f64; 4];
+        let x = [0.0f64; 4];
+        let mut left_out = [1.0f64; 4];
+        let mut right_out = [1.0f64; 4];
+
+        let inputs: [&[f64]; 4] = [&w, &y, &z, &x];
+        let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
+
+        decoder.process(&inputs, &mut outputs, &[], &context);
+
+        for i in 0..4 {
+            assert!(left_out[i].abs() < 1e-14, "Left output should be silence");
+            assert!(right_out[i].abs() < 1e-14, "Right output should be silence");
+        }
+    }
+
+    #[test]
+    fn test_binaural_order_accessor_f64() {
+        assert_eq!(BinauralDecoderBlock::<f64>::new(1).order(), 1);
+        assert_eq!(BinauralDecoderBlock::<f64>::new(2).order(), 2);
+        assert_eq!(BinauralDecoderBlock::<f64>::new(3).order(), 3);
+    }
 }

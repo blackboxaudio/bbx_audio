@@ -40,12 +40,12 @@ bbx_dsp = { git = "https://github.com/blackboxaudio/bbx_audio" }
 Build a simple DSP graph:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{OscillatorBlock, OverdriveBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let drive = builder.add_overdrive(5.0, 1.0, 1.0, 44100.0);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let drive = builder.add(OverdriveBlock::new(5.0, 1.0, 1.0, 44100.0));
 builder.connect(osc, 0, drive, 0);
 
 let graph = builder.build();
