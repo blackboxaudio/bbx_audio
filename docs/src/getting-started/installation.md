@@ -6,29 +6,29 @@ Add the crates you need to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bbx_dsp = "0.4.0"
-bbx_core = "0.4.0"
+bbx_dsp = "0.4.1"
+bbx_core = "0.4.1"
 ```
 
 For JUCE plugin integration, you'll only need:
 
 ```toml
 [dependencies]
-bbx_plugin = "0.4.0"
+bbx_plugin = "0.4.1"
 ```
 
 For audio file I/O:
 
 ```toml
 [dependencies]
-bbx_file = "0.4.0"
+bbx_file = "0.4.1"
 ```
 
 For MIDI support:
 
 ```toml
 [dependencies]
-bbx_midi = "0.4.0"
+bbx_midi = "0.4.1"
 ```
 
 ## Using Git Dependencies

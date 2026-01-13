@@ -95,7 +95,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y alsa libasound2-dev libssl-dev pkg-config
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -126,7 +129,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y alsa libasound2-dev libssl-dev pkg-config
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2

@@ -8,14 +8,17 @@ use bbx_dsp::{
         effectors::{
             channel_merger::ChannelMergerBlock,
             channel_splitter::ChannelSplitterBlock,
+            dc_blocker::DcBlockerBlock,
             gain::GainBlock,
             low_pass_filter::LowPassFilterBlock,
             matrix_mixer::MatrixMixerBlock,
             mixer::{MixerBlock, NormalizationStrategy},
+            overdrive::OverdriveBlock,
             panner::PannerBlock,
+            vca::VcaBlock,
         },
         generators::oscillator::OscillatorBlock,
-        modulators::lfo::LfoBlock,
+        modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
     },
     buffer::{AudioBuffer, Buffer},
     sample::Sample,
@@ -456,6 +459,164 @@ fn bench_buffer_fill_f64(c: &mut Criterion) {
     bench_buffer_fill::<f64>(c, "f64");
 }
 
+fn bench_vca<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("vca_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64));
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let context = create_context(size);
+            let mut block = VcaBlock::<S>::new();
+            let audio_input = create_input_buffers::<S>(size, 1);
+            let control_input: Vec<S> = (0..size).map(|_| S::from_f64(0.5)).collect();
+            let mut outputs = create_output_buffers::<S>(size, 1);
+            let modulation_values: Vec<S> = vec![];
+
+            b.iter(|| {
+                let inputs: Vec<&[S]> = vec![audio_input[0].as_slice(), control_input.as_slice()];
+                let mut output_slices = as_output_slices(&mut outputs);
+                block.process(
+                    black_box(&inputs),
+                    black_box(&mut output_slices),
+                    black_box(&modulation_values),
+                    black_box(&context),
+                );
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_vca_f32(c: &mut Criterion) {
+    bench_vca::<f32>(c, "f32");
+}
+
+fn bench_vca_f64(c: &mut Criterion) {
+    bench_vca::<f64>(c, "f64");
+}
+
+fn bench_dc_blocker<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("dc_blocker_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64));
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let context = create_context(size);
+            let mut block = DcBlockerBlock::<S>::new(true);
+            block.set_sample_rate(SAMPLE_RATE);
+            let inputs = create_input_buffers::<S>(size, 1);
+            let mut outputs = create_output_buffers::<S>(size, 1);
+            let modulation_values: Vec<S> = vec![];
+
+            b.iter(|| {
+                let input_slices = as_input_slices(&inputs);
+                let mut output_slices = as_output_slices(&mut outputs);
+                block.process(
+                    black_box(&input_slices),
+                    black_box(&mut output_slices),
+                    black_box(&modulation_values),
+                    black_box(&context),
+                );
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_dc_blocker_f32(c: &mut Criterion) {
+    bench_dc_blocker::<f32>(c, "f32");
+}
+
+fn bench_dc_blocker_f64(c: &mut Criterion) {
+    bench_dc_blocker::<f64>(c, "f64");
+}
+
+fn bench_overdrive<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("overdrive_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64));
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let context = create_context(size);
+            let mut block = OverdriveBlock::<S>::new(2.0, 0.7, 0.5, SAMPLE_RATE);
+            let inputs = create_input_buffers::<S>(size, 1);
+            let mut outputs = create_output_buffers::<S>(size, 1);
+            let modulation_values: Vec<S> = vec![];
+
+            b.iter(|| {
+                let input_slices = as_input_slices(&inputs);
+                let mut output_slices = as_output_slices(&mut outputs);
+                block.process(
+                    black_box(&input_slices),
+                    black_box(&mut output_slices),
+                    black_box(&modulation_values),
+                    black_box(&context),
+                );
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_overdrive_f32(c: &mut Criterion) {
+    bench_overdrive::<f32>(c, "f32");
+}
+
+fn bench_overdrive_f64(c: &mut Criterion) {
+    bench_overdrive::<f64>(c, "f64");
+}
+
+fn bench_envelope<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("envelope_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64));
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let context = create_context(size);
+            let mut block = EnvelopeBlock::<S>::new(0.01, 0.1, 0.7, 0.2);
+            block.note_on();
+            let mut outputs = create_output_buffers::<S>(size, 1);
+            let modulation_values: Vec<S> = vec![];
+
+            b.iter(|| {
+                let inputs: Vec<&[S]> = vec![];
+                let mut output_slices = as_output_slices(&mut outputs);
+                block.process(
+                    black_box(&inputs),
+                    black_box(&mut output_slices),
+                    black_box(&modulation_values),
+                    black_box(&context),
+                );
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_envelope_f32(c: &mut Criterion) {
+    bench_envelope::<f32>(c, "f32");
+}
+
+fn bench_envelope_f64(c: &mut Criterion) {
+    bench_envelope::<f64>(c, "f64");
+}
+
 criterion_group!(oscillator_benches, bench_oscillator_f32, bench_oscillator_f64,);
 
 criterion_group!(panner_benches, bench_panner_f32, bench_panner_f64);
@@ -490,6 +651,14 @@ criterion_group!(
     bench_buffer_fill_f64
 );
 
+criterion_group!(vca_benches, bench_vca_f32, bench_vca_f64);
+
+criterion_group!(dc_blocker_benches, bench_dc_blocker_f32, bench_dc_blocker_f64);
+
+criterion_group!(overdrive_benches, bench_overdrive_f32, bench_overdrive_f64);
+
+criterion_group!(envelope_benches, bench_envelope_f32, bench_envelope_f64);
+
 criterion_main!(
     oscillator_benches,
     panner_benches,
@@ -499,5 +668,9 @@ criterion_main!(
     mixer_benches,
     matrix_mixer_benches,
     channel_routing_benches,
-    buffer_benches
+    buffer_benches,
+    vca_benches,
+    dc_blocker_benches,
+    overdrive_benches,
+    envelope_benches
 );
