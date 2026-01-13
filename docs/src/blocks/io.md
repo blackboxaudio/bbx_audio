@@ -17,8 +17,10 @@ I/O blocks handle audio input and output for graphs.
 Provides audio from external files:
 
 ```rust
+use bbx_dsp::blocks::FileInputBlock;
+
 let reader = WavFileReader::from_path("input.wav")?;
-let input = builder.add_file_input(Box::new(reader));
+let input = builder.add(FileInputBlock::new(Box::new(reader)));
 ```
 
 ### Sink (FileOutputBlock)
@@ -26,8 +28,10 @@ let input = builder.add_file_input(Box::new(reader));
 Writes audio to external files:
 
 ```rust
+use bbx_dsp::blocks::FileOutputBlock;
+
 let writer = WavFileWriter::new("output.wav", 44100.0, 2)?;
-let output = builder.add_file_output(Box::new(writer));
+let output = builder.add(FileOutputBlock::new(Box::new(writer)));
 ```
 
 ### Terminal (OutputBlock)
@@ -46,8 +50,7 @@ let graph = builder.build();
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::GainBlock,
+    blocks::{FileInputBlock, FileOutputBlock, GainBlock},
     graph::GraphBuilder,
 };
 use bbx_file::{readers::wav::WavFileReader, writers::wav::WavFileWriter};
@@ -59,9 +62,9 @@ let writer = WavFileWriter::new("output.wav", 44100.0, 2)?;
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Create graph: Input -> Effect -> Output
-let file_in = builder.add_file_input(Box::new(reader));
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
-let file_out = builder.add_file_output(Box::new(writer));
+let file_in = builder.add(FileInputBlock::new(Box::new(reader)));
+let gain = builder.add(GainBlock::new(-6.0, None));
+let file_out = builder.add(FileOutputBlock::new(Box::new(writer)));
 
 builder.connect(file_in, 0, gain, 0);
 builder.connect(gain, 0, file_out, 0);
@@ -87,11 +90,11 @@ graph.finalize();
 For real-time (plugin, live), use OutputBlock implicitly:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::OscillatorBlock, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 // OutputBlock added automatically
 
 let mut graph = builder.build();

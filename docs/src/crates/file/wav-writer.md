@@ -66,17 +66,17 @@ pub trait Writer<S: Sample>: Send {
 ## Usage with FileOutputBlock
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{FileOutputBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 use bbx_file::writers::wav::WavFileWriter;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Audio source
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // File output
 let writer = WavFileWriter::<f32>::new("output.wav", 44100.0, 2)?;
-let file_out = builder.add_file_output(Box::new(writer));
+let file_out = builder.add(FileOutputBlock::new(Box::new(writer)));
 
 builder.connect(osc, 0, file_out, 0);
 

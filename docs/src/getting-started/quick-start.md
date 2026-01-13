@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build the graph
     let mut graph = GraphBuilder::new()
         .add_block(OscillatorBlock::new(440.0, Waveform::Sine))  // Block 0
-        .add_block(GainBlock::new(-6.0))                          // Block 1
+        .add_block(GainBlock::new(-6.0, None))                     // Block 1
         .add_block(OutputBlock::new(2))                           // Block 2
         .connect(0, 0, 1, 0)?  // Oscillator output -> Gain input
         .connect(1, 0, 2, 0)?  // Gain output -> Output block
@@ -86,7 +86,7 @@ use bbx_dsp::blocks::{PannerBlock, OverdriveBlock};
 let mut graph = GraphBuilder::new()
     .add_block(OscillatorBlock::new(440.0, Waveform::Saw))   // 0: Oscillator
     .add_block(OverdriveBlock::new(0.7))                      // 1: Overdrive
-    .add_block(GainBlock::new(-12.0))                         // 2: Gain
+    .add_block(GainBlock::new(-12.0, None))                    // 2: Gain
     .add_block(PannerBlock::new(0.0))                         // 3: Panner (center)
     .add_block(OutputBlock::new(2))                           // 4: Output
     .connect(0, 0, 1, 0)?  // Osc -> Overdrive

@@ -41,12 +41,12 @@ Cross-module tests in `tests/` directory:
 
 ```rust
 // tests/graph_tests.rs
-use bbx_dsp::{GraphBuilder, Waveform};
+use bbx_dsp::{blocks::OscillatorBlock, graph::GraphBuilder, waveform::Waveform};
 
 #[test]
 fn test_simple_graph() {
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-    let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
     let graph = builder.build();
 
     // Test processing...

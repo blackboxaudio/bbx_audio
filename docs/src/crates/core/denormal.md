@@ -116,8 +116,11 @@ This sets two CPU flags:
 
 ### Platform Support
 
-- **x86/x86_64**: Full support via MXCSR register
-- **Other architectures**: No-op (use the software flush functions instead)
+| Platform | Behavior |
+|----------|----------|
+| x86/x86_64 | Full FTZ + DAZ via MXCSR register |
+| AArch64 (ARM64/Apple Silicon) | FTZ only via FPCR register |
+| Other | No-op (use software flush functions) |
 
 ### bbx_plugin Integration
 

@@ -87,6 +87,7 @@ use bbx_plugin::{
 const PARAM_GAIN: usize = 0;
 const PARAM_PAN: usize = 1;
 const PARAM_MONO: usize = 2;
+const PARAM_COUNT: usize = 3;
 
 pub struct PluginGraph {
     gain: GainBlock<f32>,
@@ -103,7 +104,7 @@ impl Default for PluginGraph {
 impl PluginDsp for PluginGraph {
     fn new() -> Self {
         Self {
-            gain: GainBlock::new(0.0),
+            gain: GainBlock::new(0.0, None),
             panner: PannerBlock::new(0.0),
             mono: false,
         }

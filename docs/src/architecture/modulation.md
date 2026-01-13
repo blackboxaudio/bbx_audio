@@ -54,11 +54,11 @@ pub enum Parameter<S: Sample> {
 Use the `modulate()` method to connect modulators to parameters:
 
 ```rust
-// Create LFO (frequency, depth, seed)
-let lfo = builder.add_lfo(5.0, 0.5, None);
+// Create LFO (frequency, depth, waveform, seed)
+let lfo = builder.add(LfoBlock::new(5.0, 0.5, Waveform::Sine, None));
 
 // Create oscillator
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Connect modulation
 builder.modulate(lfo, osc, "frequency");

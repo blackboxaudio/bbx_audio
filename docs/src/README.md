@@ -17,6 +17,8 @@ bbx_audio is a collection of Rust crates designed for real-time audio digital si
 | [`bbx_plugin`](crates/bbx-plugin.md) | C FFI bindings for JUCE integration |
 | [`bbx_file`](crates/bbx-file.md) | Audio file I/O (WAV) |
 | [`bbx_midi`](crates/bbx-midi.md) | MIDI message parsing and streaming |
+| [`bbx_draw`](crates/bbx-draw.md) | Audio visualization primitives for nannou |
+| `bbx_sandbox` | Examples and testing playground |
 
 ## Architecture Overview
 
@@ -37,6 +39,14 @@ The core DSP system is built around a **Graph** of connected **Blocks**:
 
 ## Who is this documentation for?
 
+### Audio Programmers
+
+If you're exploring Rust for audio software and want to understand real-time DSP patterns:
+
+1. [Quick Start](getting-started/quick-start.md) - Build your first DSP graph
+2. [Graph Architecture](architecture/graph-architecture.md) - Core design patterns
+3. [Real-Time Safety](architecture/realtime-safety.md) - Allocation-free, lock-free processing
+
 ### Plugin Developers
 
 If you want to use Rust for your audio plugin DSP while keeping your UI and plugin framework in C++/JUCE, start with:
@@ -44,6 +54,30 @@ If you want to use Rust for your audio plugin DSP while keeping your UI and plug
 1. [Quick Start](getting-started/quick-start.md) - Get a simple graph running
 2. [JUCE Plugin Integration](juce/overview.md) - Full integration guide
 3. [Parameter System](juce/parameters.md) - Managing plugin parameters
+
+### Game Audio Developers
+
+If you're building audio systems for games and want real-time safe DSP in Rust:
+
+1. [Quick Start](getting-started/quick-start.md) - Build your first DSP graph
+2. [Real-Time Safety](architecture/realtime-safety.md) - Allocation-free, lock-free processing
+3. [Graph Architecture](architecture/graph-architecture.md) - Efficient audio routing
+
+### Experimental Musicians
+
+If you're building instruments, exploring synthesis, or experimenting with sound design:
+
+1. [Terminal Synthesizer](tutorials/terminal-synth.md) - Build a MIDI-controlled synth from scratch
+2. [Parameter Modulation](tutorials/modulation.md) - LFOs, envelopes, and modulation routing
+3. [MIDI Integration](tutorials/midi.md) - Connect keyboards and controllers
+
+### Generative Artists
+
+If you're creating sound installations, audio visualizations, or experimenting with procedural audio:
+
+1. [Quick Start](getting-started/quick-start.md) - Build your first DSP graph
+2. [Real-Time Visualization](tutorials/visualization.md) - Visualize audio with nannou
+3. [Sketch Discovery](tutorials/sketchbook.md) - Manage and organize visual sketches
 
 ### Library Contributors
 
@@ -61,7 +95,7 @@ use bbx_dsp::{GraphBuilder, blocks::*};
 // Build a simple oscillator -> gain -> output chain
 let graph = GraphBuilder::new()
     .add_block(OscillatorBlock::new(440.0, Waveform::Sine))
-    .add_block(GainBlock::new(-6.0))
+    .add_block(GainBlock::new(-6.0, None))
     .add_block(OutputBlock::new(2))
     .connect(0, 0, 1, 0)?  // Oscillator -> Gain
     .connect(1, 0, 2, 0)?  // Gain -> Output

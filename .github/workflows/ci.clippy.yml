@@ -11,20 +11,16 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout Repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
 
             - name: Setup Linux Dependencies
               run: sudo apt install alsa libasound2-dev libssl-dev pkg-config
 
             - name: Setup Rust
-              uses: actions-rs/toolchain@v1
-              with:
-                  profile: minimal
-                  toolchain: nightly
-                  override: true
+              uses: dtolnay/rust-toolchain@stable
 
-            - name: Install `clippy` Component
-              run: rustup component add --toolchain nightly clippy
+            - name: Cache Rust dependencies
+              uses: Swatinem/rust-cache@v2
 
-            - name: Run Format
-              run: cargo +nightly clippy
+            - name: Cargo Clippy
+              run: cargo clippy

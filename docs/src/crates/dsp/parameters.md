@@ -7,55 +7,58 @@ The bbx_dsp parameter system supports static values and modulation.
 ```rust
 pub enum Parameter<S: Sample> {
     /// Static value
-    Static(S),
+    Constant(S),
 
     /// Modulated by a block (e.g., LFO)
     Modulated(BlockId),
 }
 ```
 
-## Static Parameters
+## Constant Parameters
 
 Parameters with fixed values:
 
 ```rust
 use bbx_dsp::parameter::Parameter;
 
-let gain = Parameter::Static(-6.0_f32);
-let frequency = Parameter::Static(440.0_f32);
+let gain = Parameter::Constant(-6.0_f32);
+let frequency = Parameter::Constant(440.0_f32);
 ```
 
 ## Modulated Parameters
 
-Parameters controlled by modulator blocks:
+Parameters controlled by modulator blocks use the `GraphBuilder::modulate()` method:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform, parameter::Parameter};
+use bbx_dsp::{blocks::{LfoBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-// Create an LFO
-let lfo = builder.add_lfo(5.0, Waveform::Sine);
+// Create an LFO (frequency, depth, waveform, seed)
+let lfo = builder.add(LfoBlock::new(5.0, 0.3, Waveform::Sine, None));
 
-// Use it to modulate oscillator frequency
-let osc = builder.add_oscillator(440.0, Waveform::Sine, Some(lfo));
+// Create an oscillator
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+
+// Modulate oscillator frequency with the LFO
+builder.modulate(lfo, osc, "frequency");
 ```
 
 ## Modulation Flow
 
 1. Modulator blocks (LFO, Envelope) output control values
 2. These values are collected during graph processing
-3. Target blocks receive values in the `modulation` parameter
+3. Target blocks receive values in the `modulation_values` parameter
 
 ```rust
 fn process(
     &mut self,
     inputs: &[&[S]],
     outputs: &mut [&mut [S]],
+    modulation_values: &[S],  // Modulation values from connected blocks
     context: &DspContext,
-    modulation: &[S],  // Modulation values from connected blocks
 ) {
-    let mod_value = modulation.get(0).copied().unwrap_or(S::ZERO);
+    let mod_value = modulation_values.get(0).copied().unwrap_or(S::ZERO);
     // Use mod_value to affect processing
 }
 ```
@@ -67,9 +70,9 @@ Blocks interpret modulation values differently:
 ### Frequency Modulation
 
 ```rust
-// LFO range: -1.0 to 1.0
-// Modulation depth scales this
-let mod_range = 0.1;  // ±10% frequency change
+// LFO range: -1.0 to 1.0 (scaled by depth)
+// This maps to frequency deviation
+let mod_range = 0.1;  // +/-10% frequency change
 let modulated_freq = base_freq * (1.0 + mod_value * mod_range);
 ```
 
@@ -95,20 +98,22 @@ let bipolar = unipolar * 2.0 - 1.0;  // -1.0 to 1.0
 ## Example: Tremolo
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{GainBlock, LfoBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Audio source
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
-// Tremolo LFO
-let lfo = builder.add_lfo(6.0, Waveform::Sine);
+// Tremolo LFO (6 Hz, full depth)
+let lfo = builder.add(LfoBlock::new(6.0, 1.0, Waveform::Sine, None));
 
-// Gain with modulation
-let gain = builder.add_gain_with_modulation(-6.0, Some(lfo));
-
+// Gain block
+let gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(osc, 0, gain, 0);
+
+// Modulate gain level with LFO
+builder.modulate(lfo, gain, "level");
 
 let graph = builder.build();
 ```
@@ -116,15 +121,18 @@ let graph = builder.build();
 ## Example: Vibrato
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{LfoBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-// Vibrato LFO
-let lfo = builder.add_lfo(5.0, Waveform::Sine);
+// Vibrato LFO (5 Hz, moderate depth)
+let lfo = builder.add(LfoBlock::new(5.0, 0.3, Waveform::Sine, None));
 
-// Oscillator with frequency modulation
-let osc = builder.add_oscillator(440.0, Waveform::Sine, Some(lfo));
+// Oscillator
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+
+// Modulate oscillator frequency
+builder.modulate(lfo, osc, "frequency");
 
 let graph = builder.build();
 ```

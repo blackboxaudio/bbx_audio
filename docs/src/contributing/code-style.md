@@ -33,7 +33,7 @@ Fix all warnings before submitting.
 ### Functions and Methods
 
 - **Functions**: snake_case (`process_buffers`)
-- **Methods**: snake_case (`add_oscillator`)
+- **Methods**: snake_case (`add`, `connect`)
 - **Constructors**: `new()` or `from_*()` / `with_*()`
 
 ### Variables

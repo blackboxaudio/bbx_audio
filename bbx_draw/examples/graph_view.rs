@@ -3,7 +3,11 @@
 //! Displays a DSP graph's topology with connected blocks arranged left-to-right.
 
 use bbx_draw::{GraphTopologyVisualizer, Visualizer};
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    blocks::{LfoBlock, OscillatorBlock, OverdriveBlock},
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 use nannou::prelude::*;
 
 struct Model {
@@ -24,10 +28,10 @@ fn model(app: &App) -> Model {
 
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-    let osc1 = builder.add_oscillator(440.0, Waveform::Sine, None);
-    let osc2 = builder.add_oscillator(220.0, Waveform::Square, None);
-    let lfo = builder.add_lfo(2.0, 0.5, None);
-    let overdrive = builder.add_overdrive(0.7, 0.8, 0.5, 44100.0);
+    let osc1 = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+    let osc2 = builder.add(OscillatorBlock::new(220.0, Waveform::Square, None));
+    let lfo = builder.add(LfoBlock::new(2.0, 0.5, Waveform::Sine, None));
+    let overdrive = builder.add(OverdriveBlock::new(0.7, 0.8, 0.5, 44100.0));
 
     builder.connect(osc1, 0, overdrive, 0);
     builder.connect(osc2, 0, overdrive, 0);

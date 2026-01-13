@@ -9,13 +9,13 @@ Write processed audio to files.
 ## Creating a File Output
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::FileOutputBlock, graph::GraphBuilder};
 use bbx_file::writers::wav::WavFileWriter;
 
 let writer = WavFileWriter::<f32>::new("output.wav", 44100.0, 2)?;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-let file_out = builder.add_file_output(Box::new(writer));
+let file_out = builder.add(FileOutputBlock::new(Box::new(writer)));
 ```
 
 ## Port Layout
@@ -31,15 +31,15 @@ let file_out = builder.add_file_output(Box::new(writer));
 ### Recording Synthesizer Output
 
 ```rust
-use bbx_dsp::{block::BlockType, blocks::GainBlock, graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{FileOutputBlock, GainBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let writer = WavFileWriter::new("synth_output.wav", 44100.0, 2)?;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
-let file_out = builder.add_file_output(Box::new(writer));
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let gain = builder.add(GainBlock::new(-6.0, None));
+let file_out = builder.add(FileOutputBlock::new(Box::new(writer)));
 
 builder.connect(osc, 0, gain, 0);
 builder.connect(gain, 0, file_out, 0);
@@ -66,15 +66,15 @@ graph.finalize();
 ### Stereo Recording
 
 ```rust
-use bbx_dsp::{block::BlockType, blocks::PannerBlock, graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{FileOutputBlock, OscillatorBlock, PannerBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let writer = WavFileWriter::new("stereo.wav", 44100.0, 2)?;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let pan = builder.add_block(BlockType::Panner(PannerBlock::new(25.0)));  // Slightly right
-let file_out = builder.add_file_output(Box::new(writer));
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let pan = builder.add(PannerBlock::new(25.0));  // Slightly right
+let file_out = builder.add(FileOutputBlock::new(Box::new(writer)));
 
 builder.connect(osc, 0, pan, 0);
 builder.connect(pan, 0, file_out, 0);  // Left

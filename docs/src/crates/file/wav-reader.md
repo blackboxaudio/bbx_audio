@@ -64,7 +64,7 @@ pub trait Reader<S: Sample>: Send {
 ## Usage with FileInputBlock
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::FileInputBlock, graph::GraphBuilder};
 use bbx_file::readers::wav::WavFileReader;
 
 let reader = WavFileReader::<f32>::from_path("input.wav")?;
@@ -75,7 +75,7 @@ let mut builder = GraphBuilder::<f32>::new(
     reader.num_channels(),
 );
 
-let file_input = builder.add_file_input(Box::new(reader));
+let file_input = builder.add(FileInputBlock::new(Box::new(reader)));
 ```
 
 ## Supported Formats

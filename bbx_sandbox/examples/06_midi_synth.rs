@@ -22,6 +22,7 @@ use std::{
 
 use bbx_dsp::{
     block::BlockId,
+    blocks::{EnvelopeBlock, GainBlock, LowPassFilterBlock, OscillatorBlock, VcaBlock},
     buffer::{AudioBuffer, Buffer},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
@@ -78,11 +79,11 @@ impl MidiSynth {
 
         let mut builder = GraphBuilder::new(sample_rate, buffer_size, num_channels);
 
-        let oscillator_id = builder.add_oscillator(440.0, Waveform::Sawtooth, None);
-        let envelope_id = builder.add_envelope(0.01, 0.1, 0.7, 0.3);
-        let vca_id = builder.add_vca();
-        let filter_id = builder.add_low_pass_filter(1000.0, 1.5);
-        let gain_id = builder.add_gain(-6.0);
+        let oscillator_id = builder.add(OscillatorBlock::new(440.0, Waveform::Sawtooth, None));
+        let envelope_id = builder.add(EnvelopeBlock::new(0.01, 0.1, 0.7, 0.3));
+        let vca_id = builder.add(VcaBlock::new());
+        let filter_id = builder.add(LowPassFilterBlock::new(1000.0, 1.5));
+        let gain_id = builder.add(GainBlock::new(-6.0, None));
 
         builder
             .connect(oscillator_id, 0, vca_id, 0)

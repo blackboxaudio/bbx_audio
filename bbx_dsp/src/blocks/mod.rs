@@ -10,3 +10,23 @@ pub mod effectors;
 pub mod generators;
 pub mod io;
 pub mod modulators;
+
+// Re-export block types for ergonomic imports
+pub use effectors::{
+    ambisonic_decoder::AmbisonicDecoderBlock,
+    binaural_decoder::{BinauralDecoderBlock, BinauralStrategy},
+    channel_merger::ChannelMergerBlock,
+    channel_router::{ChannelMode, ChannelRouterBlock},
+    channel_splitter::ChannelSplitterBlock,
+    dc_blocker::DcBlockerBlock,
+    gain::GainBlock,
+    low_pass_filter::LowPassFilterBlock,
+    matrix_mixer::MatrixMixerBlock,
+    mixer::MixerBlock,
+    overdrive::OverdriveBlock,
+    panner::{PannerBlock, PannerMode},
+    vca::VcaBlock,
+};
+pub use generators::oscillator::OscillatorBlock;
+pub use io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock};
+pub use modulators::{envelope::EnvelopeBlock, lfo::LfoBlock};

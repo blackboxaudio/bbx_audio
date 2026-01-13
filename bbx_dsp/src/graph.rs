@@ -13,25 +13,20 @@ use bbx_core::StackVec;
 
 use crate::{
     block::{BlockCategory, BlockId, BlockType},
-    blocks::{
-        effectors::{gain::GainBlock, low_pass_filter::LowPassFilterBlock, overdrive::OverdriveBlock, vca::VcaBlock},
-        generators::oscillator::OscillatorBlock,
-        io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
-        modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
-    },
+    blocks::{effectors::mixer::MixerBlock, io::output::OutputBlock},
     buffer::{AudioBuffer, Buffer},
+    channel::ChannelLayout,
     context::DspContext,
     parameter::Parameter,
-    reader::Reader,
     sample::Sample,
-    waveform::Waveform,
-    writer::Writer,
 };
 
 /// Maximum number of inputs a block can have (realtime-safe stack allocation).
-const MAX_BLOCK_INPUTS: usize = 8;
+/// Set to 16 to support third-order ambisonics (16 channels).
+pub const MAX_BLOCK_INPUTS: usize = 16;
 /// Maximum number of outputs a block can have (realtime-safe stack allocation).
-const MAX_BLOCK_OUTPUTS: usize = 8;
+/// Set to 16 to support third-order ambisonics (16 channels).
+pub const MAX_BLOCK_OUTPUTS: usize = 16;
 
 /// Describes an audio connection between two blocks.
 ///
@@ -136,6 +131,7 @@ impl<S: Sample> Graph<S> {
             buffer_size,
             num_channels,
             current_sample: 0,
+            channel_layout: ChannelLayout::default(),
         };
 
         Self {
@@ -286,6 +282,7 @@ impl<S: Sample> Graph<S> {
     ///
     /// Executes blocks in topologically sorted order, copying final output
     /// to the provided buffers (one per channel).
+    #[inline]
     pub fn process_buffers(&mut self, output_buffers: &mut [&mut [S]]) {
         for buffer in &mut self.audio_buffers {
             buffer.zeroize();
@@ -300,6 +297,7 @@ impl<S: Sample> Graph<S> {
         self.copy_to_output_buffer(output_buffers);
     }
 
+    #[inline]
     fn process_block_unsafe(&mut self, block_id: BlockId) {
         // Use pre-computed input buffer indices (O(1) lookup instead of O(n) scan)
         let input_indices = &self.block_input_buffers[block_id.0];
@@ -371,6 +369,7 @@ impl<S: Sample> Graph<S> {
     ///
     /// This design is intentional for performance reasons: audio-rate modulation would
     /// require per-sample parameter updates, significantly increasing CPU usage.
+    #[inline]
     fn collect_modulation_values(&mut self, block_id: BlockId) {
         // Bounds check to prevent panic in audio thread
         if block_id.0 >= self.blocks.len() {
@@ -427,106 +426,36 @@ impl<S: Sample> GraphBuilder<S> {
         }
     }
 
-    // I/O
-
-    /// Add a `FileInputBlock` to the `Graph`, which is useful for processing
-    /// an audio file with the rest of the DSP `Graph`.
-    pub fn add_file_input(&mut self, reader: Box<dyn Reader<S>>) -> BlockId {
-        let block = BlockType::FileInput(FileInputBlock::new(reader));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `FileOutputBlock` to the `Graph`, which is useful for rendering
-    /// an audio file of the DSP `Graph`.
-    pub fn add_file_output(&mut self, writer: Box<dyn Writer<S>>) -> BlockId {
-        let block = BlockType::FileOutput(FileOutputBlock::new(writer));
-        self.graph.add_block(block)
-    }
-
-    // GENERATORS
-
-    /// Add an `OscillatorBlock` to the `Graph`.
-    pub fn add_oscillator(&mut self, frequency: f64, waveform: Waveform, seed: Option<u64>) -> BlockId {
-        let block = BlockType::Oscillator(OscillatorBlock::new(S::from_f64(frequency), waveform, seed));
-        self.graph.add_block(block)
-    }
-
-    // EFFECTORS
-
-    /// Add an `OverdriveBlock` to the `Graph`.
-    pub fn add_overdrive(&mut self, drive: f64, level: f64, tone: f64, sample_rate: f64) -> BlockId {
-        let block = BlockType::Overdrive(OverdriveBlock::new(
-            S::from_f64(drive),
-            S::from_f64(level),
-            tone,
-            sample_rate,
-        ));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `VcaBlock` to the `Graph`.
+    /// Create a `GraphBuilder` with a specific channel layout.
     ///
-    /// The VCA multiplies audio (input 0) by a control signal (input 1).
-    /// Typically used with an envelope for amplitude modulation.
-    pub fn add_vca(&mut self) -> BlockId {
-        let block = BlockType::Vca(VcaBlock::new());
-        self.graph.add_block(block)
+    /// This constructor sets both the channel count and the layout, which enables
+    /// layout-aware processing for blocks like panners and decoders.
+    pub fn with_layout(sample_rate: f64, buffer_size: usize, layout: ChannelLayout) -> Self {
+        let num_channels = layout.channel_count();
+        let mut builder = Self {
+            graph: Graph::new(sample_rate, buffer_size, num_channels),
+        };
+        builder.graph.context.channel_layout = layout;
+        builder
     }
 
-    /// Add a `GainBlock` to the `Graph`.
+    /// Add a block to the graph.
     ///
-    /// Level is specified in decibels (dB), clamped to -80 to +30 dB.
-    pub fn add_gain(&mut self, level_db: f64) -> BlockId {
-        let block = BlockType::Gain(GainBlock::new(S::from_f64(level_db)));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `LowPassFilterBlock` to the `Graph`.
+    /// Accepts any block type that implements `Into<BlockType<S>>`.
     ///
-    /// Uses SVF (State Variable Filter) topology for stable filtering.
+    /// # Example
     ///
-    /// # Arguments
+    /// ```ignore
+    /// use bbx_dsp::prelude::*;
     ///
-    /// * `cutoff` - Cutoff frequency in Hz (clamped to 20-20000 Hz)
-    /// * `resonance` - Q factor (clamped to 0.5-10.0, default 0.707 is Butterworth)
-    pub fn add_low_pass_filter(&mut self, cutoff: f64, resonance: f64) -> BlockId {
-        let block = BlockType::LowPassFilter(LowPassFilterBlock::new(S::from_f64(cutoff), S::from_f64(resonance)));
-        self.graph.add_block(block)
-    }
-
-    // MODULATORS
-
-    /// Add an `EnvelopeBlock` to the `Graph`, which is useful for ADSR-style
-    /// amplitude or parameter modulation.
-    pub fn add_envelope(&mut self, attack: f64, decay: f64, sustain: f64, release: f64) -> BlockId {
-        let block = BlockType::Envelope(EnvelopeBlock::new(
-            S::from_f64(attack),
-            S::from_f64(decay),
-            S::from_f64(sustain.clamp(0.0, 1.0)),
-            S::from_f64(release),
-        ));
-        self.graph.add_block(block)
-    }
-
-    /// Add an `LfoBlock` to the `Graph`, which is useful when wanting to
-    /// modulate one or more `Parameter`s of one or more blocks.
-    ///
-    /// # Control-Rate Limitation
-    ///
-    /// LFO frequency is clamped to `sample_rate / (2 * buffer_size)` because modulation
-    /// operates at control rate (per-buffer), not audio rate. At 44.1kHz with 512 samples,
-    /// max frequency is ~43Hz. See [`Graph::collect_modulation_values`] for details.
-    pub fn add_lfo(&mut self, frequency: f64, depth: f64, seed: Option<u64>) -> BlockId {
-        let max_frequency = 0.5 * (self.graph.context.sample_rate / self.graph.context.buffer_size as f64);
-        let clamped_frequency = frequency.clamp(0.01, max_frequency);
-
-        let block = BlockType::Lfo(LfoBlock::new(
-            S::from_f64(clamped_frequency),
-            S::from_f64(depth),
-            Waveform::Sine,
-            seed,
-        ));
-        self.graph.add_block(block)
+    /// let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+    /// let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+    /// let gain = builder.add(GainBlock::new(-6.0, None));
+    /// builder.connect(osc, 0, gain, 0);
+    /// let graph = builder.build();
+    /// ```
+    pub fn add<B: Into<BlockType<S>>>(&mut self, block: B) -> BlockId {
+        self.graph.add_block(block.into())
     }
 
     /// Form a `Connection` between two particular blocks.
@@ -601,16 +530,22 @@ impl<S: Sample> GraphBuilder<S> {
 
     /// Prepare the final DSP `Graph`.
     ///
+    /// Automatically inserts a mixer before the output block when multiple terminal
+    /// blocks exist, unless the developer has already provided their own mixer or
+    /// output block connections.
+    ///
     /// # Panics
     ///
     /// Panics if any block has more inputs or outputs than the realtime-safe
     /// limits (`MAX_BLOCK_INPUTS` or `MAX_BLOCK_OUTPUTS`).
     pub fn build(mut self) -> Graph<S> {
-        let output = self.graph.add_output_block();
+        let num_channels = self.graph.context.num_channels;
+
+        // Check if developer already added an output block
+        let existing_output = self.graph.blocks.iter().position(|b| b.is_output()).map(BlockId);
 
         // Find all terminal blocks: blocks with no outgoing connections,
         // excluding modulators (LFO, Envelope) and output-type blocks.
-        // These terminal blocks will all be mixed to the output.
         let terminal_blocks: Vec<BlockId> = self
             .graph
             .blocks
@@ -624,17 +559,53 @@ impl<S: Sample> GraphBuilder<S> {
             .map(|(idx, _)| BlockId(idx))
             .collect();
 
-        // Connect all terminal blocks to output (signals will be summed)
-        for block_id in terminal_blocks {
-            for channel_index in 0..self.graph.context.num_channels {
-                self.connect(block_id, 0, output, channel_index);
+        // Check if developer already added a mixer that receives from terminal blocks
+        let explicit_mixer = self.find_explicit_mixer(&terminal_blocks);
+
+        // Determine what needs to be added
+        let output_id = existing_output.unwrap_or_else(|| self.graph.add_output_block());
+
+        match (explicit_mixer, terminal_blocks.len()) {
+            // Developer provided a mixer - connect it to output if not already connected
+            (Some(mixer_id), _) => {
+                let mixer_has_outgoing = self.graph.connections.iter().any(|c| c.from == mixer_id);
+                if !mixer_has_outgoing {
+                    self.connect_block_to_output(mixer_id, output_id, num_channels);
+                }
+            }
+
+            // No explicit mixer, no terminal blocks - nothing to connect
+            (None, 0) => {}
+
+            // No explicit mixer, single terminal block - connect directly to output
+            (None, 1) => {
+                let block_id = terminal_blocks[0];
+                self.connect_block_to_output(block_id, output_id, num_channels);
+            }
+
+            // No explicit mixer, multiple terminal blocks - insert a mixer
+            (None, num_sources) => {
+                let mixer_id = self
+                    .graph
+                    .add_block(BlockType::Mixer(MixerBlock::new(num_sources, num_channels)));
+
+                // Connect each terminal block's outputs to the mixer's inputs
+                for (source_idx, &block_id) in terminal_blocks.iter().enumerate() {
+                    let block_output_count = self.graph.blocks[block_id.0].output_count();
+                    for ch in 0..num_channels.min(block_output_count) {
+                        let mixer_input = source_idx * num_channels + ch;
+                        self.connect(block_id, ch, mixer_id, mixer_input);
+                    }
+                }
+
+                // Connect mixer to output
+                self.connect_block_to_output(mixer_id, output_id, num_channels);
             }
         }
 
         self.graph.prepare_for_playback();
 
         // Validate that all blocks are within realtime-safe I/O limits
-        // This must run after prepare_for_playback() to check actual connection counts
         for (idx, block) in self.graph.blocks.iter().enumerate() {
             let connected_inputs = self.graph.block_input_buffers[idx].len();
             let output_count = block.output_count();
@@ -650,5 +621,35 @@ impl<S: Sample> GraphBuilder<S> {
         }
 
         self.graph
+    }
+
+    /// Find an explicit mixer (Mixer or MatrixMixer) that has connections from terminal blocks.
+    fn find_explicit_mixer(&self, terminal_blocks: &[BlockId]) -> Option<BlockId> {
+        for (idx, block) in self.graph.blocks.iter().enumerate() {
+            let is_mixer = matches!(block, BlockType::Mixer(_) | BlockType::MatrixMixer(_));
+            if !is_mixer {
+                continue;
+            }
+
+            let block_id = BlockId(idx);
+            let has_terminal_input = self
+                .graph
+                .connections
+                .iter()
+                .any(|c| c.to == block_id && terminal_blocks.contains(&c.from));
+
+            if has_terminal_input {
+                return Some(block_id);
+            }
+        }
+        None
+    }
+
+    /// Connect a block's outputs to the output block, channel by channel.
+    fn connect_block_to_output(&mut self, from: BlockId, to: BlockId, num_channels: usize) {
+        let output_count = self.graph.blocks[from.0].output_count();
+        for ch in 0..num_channels.min(output_count) {
+            self.connect(from, ch, to, ch);
+        }
     }
 }

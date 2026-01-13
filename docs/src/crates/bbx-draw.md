@@ -33,12 +33,12 @@ bbx_draw = "0.1"
 
 ```rust
 use bbx_draw::{GraphTopologyVisualizer, Visualizer};
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::OscillatorBlock, graph::GraphBuilder, waveform::Waveform};
 use nannou::prelude::*;
 
 fn model(app: &App) -> Model {
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-    builder.add_oscillator(440.0, Waveform::Sine, None);
+    builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
     let topology = builder.capture_topology();
 
     Model {

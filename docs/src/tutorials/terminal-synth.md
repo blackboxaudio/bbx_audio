@@ -40,7 +40,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bbx_dsp = "0.3.1"
+bbx_dsp = "0.4.0"
 rodio = "0.20.1"
 ```
 
@@ -111,13 +111,12 @@ fn play(graph: Graph<f32>, seconds: u64) {
 }
 
 fn create_graph() -> Graph<f32> {
-    use bbx_dsp::block::BlockType;
-    use bbx_dsp::blocks::GainBlock;
+    use bbx_dsp::blocks::{GainBlock, OscillatorBlock};
 
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
-    let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0)));
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+    let gain = builder.add(GainBlock::new(-6.0, None));
 
     builder.connect(osc, 0, gain, 0);
     builder.build()
@@ -166,7 +165,7 @@ Add the `bbx_dsp` block import:
 
 ```toml
 [dependencies]
-bbx_dsp = "0.3.1"
+bbx_dsp = "0.4.0"
 rodio = "0.20.1"
 ```
 
@@ -177,6 +176,7 @@ Replace `create_graph()` with:
 ```rust
 use bbx_dsp::{
     block::BlockId,
+    blocks::{EnvelopeBlock, GainBlock, LowPassFilterBlock, OscillatorBlock, VcaBlock},
     graph::{Graph, GraphBuilder},
     context::{DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE},
     waveform::Waveform,
@@ -186,25 +186,25 @@ fn create_synth_voice() -> (Graph<f32>, BlockId, BlockId) {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
     // Sound source: sawtooth wave (rich harmonics for filtering)
-    let oscillator_id = builder.add_oscillator(440.0, Waveform::Sawtooth, None);
+    let oscillator_id = builder.add(OscillatorBlock::new(440.0, Waveform::Sawtooth, None));
 
     // Amplitude envelope: controls volume over time
     // See: modulation.md#envelope-generator
-    let envelope_id = builder.add_envelope(
+    let envelope_id = builder.add(EnvelopeBlock::new(
         0.01,  // Attack: 10ms
         0.1,   // Decay: 100ms
         0.7,   // Sustain: 70%
         0.3,   // Release: 300ms
-    );
+    ));
 
     // VCA: multiplies audio by envelope
-    let vca_id = builder.add_vca();
+    let vca_id = builder.add(VcaBlock::new());
 
     // Low-pass filter: removes harsh high frequencies
-    let filter_id = builder.add_low_pass_filter(2000.0, 1.5);
+    let filter_id = builder.add(LowPassFilterBlock::new(2000.0, 1.5));
 
     // Output gain: -6dB for comfortable listening
-    let gain_id = builder.add_gain(-6.0);
+    let gain_id = builder.add(GainBlock::new(-6.0, None));
 
     // Connect the signal chain
     builder
@@ -248,7 +248,7 @@ Update `Cargo.toml`:
 
 ```toml
 [dependencies]
-bbx_dsp = "0.3.1"
+bbx_dsp = "0.4.0"
 bbx_midi = "0.1.0"
 rodio = "0.20.1"
 midir = "0.11"
@@ -316,17 +316,19 @@ struct MidiSynth {
 
 impl MidiSynth {
     fn new(midi_consumer: MidiBufferConsumer) -> Self {
+        use bbx_dsp::blocks::{EnvelopeBlock, GainBlock, LowPassFilterBlock, OscillatorBlock, VcaBlock};
+
         let sample_rate = DEFAULT_SAMPLE_RATE;
         let buffer_size = DEFAULT_BUFFER_SIZE;
         let num_channels = 2;
 
         let mut builder = GraphBuilder::new(sample_rate, buffer_size, num_channels);
 
-        let oscillator_id = builder.add_oscillator(440.0, Waveform::Sawtooth, None);
-        let envelope_id = builder.add_envelope(0.01, 0.1, 0.7, 0.3);
-        let vca_id = builder.add_vca();
-        let filter_id = builder.add_low_pass_filter(2000.0, 1.5);
-        let gain_id = builder.add_gain(-6.0);
+        let oscillator_id = builder.add(OscillatorBlock::new(440.0, Waveform::Sawtooth, None));
+        let envelope_id = builder.add(EnvelopeBlock::new(0.01, 0.1, 0.7, 0.3));
+        let vca_id = builder.add(VcaBlock::new());
+        let filter_id = builder.add(LowPassFilterBlock::new(2000.0, 1.5));
+        let gain_id = builder.add(GainBlock::new(-6.0, None));
 
         builder
             .connect(oscillator_id, 0, vca_id, 0)
@@ -594,23 +596,23 @@ Try modifying the code to explore different sounds:
 
 **Change the oscillator waveform:**
 ```rust
-let oscillator_id = builder.add_oscillator(440.0, Waveform::Square, None);  // Hollow, woody
-let oscillator_id = builder.add_oscillator(440.0, Waveform::Triangle, None); // Soft, flute-like
+let oscillator_id = builder.add(OscillatorBlock::new(440.0, Waveform::Square, None));  // Hollow, woody
+let oscillator_id = builder.add(OscillatorBlock::new(440.0, Waveform::Triangle, None)); // Soft, flute-like
 ```
 
 **Adjust the envelope shape:**
 ```rust
 // Plucky sound: fast attack and decay, no sustain
-let envelope_id = builder.add_envelope(0.001, 0.2, 0.0, 0.1);
+let envelope_id = builder.add(EnvelopeBlock::new(0.001, 0.2, 0.0, 0.1));
 
 // Pad sound: slow attack and release
-let envelope_id = builder.add_envelope(0.5, 0.3, 0.8, 1.0);
+let envelope_id = builder.add(EnvelopeBlock::new(0.5, 0.3, 0.8, 1.0));
 ```
 
 **Change the filter cutoff:**
 ```rust
-let filter_id = builder.add_low_pass_filter(500.0, 2.0);   // Darker, more resonant
-let filter_id = builder.add_low_pass_filter(4000.0, 0.7);  // Brighter, less resonant
+let filter_id = builder.add(LowPassFilterBlock::new(500.0, 2.0));   // Darker, more resonant
+let filter_id = builder.add(LowPassFilterBlock::new(4000.0, 0.7));  // Brighter, less resonant
 ```
 
 ## Next Steps

@@ -10,7 +10,6 @@ Flexible channel routing and manipulation.
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
     blocks::{ChannelMode, ChannelRouterBlock},
     graph::GraphBuilder,
 };
@@ -18,9 +17,9 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Constructor: new(mode, mono, invert_left, invert_right)
-let router = builder.add_block(BlockType::ChannelRouter(
+let router = builder.add(
     ChannelRouterBlock::new(ChannelMode::Stereo, false, false, false)
-));
+);
 ```
 
 ## Constructor Parameters
@@ -69,7 +68,6 @@ For mono compatibility checking:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
     blocks::{ChannelMode, ChannelRouterBlock},
     graph::GraphBuilder,
 };
@@ -77,9 +75,9 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Route left to both channels
-let mono = builder.add_block(BlockType::ChannelRouter(
+let mono = builder.add(
     ChannelRouterBlock::new(ChannelMode::Left, false, false, false)
-));
+);
 ```
 
 ### Swap Channels
@@ -88,16 +86,15 @@ For correcting reversed cables:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
     blocks::{ChannelMode, ChannelRouterBlock},
     graph::GraphBuilder,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let swap = builder.add_block(BlockType::ChannelRouter(
+let swap = builder.add(
     ChannelRouterBlock::new(ChannelMode::Swap, false, false, false)
-));
+);
 ```
 
 ### Phase Inversion
@@ -106,7 +103,6 @@ For polarity correction or creative effects:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
     blocks::{ChannelMode, ChannelRouterBlock},
     graph::GraphBuilder,
 };
@@ -114,9 +110,9 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Invert left channel phase only
-let phase_flip = builder.add_block(BlockType::ChannelRouter(
+let phase_flip = builder.add(
     ChannelRouterBlock::new(ChannelMode::Stereo, false, true, false)
-));
+);
 ```
 
 ### True Mono Sum
@@ -125,7 +121,6 @@ Sum both channels to mono output:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
     blocks::{ChannelMode, ChannelRouterBlock},
     graph::GraphBuilder,
 };
@@ -133,9 +128,9 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Enable mono summing
-let mono_sum = builder.add_block(BlockType::ChannelRouter(
+let mono_sum = builder.add(
     ChannelRouterBlock::new(ChannelMode::Stereo, true, false, false)
-));
+);
 ```
 
 ### Default Passthrough
@@ -143,18 +138,12 @@ let mono_sum = builder.add_block(BlockType::ChannelRouter(
 For a simple stereo passthrough with no modifications:
 
 ```rust
-use bbx_dsp::{
-    block::BlockType,
-    blocks::ChannelRouterBlock,
-    graph::GraphBuilder,
-};
+use bbx_dsp::{blocks::ChannelRouterBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Use default_new() for stereo passthrough
-let passthrough = builder.add_block(BlockType::ChannelRouter(
-    ChannelRouterBlock::default_new()
-));
+let passthrough = builder.add(ChannelRouterBlock::default_new());
 ```
 
 ## Implementation Notes

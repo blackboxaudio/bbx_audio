@@ -1,10 +1,6 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-*'
   pull_request:
     types: [closed]
     branches: [develop]
@@ -25,6 +21,7 @@ jobs:
       contents: write
     outputs:
       version: ${{ steps.version.outputs.version }}
+      semver: ${{ steps.version.outputs.semver }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -37,8 +34,10 @@ jobs:
         run: |
           BRANCH="${{ github.event.pull_request.head.ref }}"
           VERSION="${BRANCH#release/}"
+          SEMVER="${VERSION#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Creating tag: $VERSION"
+          echo "semver=$SEMVER" >> $GITHUB_OUTPUT
+          echo "Creating tag: $VERSION (semver: $SEMVER)"
 
       - name: Verify Version Matches Cargo.toml
         run: |
@@ -84,20 +83,13 @@ jobs:
 
   validate:
     name: Validate Release
-    if: github.event_name == 'push'
+    needs: create-tag
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Extract Version from Tag
-        id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Releasing version: $VERSION"
+        with:
+          ref: ${{ needs.create-tag.outputs.version }}
 
       - name: Setup Linux Dependencies
         run: sudo apt-get update && sudo apt-get install -y alsa libasound2-dev libssl-dev pkg-config
@@ -105,12 +97,15 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
       - name: Verify Cargo.toml Versions Match Tag
         run: |
           CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "bbx_core") | .version')
-          TAG_VERSION=${{ steps.version.outputs.version }}
-          if [ "$CARGO_VERSION" != "$TAG_VERSION" ]; then
-            echo "Error: Cargo.toml version ($CARGO_VERSION) does not match tag version ($TAG_VERSION)"
+          SEMVER="${{ needs.create-tag.outputs.semver }}"
+          if [ "$CARGO_VERSION" != "$SEMVER" ]; then
+            echo "Error: Cargo.toml version ($CARGO_VERSION) does not match tag version ($SEMVER)"
             exit 1
           fi
 
@@ -132,6 +127,9 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
 
       - name: Publish bbx_core
         run: cargo publish -p bbx_core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -158,13 +156,14 @@ jobs:
     name: Create GitHub Release
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: [validate, publish]
+    needs: [create-tag, validate, publish]
     permissions:
       contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.create-tag.outputs.version }}
           fetch-depth: 0
 
       - name: Generate Changelog
@@ -183,7 +182,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          name: v${{ needs.validate.outputs.version }}
+          tag_name: ${{ needs.create-tag.outputs.version }}
+          name: ${{ needs.create-tag.outputs.version }}
           body: |
             ## Changes
 
@@ -193,7 +193,7 @@ jobs:
 
             ```toml
             [dependencies]
-            bbx_dsp = "${{ needs.validate.outputs.version }}"
+            bbx_dsp = "${{ needs.create-tag.outputs.semver }}"
             ```
           draft: false
-          prerelease: ${{ contains(github.ref, '-') }}
+          prerelease: ${{ contains(needs.create-tag.outputs.version, '-') }}
