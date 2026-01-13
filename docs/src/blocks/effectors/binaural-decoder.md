@@ -29,45 +29,35 @@ Uses pre-computed psychoacoustic coefficients for basic left/right panning. Lowe
 ## Creating a Decoder
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::BinauralDecoderBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Default: HRTF decoding for first-order ambisonics
-let decoder = builder.add_binaural_decoder(1);
-
-// Explicit: Matrix decoding (lightweight)
-let matrix_decoder = builder.add_binaural_decoder_matrix(1);
+let decoder = builder.add(BinauralDecoderBlock::new(1));
 
 // Surround sound (5.1 or 7.1) with HRTF
-let surround_decoder = builder.add_binaural_decoder_surround(6);
+let surround_decoder = builder.add(BinauralDecoderBlock::new_surround(6));
 ```
 
-Or with direct construction:
+Or with explicit strategy selection:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::effectors::binaural_decoder::{BinauralDecoderBlock, BinauralStrategy},
+    blocks::{BinauralDecoderBlock, BinauralStrategy},
     graph::GraphBuilder,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // HRTF decoding (default)
-let hrtf_decoder = builder.add_block(BlockType::BinauralDecoder(
-    BinauralDecoderBlock::new(1)
-));
+let hrtf_decoder = builder.add(BinauralDecoderBlock::new(1));
 
-// Matrix decoding
-let matrix_decoder = builder.add_block(BlockType::BinauralDecoder(
-    BinauralDecoderBlock::with_strategy(2, BinauralStrategy::Matrix)
-));
+// Matrix decoding (lightweight)
+let matrix_decoder = builder.add(BinauralDecoderBlock::with_strategy(2, BinauralStrategy::Matrix));
 
 // Surround 5.1 with HRTF
-let surround = builder.add_block(BlockType::BinauralDecoder(
-    BinauralDecoderBlock::new_surround(6, BinauralStrategy::Hrtf)
-));
+let surround = builder.add(BinauralDecoderBlock::new_surround_with_strategy(6, BinauralStrategy::Hrtf));
 ```
 
 ## Supported Configurations
@@ -106,17 +96,17 @@ Input count depends on configuration: `(order + 1)^2` for ambisonics, or 6/8 for
 ### First-Order Ambisonics to Binaural
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{BinauralDecoderBlock, OscillatorBlock, PannerBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Create ambisonic encoder
-let encoder = builder.add_panner_ambisonic(1);
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let encoder = builder.add(PannerBlock::new_ambisonic(1));
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 builder.connect(osc, 0, encoder, 0);
 
 // Decode to binaural stereo (HRTF by default)
-let decoder = builder.add_binaural_decoder(1);
+let decoder = builder.add(BinauralDecoderBlock::new(1));
 
 // Connect all 4 FOA channels
 builder.connect(encoder, 0, decoder, 0);  // W
@@ -128,21 +118,21 @@ builder.connect(encoder, 3, decoder, 3);  // X
 ### Rotating Sound with LFO Modulation
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{BinauralDecoderBlock, LfoBlock, OscillatorBlock, PannerBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Source
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Encode to FOA with LFO-modulated azimuth
-let encoder = builder.add_panner_ambisonic(1);
-let lfo = builder.add_lfo(0.5, 1.0, None);
+let encoder = builder.add(PannerBlock::new_ambisonic(1));
+let lfo = builder.add(LfoBlock::new(0.5, 1.0, Waveform::Sine, None));
 builder.connect(osc, 0, encoder, 0);
 builder.modulate(lfo, encoder, "azimuth");
 
 // Decode to headphones with HRTF
-let decoder = builder.add_binaural_decoder(1);
+let decoder = builder.add(BinauralDecoderBlock::new(1));
 builder.connect(encoder, 0, decoder, 0);
 builder.connect(encoder, 1, decoder, 1);
 builder.connect(encoder, 2, decoder, 2);
@@ -152,15 +142,15 @@ builder.connect(encoder, 3, decoder, 3);
 ### Surround Sound Downmix
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::{BinauralDecoderBlock, FileInputBlock}, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(48000.0, 512, 2);
 
 // File input with 5.1 surround content
-let file = builder.add_file_input("surround.wav");
+let file = builder.add(FileInputBlock::new(Box::new(reader)));
 
 // Decode to binaural for headphone listening
-let decoder = builder.add_binaural_decoder_surround(6);
+let decoder = builder.add(BinauralDecoderBlock::new_surround(6));
 
 // Connect all 6 channels
 for ch in 0..6 {
@@ -172,18 +162,17 @@ for ch in 0..6 {
 
 ```rust
 use bbx_dsp::{
-    blocks::effectors::binaural_decoder::{BinauralDecoderBlock, BinauralStrategy},
-    block::BlockType,
+    blocks::{BinauralDecoderBlock, BinauralStrategy},
     graph::GraphBuilder,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // High-quality HRTF rendering
-let hrtf = builder.add_binaural_decoder(1);
+let hrtf = builder.add(BinauralDecoderBlock::new(1));
 
 // Lightweight matrix rendering
-let matrix = builder.add_binaural_decoder_matrix(1);
+let matrix = builder.add(BinauralDecoderBlock::with_strategy(1, BinauralStrategy::Matrix));
 ```
 
 ## HRTF Implementation Details

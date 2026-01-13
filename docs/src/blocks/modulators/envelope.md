@@ -110,12 +110,12 @@ This prevents floating-point precision issues from keeping the envelope in relea
 ## Creating an Envelope
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::EnvelopeBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Parameters: attack(s), decay(s), sustain(0-1), release(s)
-let env = builder.add_envelope(0.01, 0.2, 0.7, 0.3);
+let env = builder.add(EnvelopeBlock::new(0.01, 0.2, 0.7, 0.3));
 ```
 
 ## Port Layout
@@ -152,13 +152,13 @@ Time values are clamped to [0.001, 10.0] seconds to prevent numerical issues.
 The typical pattern for envelope-controlled amplitude uses a VCA:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{EnvelopeBlock, OscillatorBlock, VcaBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let env = builder.add_envelope(0.01, 0.1, 0.7, 0.3);
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let vca = builder.add_vca();
+let env = builder.add(EnvelopeBlock::new(0.01, 0.1, 0.7, 0.3));
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let vca = builder.add(VcaBlock::new());
 
 // Audio to VCA input 0, envelope to VCA input 1
 builder.connect(osc, 0, vca, 0);
@@ -168,46 +168,46 @@ builder.connect(env, 0, vca, 1);
 ### Pluck Sound (Short Decay)
 
 ```rust
-let env = builder.add_envelope(
+let env = builder.add(EnvelopeBlock::new(
     0.001,  // Very fast attack
     0.2,    // Medium decay
     0.0,    // No sustain
     0.1,    // Short release
-);
+));
 ```
 
 ### Pad Sound (Long Attack)
 
 ```rust
-let env = builder.add_envelope(
+let env = builder.add(EnvelopeBlock::new(
     0.5,    // Slow attack
     0.3,    // Medium decay
     0.8,    // High sustain
     1.0,    // Long release
-);
+));
 ```
 
 ### Percussive (No Sustain)
 
 ```rust
-let env = builder.add_envelope(
+let env = builder.add(EnvelopeBlock::new(
     0.002,  // Instant attack
     0.5,    // Decay only
     0.0,    // No sustain
     0.0,    // No release
-);
+));
 ```
 
 ### Filter Envelope
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{EnvelopeBlock, LowPassFilterBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
-let filter = builder.add_low_pass_filter(500.0, 2.0);
-let env = builder.add_envelope(0.01, 0.3, 0.2, 0.5);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
+let filter = builder.add(LowPassFilterBlock::new(500.0, 2.0));
+let env = builder.add(EnvelopeBlock::new(0.01, 0.3, 0.2, 0.5));
 
 builder.connect(osc, 0, filter, 0);
 builder.modulate(env, filter, "cutoff");

@@ -11,8 +11,10 @@ Terminal output block for collecting processed audio.
 `OutputBlock` is automatically added when building a graph:
 
 ```rust
+use bbx_dsp::{blocks::OscillatorBlock, graph::GraphBuilder, waveform::Waveform};
+
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 // OutputBlock added automatically during build()
 let graph = builder.build();
 ```
@@ -30,9 +32,11 @@ let graph = builder.build();
 ### Basic Usage
 
 ```rust
+use bbx_dsp::{blocks::OscillatorBlock, graph::GraphBuilder, waveform::Waveform};
+
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 // Oscillator automatically connects to output
 
 let mut graph = builder.build();
@@ -52,17 +56,16 @@ For complex routing, connect blocks explicitly:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::{GainBlock, PannerBlock},
+    blocks::{GainBlock, OscillatorBlock, PannerBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
-let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let gain = builder.add(GainBlock::new(-6.0, None));
+let pan = builder.add(PannerBlock::new(0.0));
 
 builder.connect(osc, 0, gain, 0);
 builder.connect(gain, 0, pan, 0);

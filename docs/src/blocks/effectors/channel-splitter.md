@@ -9,28 +9,20 @@ Splits multi-channel input into individual mono outputs.
 ## Creating a Splitter
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::ChannelSplitterBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Split 6 channels (e.g., 5.1 surround)
-let splitter = builder.add_channel_splitter(6);
+let splitter = builder.add(ChannelSplitterBlock::new(6));
 ```
 
 Or with direct construction:
 
 ```rust
-use bbx_dsp::{
-    block::BlockType,
-    blocks::ChannelSplitterBlock,
-    graph::GraphBuilder,
-};
+use bbx_dsp::blocks::ChannelSplitterBlock;
 
-let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-
-let splitter = builder.add_block(BlockType::ChannelSplitter(
-    ChannelSplitterBlock::new(4)
-));
+let splitter = ChannelSplitterBlock::<f32>::new(4);
 ```
 
 ## Port Layout
@@ -54,8 +46,7 @@ Input and output counts are equal, determined by the `channels` parameter (1-16)
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::{ChannelSplitterBlock, ChannelMergerBlock, GainBlock},
+    blocks::{ChannelMergerBlock, ChannelSplitterBlock, GainBlock, OscillatorBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -63,23 +54,23 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Source with stereo output
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Split stereo to mono channels
-let splitter = builder.add_channel_splitter(2);
+let splitter = builder.add(ChannelSplitterBlock::new(2));
 builder.connect(osc, 0, splitter, 0);
 builder.connect(osc, 0, splitter, 1);
 
 // Process left channel differently
-let left_gain = builder.add_gain(-3.0, None);
+let left_gain = builder.add(GainBlock::new(-3.0, None));
 builder.connect(splitter, 0, left_gain, 0);
 
 // Process right channel differently
-let right_gain = builder.add_gain(-6.0, None);
+let right_gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(splitter, 1, right_gain, 0);
 
 // Merge back to stereo
-let merger = builder.add_channel_merger(2);
+let merger = builder.add(ChannelMergerBlock::new(2));
 builder.connect(left_gain, 0, merger, 0);
 builder.connect(right_gain, 0, merger, 1);
 ```
@@ -87,12 +78,12 @@ builder.connect(right_gain, 0, merger, 1);
 ### Split 5.1 Surround for Per-Channel Effects
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::ChannelSplitterBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 6);
 
 // Split 6-channel surround input
-let splitter = builder.add_channel_splitter(6);
+let splitter = builder.add(ChannelSplitterBlock::new(6));
 
 // Now you can process L, R, C, LFE, Ls, Rs independently
 // splitter output 0 = L

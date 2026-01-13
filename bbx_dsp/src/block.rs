@@ -588,3 +588,123 @@ impl<S: Sample> BlockType<S> {
         result
     }
 }
+
+// From implementations for ergonomic block addition via GraphBuilder::add()
+
+// I/O
+impl<S: Sample> From<FileInputBlock<S>> for BlockType<S> {
+    fn from(block: FileInputBlock<S>) -> Self {
+        BlockType::FileInput(block)
+    }
+}
+
+impl<S: Sample> From<FileOutputBlock<S>> for BlockType<S> {
+    fn from(block: FileOutputBlock<S>) -> Self {
+        BlockType::FileOutput(block)
+    }
+}
+
+impl<S: Sample> From<OutputBlock<S>> for BlockType<S> {
+    fn from(block: OutputBlock<S>) -> Self {
+        BlockType::Output(block)
+    }
+}
+
+// Generators
+impl<S: Sample> From<OscillatorBlock<S>> for BlockType<S> {
+    fn from(block: OscillatorBlock<S>) -> Self {
+        BlockType::Oscillator(block)
+    }
+}
+
+// Effectors
+impl<S: Sample> From<AmbisonicDecoderBlock<S>> for BlockType<S> {
+    fn from(block: AmbisonicDecoderBlock<S>) -> Self {
+        BlockType::AmbisonicDecoder(block)
+    }
+}
+
+impl<S: Sample> From<BinauralDecoderBlock<S>> for BlockType<S> {
+    fn from(block: BinauralDecoderBlock<S>) -> Self {
+        BlockType::BinauralDecoder(block)
+    }
+}
+
+impl<S: Sample> From<ChannelMergerBlock<S>> for BlockType<S> {
+    fn from(block: ChannelMergerBlock<S>) -> Self {
+        BlockType::ChannelMerger(block)
+    }
+}
+
+impl<S: Sample> From<ChannelRouterBlock<S>> for BlockType<S> {
+    fn from(block: ChannelRouterBlock<S>) -> Self {
+        BlockType::ChannelRouter(block)
+    }
+}
+
+impl<S: Sample> From<ChannelSplitterBlock<S>> for BlockType<S> {
+    fn from(block: ChannelSplitterBlock<S>) -> Self {
+        BlockType::ChannelSplitter(block)
+    }
+}
+
+impl<S: Sample> From<DcBlockerBlock<S>> for BlockType<S> {
+    fn from(block: DcBlockerBlock<S>) -> Self {
+        BlockType::DcBlocker(block)
+    }
+}
+
+impl<S: Sample> From<GainBlock<S>> for BlockType<S> {
+    fn from(block: GainBlock<S>) -> Self {
+        BlockType::Gain(block)
+    }
+}
+
+impl<S: Sample> From<LowPassFilterBlock<S>> for BlockType<S> {
+    fn from(block: LowPassFilterBlock<S>) -> Self {
+        BlockType::LowPassFilter(block)
+    }
+}
+
+impl<S: Sample> From<MatrixMixerBlock<S>> for BlockType<S> {
+    fn from(block: MatrixMixerBlock<S>) -> Self {
+        BlockType::MatrixMixer(block)
+    }
+}
+
+impl<S: Sample> From<MixerBlock<S>> for BlockType<S> {
+    fn from(block: MixerBlock<S>) -> Self {
+        BlockType::Mixer(block)
+    }
+}
+
+impl<S: Sample> From<OverdriveBlock<S>> for BlockType<S> {
+    fn from(block: OverdriveBlock<S>) -> Self {
+        BlockType::Overdrive(block)
+    }
+}
+
+impl<S: Sample> From<PannerBlock<S>> for BlockType<S> {
+    fn from(block: PannerBlock<S>) -> Self {
+        BlockType::Panner(block)
+    }
+}
+
+impl<S: Sample> From<VcaBlock<S>> for BlockType<S> {
+    fn from(block: VcaBlock<S>) -> Self {
+        BlockType::Vca(block)
+    }
+}
+
+// Modulators
+impl<S: Sample> From<EnvelopeBlock<S>> for BlockType<S> {
+    fn from(block: EnvelopeBlock<S>) -> Self {
+        BlockType::Envelope(block)
+    }
+}
+
+impl<S: Sample> From<LfoBlock<S>> for BlockType<S> {
+    fn from(block: LfoBlock<S>) -> Self {
+        BlockType::Lfo(block)
+    }
+}

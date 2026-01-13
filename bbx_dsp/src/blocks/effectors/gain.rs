@@ -35,20 +35,20 @@ impl<S: Sample> GainBlock<S> {
     const MAX_DB: f64 = 30.0;
 
     /// Create a new `GainBlock` with the given level in dB and an optional base gain multiplier.
-    pub fn new(level_db: S, base_gain: Option<S>) -> Self {
-        let clamped_db = level_db.to_f64().clamp(Self::MIN_DB, Self::MAX_DB);
+    pub fn new(level_db: f64, base_gain: Option<f64>) -> Self {
+        let clamped_db = level_db.clamp(Self::MIN_DB, Self::MAX_DB);
         let initial_gain = Self::db_to_linear(clamped_db);
 
         Self {
-            level_db: Parameter::Constant(level_db),
-            base_gain: base_gain.unwrap_or(S::ONE),
+            level_db: Parameter::Constant(S::from_f64(level_db)),
+            base_gain: S::from_f64(base_gain.unwrap_or(1.0)),
             gain_smoother: LinearSmoothedValue::new(S::from_f64(initial_gain)),
         }
     }
 
     /// Create a unity gain (0 dB) block.
     pub fn unity() -> Self {
-        Self::new(S::ZERO, None)
+        Self::new(0.0, None)
     }
 
     /// Convert dB to linear gain with range clamping.

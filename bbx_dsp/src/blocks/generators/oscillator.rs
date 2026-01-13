@@ -36,11 +36,12 @@ pub struct OscillatorBlock<S: Sample> {
 
 impl<S: Sample> OscillatorBlock<S> {
     /// Create a new oscillator with the given frequency and waveform.
-    pub fn new(frequency: S, waveform: Waveform, seed: Option<u64>) -> Self {
+    pub fn new(frequency: f64, waveform: Waveform, seed: Option<u64>) -> Self {
+        let freq = S::from_f64(frequency);
         Self {
-            frequency: Parameter::Constant(frequency),
+            frequency: Parameter::Constant(freq),
             pitch_offset: Parameter::Constant(S::ZERO),
-            base_frequency: frequency,
+            base_frequency: freq,
             midi_frequency: None,
             phase: 0.0,
             waveform,
@@ -203,7 +204,7 @@ mod tests {
         }
     }
 
-    fn test_oscillator<S: Sample>(waveform: Waveform, frequency: S, buffer_size: usize) -> Vec<S> {
+    fn test_oscillator<S: Sample>(waveform: Waveform, frequency: f64, buffer_size: usize) -> Vec<S> {
         let mut osc = OscillatorBlock::<S>::new(frequency, waveform, Some(42));
         let context = test_context(buffer_size);
         let inputs: [&[S]; 0] = [];
@@ -414,7 +415,7 @@ mod tests {
 
     #[test]
     fn test_frequency_accuracy_via_zero_crossings_f32() {
-        let freq = 440.0f32;
+        let freq = 440.0;
         let sample_rate = 44100.0;
         let num_buffers = 10;
         let buffer_size = 512;

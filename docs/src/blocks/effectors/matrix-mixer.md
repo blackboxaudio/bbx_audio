@@ -9,22 +9,7 @@ An NxM mixing matrix for flexible channel routing with gain control.
 ## Creating a Matrix Mixer
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
-
-let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-
-// Create a 4-input, 2-output mixer
-let mixer = builder.add_matrix_mixer(4, 2);
-```
-
-Or with direct construction:
-
-```rust
-use bbx_dsp::{
-    block::BlockType,
-    blocks::MatrixMixerBlock,
-    graph::GraphBuilder,
-};
+use bbx_dsp::{blocks::MatrixMixerBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -35,7 +20,7 @@ let mut matrix = MatrixMixerBlock::<f32>::new(4, 2);
 matrix.set_gain(0, 0, 1.0);  // input 0 -> output 0 at unity
 matrix.set_gain(1, 1, 1.0);  // input 1 -> output 1 at unity
 
-let mixer = builder.add_block(BlockType::MatrixMixer(matrix));
+let mixer = builder.add(matrix);
 ```
 
 ## Port Layout
@@ -92,11 +77,7 @@ let mixer = MatrixMixerBlock::<f32>::identity(4);
 ### Stereo to Mono Downmix
 
 ```rust
-use bbx_dsp::{
-    block::BlockType,
-    blocks::MatrixMixerBlock,
-    graph::GraphBuilder,
-};
+use bbx_dsp::{blocks::MatrixMixerBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -105,17 +86,13 @@ let mut mixer = MatrixMixerBlock::<f32>::new(2, 1);
 mixer.set_gain(0, 0, 0.5);  // Left -> Mono at 0.5
 mixer.set_gain(1, 0, 0.5);  // Right -> Mono at 0.5
 
-let downmix = builder.add_block(BlockType::MatrixMixer(mixer));
+let downmix = builder.add(mixer);
 ```
 
 ### Channel Swap
 
 ```rust
-use bbx_dsp::{
-    block::BlockType,
-    blocks::MatrixMixerBlock,
-    graph::GraphBuilder,
-};
+use bbx_dsp::{blocks::MatrixMixerBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -124,17 +101,13 @@ let mut mixer = MatrixMixerBlock::<f32>::new(2, 2);
 mixer.set_gain(0, 1, 1.0);  // Left input -> Right output
 mixer.set_gain(1, 0, 1.0);  // Right input -> Left output
 
-let swap = builder.add_block(BlockType::MatrixMixer(mixer));
+let swap = builder.add(mixer);
 ```
 
 ### Quad to Stereo Downmix
 
 ```rust
-use bbx_dsp::{
-    block::BlockType,
-    blocks::MatrixMixerBlock,
-    graph::GraphBuilder,
-};
+use bbx_dsp::{blocks::MatrixMixerBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -149,17 +122,13 @@ mixer.set_gain(2, 0, 0.5);  // Rear left
 mixer.set_gain(1, 1, 0.7);  // Front right
 mixer.set_gain(3, 1, 0.5);  // Rear right
 
-let downmix = builder.add_block(BlockType::MatrixMixer(mixer));
+let downmix = builder.add(mixer);
 ```
 
 ### Mid-Side Encoding
 
 ```rust
-use bbx_dsp::{
-    block::BlockType,
-    blocks::MatrixMixerBlock,
-    graph::GraphBuilder,
-};
+use bbx_dsp::{blocks::MatrixMixerBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
@@ -170,7 +139,7 @@ ms_encode.set_gain(1, 0, 0.5);   // R -> M
 ms_encode.set_gain(0, 1, 0.5);   // L -> S
 ms_encode.set_gain(1, 1, -0.5);  // -R -> S
 
-let encoder = builder.add_block(BlockType::MatrixMixer(ms_encode));
+let encoder = builder.add(ms_encode);
 ```
 
 ## Implementation Notes

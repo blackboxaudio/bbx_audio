@@ -10,6 +10,9 @@
 //!       -> Right: LowPassFilter(2000Hz) -+-> Merger -> Gain -> Output
 
 use bbx_dsp::{
+    blocks::{
+        ChannelMergerBlock, ChannelSplitterBlock, GainBlock, LfoBlock, LowPassFilterBlock, OscillatorBlock, PannerBlock,
+    },
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
@@ -20,24 +23,24 @@ fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
     // Rich harmonic source
-    let oscillator = builder.add_oscillator(110.0, Waveform::Sawtooth, None);
+    let oscillator = builder.add(OscillatorBlock::new(110.0, Waveform::Sawtooth, None));
 
     // Pan to create stereo signal with LFO
-    let panner = builder.add_panner_stereo(0.0);
-    let pan_lfo = builder.add_lfo(0.2, 80.0, None);
+    let panner = builder.add(PannerBlock::new(0.0));
+    let pan_lfo = builder.add(LfoBlock::new(0.2, 80.0, Waveform::Sine, None));
 
     // Split stereo into separate channels
-    let splitter = builder.add_channel_splitter(2);
+    let splitter = builder.add(ChannelSplitterBlock::new(2));
 
     // Different filters for each channel
-    let filter_left = builder.add_low_pass_filter(500.0, 2.0);
-    let filter_right = builder.add_low_pass_filter(2000.0, 2.0);
+    let filter_left = builder.add(LowPassFilterBlock::new(500.0, 2.0));
+    let filter_right = builder.add(LowPassFilterBlock::new(2000.0, 2.0));
 
     // Merge back to stereo
-    let merger = builder.add_channel_merger(2);
+    let merger = builder.add(ChannelMergerBlock::new(2));
 
     // Output gain
-    let gain = builder.add_gain(-6.0, None);
+    let gain = builder.add(GainBlock::new(-6.0, None));
 
     // Build signal chain
     builder.connect(oscillator, 0, panner, 0);

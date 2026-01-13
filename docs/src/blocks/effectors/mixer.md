@@ -112,22 +112,21 @@ Total inputs = `num_sources × num_channels`
 ## Creating a Mixer
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::MixerBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Mix 3 stereo sources into stereo output
-let mixer = builder.add_mixer(3);
+let mixer = builder.add(MixerBlock::stereo(3));
 
-// Convenience method for stereo mixing
-let stereo_mixer = builder.add_stereo_mixer(4);
+// Or specify source and channel counts directly
+let mono_mixer = builder.add(MixerBlock::new(4, 1));
 ```
 
-Or with direct construction:
+Or with custom normalization:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
     blocks::{MixerBlock, NormalizationStrategy},
     graph::GraphBuilder,
 };
@@ -138,7 +137,7 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let mixer = MixerBlock::<f32>::stereo(2)
     .with_normalization(NormalizationStrategy::Average);
 
-let mix = builder.add_block(BlockType::Mixer(mixer));
+let mix = builder.add(mixer);
 ```
 
 ## Port Layout
@@ -168,23 +167,23 @@ Maximum total inputs: 16 (constrained by `MAX_BLOCK_INPUTS`)
 ### Mix Two Stereo Signals
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{MixerBlock, OscillatorBlock, PannerBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Two oscillators
-let osc1 = builder.add_oscillator(440.0, Waveform::Sine, None);
-let osc2 = builder.add_oscillator(880.0, Waveform::Sine, None);
+let osc1 = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let osc2 = builder.add(OscillatorBlock::new(880.0, Waveform::Sine, None));
 
 // Pan them to different positions
-let pan1 = builder.add_panner_stereo(-50.0);
-let pan2 = builder.add_panner_stereo(50.0);
+let pan1 = builder.add(PannerBlock::new_stereo(-50.0));
+let pan2 = builder.add(PannerBlock::new_stereo(50.0));
 
 builder.connect(osc1, 0, pan1, 0);
 builder.connect(osc2, 0, pan2, 0);
 
 // Mix the stereo signals together
-let mixer = builder.add_stereo_mixer(2);
+let mixer = builder.add(MixerBlock::stereo(2));
 builder
     .connect(pan1, 0, mixer, 0)  // Source A left
     .connect(pan1, 1, mixer, 1)  // Source A right
@@ -196,20 +195,19 @@ builder
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::MixerBlock,
+    blocks::{MixerBlock, OscillatorBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 1);
 
-let osc1 = builder.add_oscillator(220.0, Waveform::Sine, None);
-let osc2 = builder.add_oscillator(330.0, Waveform::Sine, None);
-let osc3 = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc1 = builder.add(OscillatorBlock::new(220.0, Waveform::Sine, None));
+let osc2 = builder.add(OscillatorBlock::new(330.0, Waveform::Sine, None));
+let osc3 = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // 3 mono sources -> 1 mono output
-let mixer = builder.add_block(BlockType::Mixer(MixerBlock::new(3, 1)));
+let mixer = builder.add(MixerBlock::new(3, 1));
 builder
     .connect(osc1, 0, mixer, 0)
     .connect(osc2, 0, mixer, 1)
@@ -219,16 +217,16 @@ builder
 ### Layered Synth
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{MixerBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Three detuned oscillators
-let osc1 = builder.add_oscillator(440.0, Waveform::Saw, None);
-let osc2 = builder.add_oscillator(440.0 * 1.003, Waveform::Saw, None);  // +5 cents
-let osc3 = builder.add_oscillator(440.0 / 1.003, Waveform::Saw, None);  // -5 cents
+let osc1 = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
+let osc2 = builder.add(OscillatorBlock::new(440.0 * 1.003, Waveform::Saw, None));  // +5 cents
+let osc3 = builder.add(OscillatorBlock::new(440.0 / 1.003, Waveform::Saw, None));  // -5 cents
 
-let mixer = builder.add_mixer(3);
+let mixer = builder.add(MixerBlock::stereo(3));
 
 // Mix all three (mono -> stereo via single-channel inputs)
 builder.connect(osc1, 0, mixer, 0);
@@ -243,7 +241,6 @@ builder.connect(osc3, 0, mixer, 5);
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
     blocks::{MixerBlock, NormalizationStrategy},
     graph::GraphBuilder,
 };
@@ -254,7 +251,7 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let mixer = MixerBlock::<f32>::stereo(4)
     .with_normalization(NormalizationStrategy::Average);
 
-let mix = builder.add_block(BlockType::Mixer(mixer));
+let mix = builder.add(mixer);
 ```
 
 ## Implementation Notes

@@ -95,20 +95,18 @@ Key points:
 ## Creating a DC Blocker
 
 ```rust
-use bbx_dsp::{
-    block::BlockType,
-    blocks::DcBlockerBlock,
-    graph::GraphBuilder,
-};
+use bbx_dsp::{blocks::DcBlockerBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let dc = builder.add_dc_blocker();
+let dc = builder.add(DcBlockerBlock::new(true));
 ```
 
 Or with direct construction:
 
 ```rust
+use bbx_dsp::blocks::DcBlockerBlock;
+
 // Enabled DC blocker
 let dc = DcBlockerBlock::<f32>::new(true);
 
@@ -136,13 +134,13 @@ let dc = DcBlockerBlock::<f32>::new(false);
 Asymmetric distortion often introduces DC offset:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{DcBlockerBlock, OscillatorBlock, OverdriveBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let drive = builder.add_overdrive(5.0, 0.7, 0.5);
-let dc = builder.add_dc_blocker();
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let drive = builder.add(OverdriveBlock::new(5.0, 0.7, 0.5, 44100.0));
+let dc = builder.add(DcBlockerBlock::new(true));
 
 builder.connect(osc, 0, drive, 0);
 builder.connect(drive, 0, dc, 0);
@@ -153,12 +151,12 @@ builder.connect(drive, 0, dc, 0);
 Remove DC from external audio sources:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder};
+use bbx_dsp::{blocks::{DcBlockerBlock, FileInputBlock}, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let input = builder.add_file_input(Box::new(reader));
-let dc = builder.add_dc_blocker();
+let input = builder.add(FileInputBlock::new(Box::new(reader)));
+let dc = builder.add(DcBlockerBlock::new(true));
 
 builder.connect(input, 0, dc, 0);
 ```
@@ -168,14 +166,14 @@ builder.connect(input, 0, dc, 0);
 Standard practice to include DC blocking on the master output:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{DcBlockerBlock, GainBlock, OscillatorBlock, OutputBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
-let gain = builder.add_gain(-12.0, None);
-let dc = builder.add_dc_blocker();
-let output = builder.add_output();
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
+let gain = builder.add(GainBlock::new(-12.0, None));
+let dc = builder.add(DcBlockerBlock::new(true));
+let output = builder.add(OutputBlock::new(2));
 
 builder.connect(osc, 0, gain, 0);
 builder.connect(gain, 0, dc, 0);

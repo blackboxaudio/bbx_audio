@@ -9,19 +9,18 @@ Decodes ambisonics B-format to speaker layouts.
 ## Creating a Decoder
 
 ```rust
-use bbx_dsp::{channel::ChannelLayout, graph::GraphBuilder};
+use bbx_dsp::{blocks::AmbisonicDecoderBlock, channel::ChannelLayout, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Decode first-order ambisonics to stereo
-let decoder = builder.add_ambisonic_decoder(1, ChannelLayout::Stereo);
+let decoder = builder.add(AmbisonicDecoderBlock::new(1, ChannelLayout::Stereo));
 ```
 
-Or with direct construction:
+Or for surround layouts:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
     blocks::AmbisonicDecoderBlock,
     channel::ChannelLayout,
     graph::GraphBuilder,
@@ -29,9 +28,7 @@ use bbx_dsp::{
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 6);
 
-let decoder = builder.add_block(BlockType::AmbisonicDecoder(
-    AmbisonicDecoderBlock::new(2, ChannelLayout::Surround51)
-));
+let decoder = builder.add(AmbisonicDecoderBlock::new(2, ChannelLayout::Surround51));
 ```
 
 ## Supported Configurations
@@ -108,17 +105,17 @@ For `Custom(n)`, speakers are distributed evenly in a circle:
 ### First-Order to Stereo
 
 ```rust
-use bbx_dsp::{channel::ChannelLayout, graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{AmbisonicDecoderBlock, OscillatorBlock, PannerBlock}, channel::ChannelLayout, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Create ambisonic encoder
-let encoder = builder.add_panner_ambisonic(1);
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let encoder = builder.add(PannerBlock::new_ambisonic(1));
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 builder.connect(osc, 0, encoder, 0);
 
 // Decode to stereo
-let decoder = builder.add_ambisonic_decoder(1, ChannelLayout::Stereo);
+let decoder = builder.add(AmbisonicDecoderBlock::new(1, ChannelLayout::Stereo));
 
 // Connect all 4 FOA channels
 builder.connect(encoder, 0, decoder, 0);  // W
@@ -130,32 +127,32 @@ builder.connect(encoder, 3, decoder, 3);  // X
 ### Second-Order to 5.1
 
 ```rust
-use bbx_dsp::{channel::ChannelLayout, graph::GraphBuilder};
+use bbx_dsp::{blocks::AmbisonicDecoderBlock, channel::ChannelLayout, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 6);
 
 // Decode SOA (9 channels) to 5.1 (6 channels)
-let decoder = builder.add_ambisonic_decoder(2, ChannelLayout::Surround51);
+let decoder = builder.add(AmbisonicDecoderBlock::new(2, ChannelLayout::Surround51));
 ```
 
 ### Full Ambisonics Pipeline
 
 ```rust
-use bbx_dsp::{channel::ChannelLayout, graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{AmbisonicDecoderBlock, LfoBlock, OscillatorBlock, PannerBlock}, channel::ChannelLayout, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 8);
 
 // Source
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Encode to FOA with LFO-modulated azimuth
-let encoder = builder.add_panner_ambisonic(1);
-let lfo = builder.add_lfo(0.5, 1.0, None);
+let encoder = builder.add(PannerBlock::new_ambisonic(1));
+let lfo = builder.add(LfoBlock::new(0.5, 1.0, Waveform::Sine, None));
 builder.connect(osc, 0, encoder, 0);
 builder.modulate(lfo, encoder, "azimuth");
 
 // Decode to 7.1 speakers
-let decoder = builder.add_ambisonic_decoder(1, ChannelLayout::Surround71);
+let decoder = builder.add(AmbisonicDecoderBlock::new(1, ChannelLayout::Surround71));
 builder.connect(encoder, 0, decoder, 0);
 builder.connect(encoder, 1, decoder, 1);
 builder.connect(encoder, 2, decoder, 2);

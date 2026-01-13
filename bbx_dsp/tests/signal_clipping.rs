@@ -5,10 +5,7 @@
 
 use bbx_dsp::{
     block::{Block, BlockType},
-    blocks::{
-        effectors::low_pass_filter::LowPassFilterBlock, generators::oscillator::OscillatorBlock,
-        modulators::envelope::EnvelopeBlock,
-    },
+    blocks::{EnvelopeBlock, GainBlock, LowPassFilterBlock, OscillatorBlock, VcaBlock},
     channel::ChannelLayout,
     context::DspContext,
     graph::GraphBuilder,
@@ -183,7 +180,7 @@ fn test_chain_oscillator_only() {
 
     for waveform in [Waveform::Sawtooth, Waveform::Square, Waveform::Sine, Waveform::Triangle] {
         let mut builder = GraphBuilder::<f64>::new(sample_rate, buffer_size, 2);
-        builder.add_oscillator(440.0, waveform, Some(42));
+        builder.add(OscillatorBlock::new(440.0, waveform, Some(42)));
         let mut graph = builder.build();
 
         let mut max_amplitude = 0.0f64;
@@ -216,9 +213,9 @@ fn test_chain_oscillator_plus_vca() {
     let buffer_size = 512;
 
     let mut builder = GraphBuilder::<f64>::new(sample_rate, buffer_size, 2);
-    let osc = builder.add_oscillator(440.0, Waveform::Sawtooth, Some(42));
-    let env = builder.add_envelope(0.01, 0.1, 0.8, 0.2);
-    let vca = builder.add_vca();
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sawtooth, Some(42)));
+    let env = builder.add(EnvelopeBlock::new(0.01, 0.1, 0.8, 0.2));
+    let vca = builder.add(VcaBlock::new());
 
     builder.connect(osc, 0, vca, 0);
     builder.connect(env, 0, vca, 1);
@@ -257,10 +254,10 @@ fn test_chain_oscillator_vca_filter() {
 
     for q in q_values {
         let mut builder = GraphBuilder::<f64>::new(sample_rate, buffer_size, 2);
-        let osc = builder.add_oscillator(440.0, Waveform::Sawtooth, Some(42));
-        let env = builder.add_envelope(0.01, 0.1, 0.8, 0.2);
-        let vca = builder.add_vca();
-        let filter = builder.add_low_pass_filter(1000.0, q);
+        let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sawtooth, Some(42)));
+        let env = builder.add(EnvelopeBlock::new(0.01, 0.1, 0.8, 0.2));
+        let vca = builder.add(VcaBlock::new());
+        let filter = builder.add(LowPassFilterBlock::new(1000.0, q));
 
         builder.connect(osc, 0, vca, 0);
         builder.connect(env, 0, vca, 1);
@@ -299,11 +296,11 @@ fn test_full_synth_chain() {
     let buffer_size = 512;
 
     let mut builder = GraphBuilder::<f64>::new(sample_rate, buffer_size, 2);
-    let osc = builder.add_oscillator(440.0, Waveform::Sawtooth, Some(42));
-    let env = builder.add_envelope(0.01, 0.1, 0.8, 0.2);
-    let vca = builder.add_vca();
-    let filter = builder.add_low_pass_filter(1000.0, 5.0); // High resonance
-    let gain = builder.add_gain(0.0, None); // 0 dB = unity
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sawtooth, Some(42)));
+    let env = builder.add(EnvelopeBlock::new(0.01, 0.1, 0.8, 0.2));
+    let vca = builder.add(VcaBlock::new());
+    let filter = builder.add(LowPassFilterBlock::new(1000.0, 5.0)); // High resonance
+    let gain = builder.add(GainBlock::new(0.0, None)); // 0 dB = unity
 
     builder.connect(osc, 0, vca, 0);
     builder.connect(env, 0, vca, 1);

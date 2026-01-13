@@ -112,12 +112,12 @@ The cutoff frequency $f_c$ is mapped from the tone parameter:
 ## Creating an Overdrive
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::OverdriveBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-// Parameters: drive, level, tone
-let od = builder.add_overdrive(2.0, 0.8, 0.5);
+// Parameters: drive, level, tone, sample_rate
+let od = builder.add(OverdriveBlock::new(2.0, 0.8, 0.5, 44100.0));
 ```
 
 ## Port Layout
@@ -149,12 +149,12 @@ let od = builder.add_overdrive(2.0, 0.8, 0.5);
 ### Basic Overdrive
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{OscillatorBlock, OverdriveBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let od = builder.add_overdrive(3.0, 0.7, 0.5);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let od = builder.add(OverdriveBlock::new(3.0, 0.7, 0.5, 44100.0));
 
 builder.connect(osc, 0, od, 0);
 ```
@@ -162,12 +162,12 @@ builder.connect(osc, 0, od, 0);
 ### Aggressive Distortion
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{OscillatorBlock, OverdriveBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(110.0, Waveform::Saw, None);
-let od = builder.add_overdrive(8.0, 0.5, 0.6);  // High drive, lower output
+let osc = builder.add(OscillatorBlock::new(110.0, Waveform::Saw, None));
+let od = builder.add(OverdriveBlock::new(8.0, 0.5, 0.6, 44100.0));  // High drive, lower output
 
 builder.connect(osc, 0, od, 0);
 ```
@@ -177,13 +177,13 @@ builder.connect(osc, 0, od, 0);
 Distortion can introduce DC offset:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{DcBlockerBlock, OscillatorBlock, OverdriveBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let od = builder.add_overdrive(5.0, 0.7, 0.5);
-let dc = builder.add_dc_blocker();
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let od = builder.add(OverdriveBlock::new(5.0, 0.7, 0.5, 44100.0));
+let dc = builder.add(DcBlockerBlock::new(true));
 
 builder.connect(osc, 0, od, 0);
 builder.connect(od, 0, dc, 0);
@@ -192,12 +192,12 @@ builder.connect(od, 0, dc, 0);
 ### Warm Bass Distortion
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{OscillatorBlock, OverdriveBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(80.0, Waveform::Saw, None);
-let od = builder.add_overdrive(2.0, 0.8, 0.3);  // Low tone for warmth
+let osc = builder.add(OscillatorBlock::new(80.0, Waveform::Saw, None));
+let od = builder.add(OverdriveBlock::new(2.0, 0.8, 0.3, 44100.0));  // Low tone for warmth
 
 builder.connect(osc, 0, od, 0);
 ```

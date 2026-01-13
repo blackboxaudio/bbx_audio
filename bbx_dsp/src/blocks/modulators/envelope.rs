@@ -52,12 +52,12 @@ impl<S: Sample> EnvelopeBlock<S> {
 
     /// Create an `EnvelopeBlock` with given ADSR parameters.
     /// Times are in seconds, sustain is a level from 0.0 to 1.0.
-    pub fn new(attack: S, decay: S, sustain: S, release: S) -> Self {
+    pub fn new(attack: f64, decay: f64, sustain: f64, release: f64) -> Self {
         Self {
-            attack: Parameter::Constant(attack),
-            decay: Parameter::Constant(decay),
-            sustain: Parameter::Constant(sustain),
-            release: Parameter::Constant(release),
+            attack: Parameter::Constant(S::from_f64(attack)),
+            decay: Parameter::Constant(S::from_f64(decay)),
+            sustain: Parameter::Constant(S::from_f64(sustain)),
+            release: Parameter::Constant(S::from_f64(release)),
             stage: EnvelopeStage::Idle,
             level: 0.0,
             stage_time: 0.0,
@@ -284,7 +284,7 @@ mod tests {
     #[test]
     fn test_envelope_attack_rises_f32() {
         let attack_time = 0.1;
-        let mut env = EnvelopeBlock::<f32>::new(attack_time as f32, 0.1, 0.5, 0.1);
+        let mut env = EnvelopeBlock::<f32>::new(attack_time, 0.1, 0.5, 0.1);
         let sample_rate = 44100.0;
         let context = test_context(512, sample_rate);
 
@@ -314,7 +314,7 @@ mod tests {
     #[test]
     fn test_envelope_reaches_peak_f32() {
         let attack_time = 0.01;
-        let mut env = EnvelopeBlock::<f32>::new(attack_time as f32, 0.5, 0.5, 0.5);
+        let mut env = EnvelopeBlock::<f32>::new(attack_time, 0.5, 0.5, 0.5);
         let sample_rate = 44100.0;
         let context = test_context(512, sample_rate);
 
@@ -351,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_envelope_sustain_level_f32() {
-        let sustain = 0.6_f32;
+        let sustain = 0.6;
         let mut env = EnvelopeBlock::<f32>::new(0.001, 0.001, sustain, 0.5);
         let sample_rate = 44100.0;
         let context = test_context(512, sample_rate);
@@ -366,7 +366,7 @@ mod tests {
         let avg: f32 = output.iter().sum::<f32>() / output.len() as f32;
 
         assert!(
-            (avg - sustain).abs() < 0.05,
+            (avg - sustain as f32).abs() < 0.05,
             "Sustain should hold at sustain level: expected={}, got={}",
             sustain,
             avg
@@ -375,7 +375,7 @@ mod tests {
 
     #[test]
     fn test_envelope_sustain_level_f64() {
-        let sustain = 0.6_f64;
+        let sustain = 0.6;
         let mut env = EnvelopeBlock::<f64>::new(0.001, 0.001, sustain, 0.5);
         let sample_rate = 44100.0;
         let context = test_context(512, sample_rate);
@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_envelope_release_falls_f32() {
-        let sustain = 0.7_f32;
+        let sustain = 0.7;
         let mut env = EnvelopeBlock::<f32>::new(0.001, 0.001, sustain, 0.1);
         let sample_rate = 44100.0;
         let context = test_context(512, sample_rate);

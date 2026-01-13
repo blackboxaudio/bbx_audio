@@ -12,7 +12,7 @@
 //!   Oscillator(660Hz) -> Panner(R) -+
 
 use bbx_dsp::{
-    blocks::effectors::channel_router::ChannelMode,
+    blocks::{ChannelMode, ChannelRouterBlock, GainBlock, OscillatorBlock, PannerBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
@@ -23,18 +23,18 @@ fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
     // Two oscillators at different frequencies
-    let osc_left = builder.add_oscillator(440.0, Waveform::Sine, None);
-    let osc_right = builder.add_oscillator(660.0, Waveform::Sine, None);
+    let osc_left = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+    let osc_right = builder.add(OscillatorBlock::new(660.0, Waveform::Sine, None));
 
     // Pan them hard left and hard right
-    let pan_left = builder.add_panner_stereo(-100.0);
-    let pan_right = builder.add_panner_stereo(100.0);
+    let pan_left = builder.add(PannerBlock::new(-100.0));
+    let pan_right = builder.add(PannerBlock::new(100.0));
 
     // Channel router to swap channels (so 440Hz ends up in right, 660Hz in left)
-    let router = builder.add_channel_router(ChannelMode::Swap, false, false, false);
+    let router = builder.add(ChannelRouterBlock::new(ChannelMode::Swap, false, false, false));
 
     // Master gain
-    let gain = builder.add_gain(-6.0, None);
+    let gain = builder.add(GainBlock::new(-6.0, None));
 
     // Connect oscillators to panners
     builder.connect(osc_left, 0, pan_left, 0);

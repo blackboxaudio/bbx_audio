@@ -37,10 +37,10 @@ impl<S: Sample> LowPassFilterBlock<S> {
     const MAX_Q: f64 = 10.0;
 
     /// Create a new low-pass filter with the given cutoff and resonance.
-    pub fn new(cutoff: S, resonance: S) -> Self {
+    pub fn new(cutoff: f64, resonance: f64) -> Self {
         Self {
-            cutoff: Parameter::Constant(cutoff),
-            resonance: Parameter::Constant(resonance),
+            cutoff: Parameter::Constant(S::from_f64(cutoff)),
+            resonance: Parameter::Constant(S::from_f64(resonance)),
             ic1eq: [0.0; MAX_BLOCK_OUTPUTS],
             ic2eq: [0.0; MAX_BLOCK_OUTPUTS],
             sample_rate: 44100.0,

@@ -9,11 +9,11 @@ Voltage Controlled Amplifier - multiplies audio by a control signal.
 ## Creating a VCA Block
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::VcaBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let vca = builder.add_vca();
+let vca = builder.add(VcaBlock::new());
 ```
 
 ## Port Layout
@@ -36,6 +36,7 @@ The most common use case: apply an ADSR envelope to an oscillator.
 
 ```rust
 use bbx_dsp::{
+    blocks::{EnvelopeBlock, OscillatorBlock, VcaBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -43,9 +44,9 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Signal chain: Oscillator → VCA ← Envelope
-let osc = builder.add_oscillator(440.0, Waveform::Sawtooth, None);
-let env = builder.add_envelope(0.01, 0.1, 0.7, 0.3);
-let vca = builder.add_vca();
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
+let env = builder.add(EnvelopeBlock::new(0.01, 0.1, 0.7, 0.3));
+let vca = builder.add(VcaBlock::new());
 
 // Audio to VCA input 0
 builder.connect(osc, 0, vca, 0);
@@ -60,15 +61,16 @@ Use an LFO for amplitude modulation (tremolo effect):
 
 ```rust
 use bbx_dsp::{
+    blocks::{LfoBlock, OscillatorBlock, VcaBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let lfo = builder.add_lfo(6.0, 0.5, None);  // 6 Hz, 50% depth
-let vca = builder.add_vca();
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let lfo = builder.add(LfoBlock::new(6.0, 0.5, Waveform::Sine, None));  // 6 Hz, 50% depth
+let vca = builder.add(VcaBlock::new());
 
 builder.connect(osc, 0, vca, 0);
 builder.connect(lfo, 0, vca, 1);
@@ -80,6 +82,7 @@ Complete synthesizer voice with oscillator, envelope, filter, and VCA:
 
 ```rust
 use bbx_dsp::{
+    blocks::{EnvelopeBlock, GainBlock, LowPassFilterBlock, OscillatorBlock, VcaBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -87,17 +90,17 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Sound source
-let osc = builder.add_oscillator(440.0, Waveform::Sawtooth, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
 
 // Amplitude envelope
-let env = builder.add_envelope(0.01, 0.1, 0.7, 0.3);
+let env = builder.add(EnvelopeBlock::new(0.01, 0.1, 0.7, 0.3));
 
 // VCA for envelope control
-let vca = builder.add_vca();
+let vca = builder.add(VcaBlock::new());
 
 // Filter and output gain
-let filter = builder.add_low_pass_filter(2000.0, 1.5);
-let gain = builder.add_gain(-6.0, None);
+let filter = builder.add(LowPassFilterBlock::new(2000.0, 1.5));
+let gain = builder.add(GainBlock::new(-6.0, None));
 
 // Connect: Osc → VCA → Filter → Gain
 builder

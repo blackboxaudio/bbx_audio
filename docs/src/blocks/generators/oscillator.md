@@ -134,12 +134,12 @@ where $s$ is the offset in semitones. This formula means:
 ## Creating an Oscillator
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::OscillatorBlock, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Parameters: frequency (Hz), waveform, optional seed for noise
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 ```
 
 The third parameter is an optional seed (`Option<u64>`) for deterministic random number generation, used by the Noise waveform.
@@ -188,15 +188,15 @@ Both parameters can be modulated using the `modulate()` method.
 Use an LFO for vibrato via the `modulate()` method:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{LfoBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Create LFO for vibrato (5 Hz, moderate depth)
-let lfo = builder.add_lfo(5.0, 0.3, None);
+let lfo = builder.add(LfoBlock::new(5.0, 0.3, Waveform::Sine, None));
 
 // Create oscillator
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Connect LFO to modulate frequency
 builder.modulate(lfo, osc, "frequency");
@@ -214,22 +214,22 @@ builder.modulate(lfo, osc, "pitch_offset");
 ### Basic Tone
 
 ```rust
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 ```
 
 ### Detuned Oscillators
 
 ```rust
-let osc1 = builder.add_oscillator(440.0, Waveform::Saw, None);
-let osc2 = builder.add_oscillator(440.0 * 1.005, Waveform::Saw, None);  // +8.6 cents
-let osc3 = builder.add_oscillator(440.0 / 1.005, Waveform::Saw, None);  // -8.6 cents
+let osc1 = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
+let osc2 = builder.add(OscillatorBlock::new(440.0 * 1.005, Waveform::Saw, None));  // +8.6 cents
+let osc3 = builder.add(OscillatorBlock::new(440.0 / 1.005, Waveform::Saw, None));  // -8.6 cents
 ```
 
 ### Sub-Oscillator
 
 ```rust
-let main = builder.add_oscillator(440.0, Waveform::Saw, None);
-let sub = builder.add_oscillator(220.0, Waveform::Sine, None);  // One octave down
+let main = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
+let sub = builder.add(OscillatorBlock::new(220.0, Waveform::Sine, None));  // One octave down
 ```
 
 ### Deterministic Noise
@@ -238,8 +238,8 @@ For reproducible noise output:
 
 ```rust
 // Same seed produces same noise pattern
-let noise1 = builder.add_oscillator(0.0, Waveform::Noise, Some(12345));
-let noise2 = builder.add_oscillator(0.0, Waveform::Noise, Some(12345));  // Same as noise1
+let noise1 = builder.add(OscillatorBlock::new(0.0, Waveform::Noise, Some(12345)));
+let noise2 = builder.add(OscillatorBlock::new(0.0, Waveform::Noise, Some(12345)));  // Same as noise1
 ```
 
 ## Implementation Notes

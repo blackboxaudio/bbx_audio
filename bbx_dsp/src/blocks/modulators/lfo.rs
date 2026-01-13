@@ -38,10 +38,10 @@ impl<S: Sample> LfoBlock<S> {
     }];
 
     /// Create an `LfoBlock` with a given frequency, depth, waveform, and optional seed (used for noise waveforms).
-    pub fn new(frequency: S, depth: S, waveform: Waveform, seed: Option<u64>) -> Self {
+    pub fn new(frequency: f64, depth: f64, waveform: Waveform, seed: Option<u64>) -> Self {
         Self {
-            frequency: Parameter::Constant(frequency),
-            depth: Parameter::Constant(depth),
+            frequency: Parameter::Constant(S::from_f64(frequency)),
+            depth: Parameter::Constant(S::from_f64(depth)),
             phase: 0.0,
             waveform,
             rng: XorShiftRng::new(seed.unwrap_or_default()),
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_lfo_depth_scaling_f32() {
-        let depth = 0.5_f32;
+        let depth = 0.5;
         let mut lfo = LfoBlock::<f32>::new(1.0, depth, Waveform::Sine, Some(42));
         let context = test_context(512, 44100.0);
 
@@ -248,7 +248,7 @@ mod tests {
             let output = process_lfo(&mut lfo, &context);
             for &sample in &output {
                 assert!(
-                    sample >= -depth * 1.1 && sample <= depth * 1.1,
+                    sample >= -depth as f32 * 1.1 && sample <= depth as f32 * 1.1,
                     "LFO with depth={} should be in [{}, {}]: {}",
                     depth,
                     -depth,
@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn test_lfo_depth_scaling_f64() {
-        let depth = 0.5_f64;
+        let depth = 0.5;
         let mut lfo = LfoBlock::<f64>::new(1.0, depth, Waveform::Sine, Some(42));
         let context = test_context(512, 44100.0);
 

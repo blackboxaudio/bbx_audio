@@ -69,19 +69,20 @@ pub struct PannerBlock<S: Sample> {
 
 impl<S: Sample> PannerBlock<S> {
     /// Create a new stereo panner with the given position (-100 to +100).
-    pub fn new(position: S) -> Self {
+    pub fn new(position: f64) -> Self {
         Self::new_stereo(position)
     }
 
     /// Create a new stereo panner with the given position (-100 to +100).
-    pub fn new_stereo(position: S) -> Self {
+    pub fn new_stereo(position: f64) -> Self {
+        let pos = S::from_f64(position);
         Self {
-            position: Parameter::Constant(position),
+            position: Parameter::Constant(pos),
             azimuth: Parameter::Constant(S::ZERO),
             elevation: Parameter::Constant(S::ZERO),
             mode: PannerMode::Stereo,
             output_layout: ChannelLayout::Stereo,
-            position_smoother: LinearSmoothedValue::new(position),
+            position_smoother: LinearSmoothedValue::new(pos),
             azimuth_smoother: LinearSmoothedValue::new(S::ZERO),
             elevation_smoother: LinearSmoothedValue::new(S::ZERO),
             speaker_azimuths: [0.0; MAX_BLOCK_OUTPUTS],
@@ -90,7 +91,7 @@ impl<S: Sample> PannerBlock<S> {
 
     /// Create a centered stereo panner.
     pub fn centered() -> Self {
-        Self::new_stereo(S::ZERO)
+        Self::new_stereo(0.0)
     }
 
     /// Create a surround panner for the given layout.

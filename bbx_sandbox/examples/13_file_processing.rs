@@ -6,6 +6,7 @@
 //! Signal chain: FileInput -> LowPassFilter -> Overdrive -> DcBlocker -> FileOutput
 
 use bbx_dsp::{
+    blocks::{DcBlockerBlock, FileInputBlock, FileOutputBlock, LowPassFilterBlock, OverdriveBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
 };
@@ -15,26 +16,21 @@ use bbx_sandbox::player::Player;
 fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
-    // Input file path
     let mut input_path = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
     input_path.push_str("/bbx_sandbox/examples/04_input_wav_file.wav");
 
-    // Output file path
     let mut output_path = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
     output_path.push_str("/bbx_sandbox/examples/13_processed_output.wav");
 
-    // File input
     let reader = WavFileReader::from_path(input_path.as_str()).unwrap();
-    let file_input = builder.add_file_input(Box::new(reader));
+    let file_input = builder.add(FileInputBlock::new(Box::new(reader)));
 
-    // Processing chain
-    let filter = builder.add_low_pass_filter(2000.0, 1.5);
-    let overdrive = builder.add_overdrive(3.0, 0.8, 0.6, DEFAULT_SAMPLE_RATE);
-    let dc_blocker = builder.add_dc_blocker(true);
+    let filter = builder.add(LowPassFilterBlock::new(2000.0, 1.5));
+    let overdrive = builder.add(OverdriveBlock::new(3.0, 0.8, 0.6, DEFAULT_SAMPLE_RATE));
+    let dc_blocker = builder.add(DcBlockerBlock::new(true));
 
-    // File output
     let writer = WavFileWriter::new(output_path.as_str(), DEFAULT_SAMPLE_RATE, 2).unwrap();
-    let file_output = builder.add_file_output(Box::new(writer));
+    let file_output = builder.add(FileOutputBlock::new(Box::new(writer)));
 
     // Build signal chain
     builder.connect(file_input, 0, filter, 0);

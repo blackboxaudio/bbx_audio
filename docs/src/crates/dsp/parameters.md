@@ -30,15 +30,15 @@ let frequency = Parameter::Constant(440.0_f32);
 Parameters controlled by modulator blocks use the `GraphBuilder::modulate()` method:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{LfoBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-// Create an LFO (frequency, depth, seed)
-let lfo = builder.add_lfo(5.0, 0.3, None);
+// Create an LFO (frequency, depth, waveform, seed)
+let lfo = builder.add(LfoBlock::new(5.0, 0.3, Waveform::Sine, None));
 
 // Create an oscillator
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Modulate oscillator frequency with the LFO
 builder.modulate(lfo, osc, "frequency");
@@ -98,18 +98,18 @@ let bipolar = unipolar * 2.0 - 1.0;  // -1.0 to 1.0
 ## Example: Tremolo
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{GainBlock, LfoBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Audio source
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Tremolo LFO (6 Hz, full depth)
-let lfo = builder.add_lfo(6.0, 1.0, None);
+let lfo = builder.add(LfoBlock::new(6.0, 1.0, Waveform::Sine, None));
 
 // Gain block
-let gain = builder.add_gain(-6.0, None);
+let gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(osc, 0, gain, 0);
 
 // Modulate gain level with LFO
@@ -121,15 +121,15 @@ let graph = builder.build();
 ## Example: Vibrato
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{LfoBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Vibrato LFO (5 Hz, moderate depth)
-let lfo = builder.add_lfo(5.0, 0.3, None);
+let lfo = builder.add(LfoBlock::new(5.0, 0.3, Waveform::Sine, None));
 
 // Oscillator
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Modulate oscillator frequency
 builder.modulate(lfo, osc, "frequency");

@@ -79,15 +79,15 @@ where $\tau$ is the smoothing time constant.
 ## Creating a Gain Block
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::GainBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Level in dB, optional base gain multiplier
-let gain = builder.add_gain(-6.0, None);
+let gain = builder.add(GainBlock::new(-6.0, None));
 
 // With base gain multiplier (applied statically)
-let gain = builder.add_gain(0.0, Some(0.5));  // 0 dB + 50% = -6 dB effective
+let gain = builder.add(GainBlock::new(0.0, Some(0.5)));  // 0 dB + 50% = -6 dB effective
 ```
 
 ## Port Layout
@@ -123,12 +123,12 @@ let gain = builder.add_gain(0.0, Some(0.5));  // 0 dB + 50% = -6 dB effective
 ### Volume Control
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{GainBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let source = builder.add_oscillator(440.0, Waveform::Sine, None);
-let volume = builder.add_gain(-12.0, None);  // -12 dB
+let source = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let volume = builder.add(GainBlock::new(-12.0, None));  // -12 dB
 
 builder.connect(source, 0, volume, 0);
 ```
@@ -145,20 +145,20 @@ let gain = GainBlock::<f32>::unity();
 ### Gain Staging
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{GainBlock, OscillatorBlock, OverdriveBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let source = builder.add_oscillator(440.0, Waveform::Sine, None);
+let source = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Input gain before processing
-let input_gain = builder.add_gain(6.0, None);
+let input_gain = builder.add(GainBlock::new(6.0, None));
 
 // Processing
-let effect = builder.add_overdrive(3.0, 1.0, 0.5);
+let effect = builder.add(OverdriveBlock::new(3.0, 1.0, 0.5, 44100.0));
 
 // Output gain after processing
-let output_gain = builder.add_gain(-6.0, None);
+let output_gain = builder.add(GainBlock::new(-6.0, None));
 
 builder.connect(source, 0, input_gain, 0);
 builder.connect(input_gain, 0, effect, 0);
@@ -168,13 +168,13 @@ builder.connect(effect, 0, output_gain, 0);
 ### Modulated Gain (Tremolo)
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{GainBlock, LfoBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let lfo = builder.add_lfo(4.0, 0.5, None);  // 4 Hz tremolo
-let gain = builder.add_gain(0.0, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let lfo = builder.add(LfoBlock::new(4.0, 0.5, Waveform::Sine, None));  // 4 Hz tremolo
+let gain = builder.add(GainBlock::new(0.0, None));
 
 builder.connect(osc, 0, gain, 0);
 builder.modulate(lfo, gain, "level_db");
@@ -183,12 +183,12 @@ builder.modulate(lfo, gain, "level_db");
 ### Base Gain for Fixed Scaling
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::GainBlock, graph::GraphBuilder};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Base gain of 0.5 applied statically (multiplied with dB gain)
-let gain = builder.add_gain(0.0, Some(0.5));
+let gain = builder.add(GainBlock::new(0.0, Some(0.5)));
 // Effective: 0 dB * 0.5 = -6.02 dB
 ```
 

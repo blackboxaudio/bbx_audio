@@ -34,62 +34,69 @@ let builder = GraphBuilder::<f32>::with_layout(44100.0, 512, ChannelLayout::Ambi
 
 ### Adding Blocks
 
-The builder provides convenience methods for common blocks:
-
-```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
-
-let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-
-// Oscillator: frequency, waveform, seed
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-
-// Overdrive: drive, level, tone, sample_rate
-let overdrive = builder.add_overdrive(3.0, 1.0, 0.8, 44100.0);
-
-// LFO: frequency, depth, seed
-let lfo = builder.add_lfo(5.0, 0.5, None);
-
-// Envelope: attack, decay, sustain, release
-let env = builder.add_envelope(0.01, 0.1, 0.7, 0.3);
-```
-
-For other blocks, use `add_block()` with direct construction:
+Use the generic `add()` method to add any block type:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::{GainBlock, PannerBlock, DcBlockerBlock},
+    blocks::{
+        DcBlockerBlock, EnvelopeBlock, GainBlock, LfoBlock, OscillatorBlock,
+        OverdriveBlock, PannerBlock,
+    },
     graph::GraphBuilder,
+    waveform::Waveform,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let gain = builder.add_gain(-6.0, None);
-let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
-let dc = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
+// Oscillator: frequency, waveform, seed
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+
+// Overdrive: drive, level, tone, sample_rate
+let overdrive = builder.add(OverdriveBlock::new(3.0, 1.0, 0.8, 44100.0));
+
+// LFO: frequency, depth, waveform, seed
+let lfo = builder.add(LfoBlock::new(5.0, 0.5, Waveform::Sine, None));
+
+// Envelope: attack, decay, sustain, release
+let env = builder.add(EnvelopeBlock::new(0.01, 0.1, 0.7, 0.3));
+
+// Gain: level_db, base_gain
+let gain = builder.add(GainBlock::new(-6.0, None));
+
+// Panner: position
+let pan = builder.add(PannerBlock::new(0.0));
+
+// DC blocker: enabled
+let dc = builder.add(DcBlockerBlock::new(true));
 ```
 
 ### Multi-Channel Blocks
 
-The builder provides convenience methods for multi-channel routing:
+Use the generic `add()` method for multi-channel routing blocks:
 
 ```rust
-use bbx_dsp::{channel::ChannelLayout, graph::GraphBuilder};
+use bbx_dsp::{
+    blocks::{
+        AmbisonicDecoderBlock, ChannelMergerBlock, ChannelSplitterBlock,
+        MatrixMixerBlock, PannerBlock,
+    },
+    channel::ChannelLayout,
+    graph::GraphBuilder,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 6);
 
 // Channel routing
-let splitter = builder.add_channel_splitter(6);   // Split to mono outputs
-let merger = builder.add_channel_merger(6);       // Merge mono inputs
-let mixer = builder.add_matrix_mixer(4, 2);       // NxM matrix mixer
+let splitter = builder.add(ChannelSplitterBlock::new(6));   // Split to mono outputs
+let merger = builder.add(ChannelMergerBlock::new(6));       // Merge mono inputs
+let mixer = builder.add(MatrixMixerBlock::new(4, 2));       // NxM matrix mixer
 
 // Surround and ambisonic panning
-let surround = builder.add_panner_surround(ChannelLayout::Surround51);
-let ambisonic = builder.add_panner_ambisonic(1);  // FOA encoder
+let surround = builder.add(PannerBlock::surround(ChannelLayout::Surround51));
+let ambisonic = builder.add(PannerBlock::ambisonic(1));     // FOA encoder
 
 // Ambisonic decoding
-let decoder = builder.add_ambisonic_decoder(1, ChannelLayout::Stereo);
+let decoder = builder.add(AmbisonicDecoderBlock::new(1, ChannelLayout::Stereo));
 ```
 
 ### Connecting Blocks
@@ -161,7 +168,7 @@ graph.finalize();
 A handle to a block in the graph:
 
 ```rust
-let osc: BlockId = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc: BlockId = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 ```
 
 `BlockId` is used for:
@@ -180,8 +187,7 @@ let osc: BlockId = builder.add_oscillator(440.0, Waveform::Sine, None);
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::{DcBlockerBlock, GainBlock, PannerBlock},
+    blocks::{DcBlockerBlock, GainBlock, OscillatorBlock, OverdriveBlock, PannerBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -189,18 +195,18 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Create two oscillators
-let osc1 = builder.add_oscillator(440.0, Waveform::Saw, None);
-let osc2 = builder.add_oscillator(441.0, Waveform::Saw, None);  // Slight detune
+let osc1 = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
+let osc2 = builder.add(OscillatorBlock::new(441.0, Waveform::Saw, None));  // Slight detune
 
 // Mix them
-let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
+let mixer = builder.add(GainBlock::new(-6.0, None));
 builder.connect(osc1, 0, mixer, 0);
 builder.connect(osc2, 0, mixer, 0);
 
 // Add effects
-let overdrive = builder.add_overdrive(3.0, 1.0, 0.8, 44100.0);
-let dc_blocker = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
-let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
+let overdrive = builder.add(OverdriveBlock::new(3.0, 1.0, 0.8, 44100.0));
+let dc_blocker = builder.add(DcBlockerBlock::new(true));
+let pan = builder.add(PannerBlock::new(0.0));
 
 // Chain effects
 builder.connect(mixer, 0, overdrive, 0);

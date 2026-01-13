@@ -33,8 +33,7 @@ bbx_dsp = "0.1"
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::GainBlock,
+    blocks::{GainBlock, OscillatorBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -43,8 +42,8 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Add blocks
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let gain = builder.add(GainBlock::new(-6.0, None));
 
 // Connect: oscillator -> gain
 builder.connect(osc, 0, gain, 0);

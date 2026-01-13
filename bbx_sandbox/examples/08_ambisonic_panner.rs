@@ -7,6 +7,7 @@
 //! quite repeats. Best experienced with headphones.
 
 use bbx_dsp::{
+    blocks::{BinauralDecoderBlock, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock, PannerBlock},
     channel::ChannelLayout,
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
@@ -22,19 +23,19 @@ fn create_graph() -> Graph<f32> {
 
     let mut builder = GraphBuilder::with_layout(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, ChannelLayout::Stereo);
 
-    let mixer_id = builder.add_mixer(NUM_SOURCES, num_ambi_channels);
-    let decoder = builder.add_binaural_decoder(AMBISONIC_ORDER);
+    let mixer_id = builder.add(MixerBlock::new(NUM_SOURCES, num_ambi_channels));
+    let decoder = builder.add(BinauralDecoderBlock::new(AMBISONIC_ORDER));
 
     for ch in 0..num_ambi_channels {
         builder.connect(mixer_id, ch, decoder, ch);
     }
 
     // Layer 1: Root (D2, 73.4 Hz) - dark foundation, slow drift
-    let osc1 = builder.add_oscillator(73.4, Waveform::Sine, None);
-    let gain1 = builder.add_gain(-6.0, None);
-    let enc1 = builder.add_panner_ambisonic(AMBISONIC_ORDER);
-    let lfo1_az = builder.add_lfo(0.013, 50.0, None);
-    let lfo1_el = builder.add_lfo(0.011, 12.0, None);
+    let osc1 = builder.add(OscillatorBlock::new(73.4, Waveform::Sine, None));
+    let gain1 = builder.add(GainBlock::new(-6.0, None));
+    let enc1 = builder.add(PannerBlock::new_ambisonic(AMBISONIC_ORDER));
+    let lfo1_az = builder.add(LfoBlock::new(0.013, 50.0, Waveform::Sine, None));
+    let lfo1_el = builder.add(LfoBlock::new(0.011, 12.0, Waveform::Sine, None));
 
     builder.connect(osc1, 0, gain1, 0);
     builder.connect(gain1, 0, enc1, 0);
@@ -46,11 +47,11 @@ fn create_graph() -> Graph<f32> {
     }
 
     // Layer 2: P5 (A2, 110.0 Hz) - anchor, gentle orbit
-    let osc2 = builder.add_oscillator(110.0, Waveform::Sine, None);
-    let gain2 = builder.add_gain(-8.0, None);
-    let enc2 = builder.add_panner_ambisonic(AMBISONIC_ORDER);
-    let lfo2_az = builder.add_lfo(0.019, 80.0, None);
-    let lfo2_el = builder.add_lfo(0.017, 25.0, None);
+    let osc2 = builder.add(OscillatorBlock::new(110.0, Waveform::Sine, None));
+    let gain2 = builder.add(GainBlock::new(-8.0, None));
+    let enc2 = builder.add(PannerBlock::new_ambisonic(AMBISONIC_ORDER));
+    let lfo2_az = builder.add(LfoBlock::new(0.019, 80.0, Waveform::Sine, None));
+    let lfo2_el = builder.add(LfoBlock::new(0.017, 25.0, Waveform::Sine, None));
 
     builder.connect(osc2, 0, gain2, 0);
     builder.connect(gain2, 0, enc2, 0);
@@ -62,11 +63,11 @@ fn create_graph() -> Graph<f32> {
     }
 
     // Layer 3: m7 (C4, 261.6 Hz +2 cents) - minor color, moderate motion
-    let osc3 = builder.add_oscillator(261.9, Waveform::Triangle, None);
-    let gain3 = builder.add_gain(-11.0, None);
-    let enc3 = builder.add_panner_ambisonic(AMBISONIC_ORDER);
-    let lfo3_az = builder.add_lfo(0.029, 120.0, None);
-    let lfo3_el = builder.add_lfo(0.023, 40.0, None);
+    let osc3 = builder.add(OscillatorBlock::new(261.9, Waveform::Triangle, None));
+    let gain3 = builder.add(GainBlock::new(-11.0, None));
+    let enc3 = builder.add(PannerBlock::new_ambisonic(AMBISONIC_ORDER));
+    let lfo3_az = builder.add(LfoBlock::new(0.029, 120.0, Waveform::Sine, None));
+    let lfo3_el = builder.add(LfoBlock::new(0.023, 40.0, Waveform::Sine, None));
 
     builder.connect(osc3, 0, gain3, 0);
     builder.connect(gain3, 0, enc3, 0);
@@ -78,13 +79,13 @@ fn create_graph() -> Graph<f32> {
     }
 
     // Layer 4: 9th (E4, 329.6 Hz) - tension/warmth, fastest orbit with filter
-    let osc4 = builder.add_oscillator(329.6, Waveform::Sawtooth, None);
-    let lpf = builder.add_low_pass_filter(800.0, 1.8);
-    let filter_lfo = builder.add_lfo(0.021, 350.0, None);
-    let gain4 = builder.add_gain(-14.0, None);
-    let enc4 = builder.add_panner_ambisonic(AMBISONIC_ORDER);
-    let lfo4_az = builder.add_lfo(0.043, 160.0, None);
-    let lfo4_el = builder.add_lfo(0.037, 60.0, None);
+    let osc4 = builder.add(OscillatorBlock::new(329.6, Waveform::Sawtooth, None));
+    let lpf = builder.add(LowPassFilterBlock::new(800.0, 1.8));
+    let filter_lfo = builder.add(LfoBlock::new(0.021, 350.0, Waveform::Sine, None));
+    let gain4 = builder.add(GainBlock::new(-14.0, None));
+    let enc4 = builder.add(PannerBlock::new_ambisonic(AMBISONIC_ORDER));
+    let lfo4_az = builder.add(LfoBlock::new(0.043, 160.0, Waveform::Sine, None));
+    let lfo4_el = builder.add(LfoBlock::new(0.037, 60.0, Waveform::Sine, None));
 
     builder.connect(osc4, 0, lpf, 0);
     builder.modulate(filter_lfo, lpf, "cutoff");

@@ -38,17 +38,16 @@ pub struct OverdriveBlock<S: Sample> {
 
 impl<S: Sample> OverdriveBlock<S> {
     /// Create an `OverdriveBlock` with a given drive multiplier, level, tone (brightness), and sample rate.
-    pub fn new(drive: S, level: S, tone: f64, sample_rate: f64) -> Self {
-        let drive_val = drive.to_f64();
-        let level_val = level.to_f64().clamp(0.0, 1.0);
+    pub fn new(drive: f64, level: f64, tone: f64, sample_rate: f64) -> Self {
+        let level_val = level.clamp(0.0, 1.0);
 
         let mut overdrive = Self {
-            drive: Parameter::Constant(drive),
-            level: Parameter::Constant(level),
+            drive: Parameter::Constant(S::from_f64(drive)),
+            level: Parameter::Constant(S::from_f64(level)),
             tone,
             filter_state: [0.0; MAX_BLOCK_OUTPUTS],
             filter_coefficient: 0.0,
-            drive_smoother: LinearSmoothedValue::new(S::from_f64(drive_val)),
+            drive_smoother: LinearSmoothedValue::new(S::from_f64(drive)),
             level_smoother: LinearSmoothedValue::new(S::from_f64(level_val)),
         };
         overdrive.update_filter(sample_rate);

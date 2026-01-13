@@ -35,7 +35,11 @@ fn main() {
 Let's add a sine wave oscillator:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    blocks::OscillatorBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 fn main() {
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
@@ -43,24 +47,28 @@ fn main() {
     // Add a 440 Hz sine wave oscillator
     // The third parameter is an optional seed for the random number generator
     // (used by the Noise waveform for deterministic output)
-    let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
     let graph = builder.build();
 }
 ```
 
-The `add_oscillator` method returns a `BlockId` that you can use to connect blocks.
+The `add` method returns a `BlockId` that you can use to connect blocks.
 
 ## Processing Audio
 
 Once you have a graph, you can process audio:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    blocks::OscillatorBlock,
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 fn main() {
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-    let _osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+    let _osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
     let mut graph = builder.build();
 
     // Create output buffers
@@ -82,8 +90,7 @@ Blocks are connected using the `connect` method:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::GainBlock,
+    blocks::{GainBlock, OscillatorBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -92,8 +99,8 @@ fn main() {
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
     // Add blocks
-    let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));  // -6 dB
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+    let gain = builder.add(GainBlock::new(-6.0, None));  // -6 dB
 
     // Connect oscillator output 0 to gain input 0
     builder.connect(osc, 0, gain, 0);
@@ -107,9 +114,9 @@ fn main() {
 Each block added to the graph gets a unique `BlockId`:
 
 ```rust
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);                         // Block 0
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));             // Block 1
-let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));                 // Block 2
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));  // Block 0
+let gain = builder.add(GainBlock::new(-6.0, None));                        // Block 1
+let pan = builder.add(PannerBlock::new(0.0));                              // Block 2
 ```
 
 Use these IDs when connecting blocks:
@@ -122,8 +129,7 @@ builder.connect(from_block, from_port, to_block, to_port);
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::{GainBlock, PannerBlock},
+    blocks::{GainBlock, OscillatorBlock, PannerBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -133,9 +139,9 @@ fn main() {
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
     // Build a simple synth chain
-    let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
-    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-12.0, None)));
-    let pan = builder.add_block(BlockType::Panner(PannerBlock::new(25.0)));  // Slightly right
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
+    let gain = builder.add(GainBlock::new(-12.0, None));
+    let pan = builder.add(PannerBlock::new(25.0));  // Slightly right
 
     // Connect: Osc -> Gain -> Panner
     builder.connect(osc, 0, gain, 0);

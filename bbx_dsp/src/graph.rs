@@ -13,34 +13,12 @@ use bbx_core::StackVec;
 
 use crate::{
     block::{BlockCategory, BlockId, BlockType},
-    blocks::{
-        effectors::{
-            ambisonic_decoder::AmbisonicDecoderBlock,
-            binaural_decoder::{BinauralDecoderBlock, BinauralStrategy},
-            channel_merger::ChannelMergerBlock,
-            channel_router::{ChannelMode, ChannelRouterBlock},
-            channel_splitter::ChannelSplitterBlock,
-            dc_blocker::DcBlockerBlock,
-            gain::GainBlock,
-            low_pass_filter::LowPassFilterBlock,
-            matrix_mixer::MatrixMixerBlock,
-            mixer::MixerBlock,
-            overdrive::OverdriveBlock,
-            panner::PannerBlock,
-            vca::VcaBlock,
-        },
-        generators::oscillator::OscillatorBlock,
-        io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
-        modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
-    },
+    blocks::{effectors::mixer::MixerBlock, io::output::OutputBlock},
     buffer::{AudioBuffer, Buffer},
     channel::ChannelLayout,
     context::DspContext,
     parameter::Parameter,
-    reader::Reader,
     sample::Sample,
-    waveform::Waveform,
-    writer::Writer,
 };
 
 /// Maximum number of inputs a block can have (realtime-safe stack allocation).
@@ -461,311 +439,23 @@ impl<S: Sample> GraphBuilder<S> {
         builder
     }
 
-    /// Add a pre-configured block to the graph.
+    /// Add a block to the graph.
     ///
-    /// Use this when you need to configure a block before adding it,
-    /// such as setting matrix mixer gains or other complex initialization.
-    pub fn add_block(&mut self, block: BlockType<S>) -> BlockId {
-        self.graph.add_block(block)
-    }
-
-    // I/O
-
-    /// Add a `FileInputBlock` to the `Graph`, which is useful for processing
-    /// an audio file with the rest of the DSP `Graph`.
-    pub fn add_file_input(&mut self, reader: Box<dyn Reader<S>>) -> BlockId {
-        let block = BlockType::FileInput(FileInputBlock::new(reader));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `FileOutputBlock` to the `Graph`, which is useful for rendering
-    /// an audio file of the DSP `Graph`.
-    pub fn add_file_output(&mut self, writer: Box<dyn Writer<S>>) -> BlockId {
-        let block = BlockType::FileOutput(FileOutputBlock::new(writer));
-        self.graph.add_block(block)
-    }
-
-    // GENERATORS
-
-    /// Add an `OscillatorBlock` to the `Graph`.
-    pub fn add_oscillator(&mut self, frequency: f64, waveform: Waveform, seed: Option<u64>) -> BlockId {
-        let block = BlockType::Oscillator(OscillatorBlock::new(S::from_f64(frequency), waveform, seed));
-        self.graph.add_block(block)
-    }
-
-    // EFFECTORS
-
-    /// Add an `OverdriveBlock` to the `Graph`.
-    pub fn add_overdrive(&mut self, drive: f64, level: f64, tone: f64, sample_rate: f64) -> BlockId {
-        let block = BlockType::Overdrive(OverdriveBlock::new(
-            S::from_f64(drive),
-            S::from_f64(level),
-            tone,
-            sample_rate,
-        ));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `VcaBlock` to the `Graph`.
+    /// Accepts any block type that implements `Into<BlockType<S>>`.
     ///
-    /// The VCA multiplies audio (input 0) by a control signal (input 1).
-    /// Typically used with an envelope for amplitude modulation.
-    pub fn add_vca(&mut self) -> BlockId {
-        let block = BlockType::Vca(VcaBlock::new());
-        self.graph.add_block(block)
-    }
-
-    /// Add a `GainBlock` to the `Graph`.
+    /// # Example
     ///
-    /// Level is specified in decibels (dB), clamped to -80 to +30 dB.
-    /// An optional base gain multiplier (linear) can be applied in addition to the dB level.
-    pub fn add_gain(&mut self, level_db: f64, base_gain: Option<f64>) -> BlockId {
-        let block = BlockType::Gain(GainBlock::new(
-            S::from_f64(level_db),
-            Some(S::from_f64(base_gain.unwrap_or(<f64 as Sample>::ONE))),
-        ));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `LowPassFilterBlock` to the `Graph`.
+    /// ```ignore
+    /// use bbx_dsp::prelude::*;
     ///
-    /// Uses SVF (State Variable Filter) topology for stable filtering.
-    ///
-    /// # Arguments
-    ///
-    /// * `cutoff` - Cutoff frequency in Hz (clamped to 20-20000 Hz)
-    /// * `resonance` - Q factor (clamped to 0.5-10.0, default 0.707 is Butterworth)
-    pub fn add_low_pass_filter(&mut self, cutoff: f64, resonance: f64) -> BlockId {
-        let block = BlockType::LowPassFilter(LowPassFilterBlock::new(S::from_f64(cutoff), S::from_f64(resonance)));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `MatrixMixerBlock` to the `Graph`.
-    ///
-    /// Creates an NxM mixing matrix for flexible channel routing.
-    /// Use `set_gain()` on the block to configure routing weights.
-    ///
-    /// # Arguments
-    ///
-    /// * `inputs` - Number of input channels (1-16)
-    /// * `outputs` - Number of output channels (1-16)
-    pub fn add_matrix_mixer(&mut self, inputs: usize, outputs: usize) -> BlockId {
-        let block = BlockType::MatrixMixer(MatrixMixerBlock::new(inputs, outputs));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `MixerBlock` to the `Graph`.
-    ///
-    /// Creates a channel-wise mixer that sums multiple sources.
-    /// Each source provides `num_channels` outputs, and inputs are grouped by source.
-    ///
-    /// # Arguments
-    ///
-    /// * `num_sources` - Number of sources to mix
-    /// * `num_channels` - Number of channels per source (e.g., 2 for stereo)
-    pub fn add_mixer(&mut self, num_sources: usize, num_channels: usize) -> BlockId {
-        let block = BlockType::Mixer(MixerBlock::new(num_sources, num_channels));
-        self.graph.add_block(block)
-    }
-
-    /// Add a stereo `MixerBlock` to the `Graph`.
-    ///
-    /// Convenience method for mixing multiple stereo sources.
-    ///
-    /// # Arguments
-    ///
-    /// * `num_sources` - Number of stereo sources to mix
-    pub fn add_stereo_mixer(&mut self, num_sources: usize) -> BlockId {
-        let block = BlockType::Mixer(MixerBlock::stereo(num_sources));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `ChannelSplitterBlock` to the `Graph`.
-    ///
-    /// Splits multi-channel input into individual mono outputs.
-    ///
-    /// # Arguments
-    ///
-    /// * `channels` - Number of channels to split (1-16)
-    pub fn add_channel_splitter(&mut self, channels: usize) -> BlockId {
-        let block = BlockType::ChannelSplitter(ChannelSplitterBlock::new(channels));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `ChannelMergerBlock` to the `Graph`.
-    ///
-    /// Merges individual mono inputs into a multi-channel output.
-    ///
-    /// # Arguments
-    ///
-    /// * `channels` - Number of channels to merge (1-16)
-    pub fn add_channel_merger(&mut self, channels: usize) -> BlockId {
-        let block = BlockType::ChannelMerger(ChannelMergerBlock::new(channels));
-        self.graph.add_block(block)
-    }
-
-    /// Add a stereo `PannerBlock` to the `Graph`.
-    ///
-    /// Uses constant-power pan law for smooth stereo positioning.
-    ///
-    /// # Arguments
-    ///
-    /// * `position` - Pan position from -100 (left) to +100 (right), 0 = center
-    pub fn add_panner_stereo(&mut self, position: f64) -> BlockId {
-        let block = BlockType::Panner(PannerBlock::new(S::from_f64(position)));
-        self.graph.add_block(block)
-    }
-
-    /// Add a surround `PannerBlock` to the `Graph`.
-    ///
-    /// Uses VBAP (Vector Base Amplitude Panning) for surround layouts.
-    /// Control azimuth and elevation parameters for positioning.
-    ///
-    /// # Arguments
-    ///
-    /// * `layout` - Target speaker layout (Surround51 or Surround71)
-    pub fn add_panner_surround(&mut self, layout: ChannelLayout) -> BlockId {
-        let block = BlockType::Panner(PannerBlock::new_surround(layout));
-        self.graph.add_block(block)
-    }
-
-    /// Add an ambisonic encoder `PannerBlock` to the `Graph`.
-    ///
-    /// Encodes mono input to SN3D normalized, ACN ordered B-format.
-    /// Control azimuth and elevation parameters for source positioning.
-    ///
-    /// # Arguments
-    ///
-    /// * `order` - Ambisonic order (1 = FOA/4ch, 2 = SOA/9ch, 3 = TOA/16ch)
-    pub fn add_panner_ambisonic(&mut self, order: usize) -> BlockId {
-        let block = BlockType::Panner(PannerBlock::new_ambisonic(order));
-        self.graph.add_block(block)
-    }
-
-    /// Add an `AmbisonicDecoderBlock` to the `Graph`.
-    ///
-    /// Decodes ambisonics B-format to a speaker layout using mode-matching.
-    ///
-    /// # Arguments
-    ///
-    /// * `order` - Ambisonic order (1, 2, or 3)
-    /// * `output_layout` - Target speaker layout for decoding
-    pub fn add_ambisonic_decoder(&mut self, order: usize, output_layout: ChannelLayout) -> BlockId {
-        let block = BlockType::AmbisonicDecoder(AmbisonicDecoderBlock::new(order, output_layout));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `BinauralDecoderBlock` to the `Graph` with HRTF convolution (default).
-    ///
-    /// Decodes ambisonics B-format to stereo for headphone listening using
-    /// HRTF (Head-Related Transfer Function) convolution for accurate spatial rendering.
-    ///
-    /// # Arguments
-    ///
-    /// * `order` - Ambisonic order (1, 2, or 3)
-    pub fn add_binaural_decoder(&mut self, order: usize) -> BlockId {
-        let block = BlockType::BinauralDecoder(BinauralDecoderBlock::new(order));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `BinauralDecoderBlock` to the `Graph` with matrix decoding (lightweight).
-    ///
-    /// Decodes ambisonics B-format to stereo for headphone listening using
-    /// psychoacoustically-informed matrix coefficients. Lower CPU usage than HRTF
-    /// but with reduced spatial accuracy.
-    ///
-    /// # Arguments
-    ///
-    /// * `order` - Ambisonic order (1, 2, or 3)
-    pub fn add_binaural_decoder_matrix(&mut self, order: usize) -> BlockId {
-        let block = BlockType::BinauralDecoder(BinauralDecoderBlock::with_strategy(order, BinauralStrategy::Matrix));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `BinauralDecoderBlock` for surround sound to the `Graph`.
-    ///
-    /// Decodes surround sound (5.1 or 7.1) to stereo for headphone listening
-    /// using HRTF convolution.
-    ///
-    /// # Arguments
-    ///
-    /// * `channel_count` - Number of input channels (6 for 5.1, 8 for 7.1)
-    pub fn add_binaural_decoder_surround(&mut self, channel_count: usize) -> BlockId {
-        let block = BlockType::BinauralDecoder(BinauralDecoderBlock::new_surround(
-            channel_count,
-            BinauralStrategy::Hrtf,
-        ));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `DcBlockerBlock` to the `Graph`.
-    ///
-    /// Removes DC offset from audio signals using a first-order high-pass filter
-    /// with approximately 5Hz cutoff. Useful after distortion effects.
-    ///
-    /// # Arguments
-    ///
-    /// * `enabled` - Whether the DC blocker is active
-    pub fn add_dc_blocker(&mut self, enabled: bool) -> BlockId {
-        let block = BlockType::DcBlocker(DcBlockerBlock::new(enabled));
-        self.graph.add_block(block)
-    }
-
-    /// Add a `ChannelRouterBlock` to the `Graph`.
-    ///
-    /// Routes and manipulates stereo signals with channel selection, mono summing,
-    /// and phase inversion.
-    ///
-    /// # Arguments
-    ///
-    /// * `mode` - Channel routing mode (Stereo, Left, Right, Swap)
-    /// * `mono` - Sum to mono (L+R)/2 on both channels
-    /// * `invert_left` - Invert left channel phase
-    /// * `invert_right` - Invert right channel phase
-    pub fn add_channel_router(
-        &mut self,
-        mode: ChannelMode,
-        mono: bool,
-        invert_left: bool,
-        invert_right: bool,
-    ) -> BlockId {
-        let block = BlockType::ChannelRouter(ChannelRouterBlock::new(mode, mono, invert_left, invert_right));
-        self.graph.add_block(block)
-    }
-
-    // MODULATORS
-
-    /// Add an `EnvelopeBlock` to the `Graph`, which is useful for ADSR-style
-    /// amplitude or parameter modulation.
-    pub fn add_envelope(&mut self, attack: f64, decay: f64, sustain: f64, release: f64) -> BlockId {
-        let block = BlockType::Envelope(EnvelopeBlock::new(
-            S::from_f64(attack),
-            S::from_f64(decay),
-            S::from_f64(sustain.clamp(0.0, 1.0)),
-            S::from_f64(release),
-        ));
-        self.graph.add_block(block)
-    }
-
-    /// Add an `LfoBlock` to the `Graph`, which is useful when wanting to
-    /// modulate one or more `Parameter`s of one or more blocks.
-    ///
-    /// # Control-Rate Limitation
-    ///
-    /// LFO frequency is clamped to `sample_rate / (2 * buffer_size)` because modulation
-    /// operates at control rate (per-buffer), not audio rate. At 44.1kHz with 512 samples,
-    /// max frequency is ~43Hz. See [`Graph::collect_modulation_values`] for details.
-    pub fn add_lfo(&mut self, frequency: f64, depth: f64, seed: Option<u64>) -> BlockId {
-        let max_frequency = 0.5 * (self.graph.context.sample_rate / self.graph.context.buffer_size as f64);
-        let clamped_frequency = frequency.clamp(0.01, max_frequency);
-
-        let block = BlockType::Lfo(LfoBlock::new(
-            S::from_f64(clamped_frequency),
-            S::from_f64(depth),
-            Waveform::Sine,
-            seed,
-        ));
-        self.graph.add_block(block)
+    /// let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+    /// let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+    /// let gain = builder.add(GainBlock::new(-6.0, None));
+    /// builder.connect(osc, 0, gain, 0);
+    /// let graph = builder.build();
+    /// ```
+    pub fn add<B: Into<BlockType<S>>>(&mut self, block: B) -> BlockId {
+        self.graph.add_block(block.into())
     }
 
     /// Form a `Connection` between two particular blocks.

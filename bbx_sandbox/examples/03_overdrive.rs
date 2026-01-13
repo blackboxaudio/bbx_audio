@@ -4,6 +4,7 @@
 //! Modulation: LFO(0.5Hz) modulates overdrive drive parameter
 
 use bbx_dsp::{
+    blocks::{DcBlockerBlock, GainBlock, LfoBlock, OscillatorBlock, OverdriveBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
@@ -13,11 +14,11 @@ use bbx_sandbox::player::Player;
 fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
-    let oscillator = builder.add_oscillator(220.0, Waveform::Sawtooth, None);
-    let overdrive = builder.add_overdrive(5.0, 0.8, 0.5, DEFAULT_SAMPLE_RATE);
-    let dc_blocker = builder.add_dc_blocker(true);
-    let gain = builder.add_gain(-6.0, None);
-    let lfo = builder.add_lfo(0.5, 3.0, None);
+    let oscillator = builder.add(OscillatorBlock::new(220.0, Waveform::Sawtooth, None));
+    let overdrive = builder.add(OverdriveBlock::new(5.0, 0.8, 0.5, DEFAULT_SAMPLE_RATE));
+    let dc_blocker = builder.add(DcBlockerBlock::new(true));
+    let gain = builder.add(GainBlock::new(-6.0, None));
+    let lfo = builder.add(LfoBlock::new(0.5, 3.0, Waveform::Sine, None));
 
     builder.connect(oscillator, 0, overdrive, 0);
     builder.connect(overdrive, 0, dc_blocker, 0);

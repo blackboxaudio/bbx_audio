@@ -9,15 +9,42 @@
 //! use bbx_dsp::prelude::*;
 //!
 //! let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-//! let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+//! let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+//! let gain = builder.add(GainBlock::new(-6.0, None));
+//! builder.connect(osc, 0, gain, 0);
 //! let graph = builder.build();
 //! ```
 
 // Core types
-// Buffers
-// Configuration
-// Parameters
-// Smoothing (for custom block implementations)
+// Block types for ergonomic graph building
+pub use crate::blocks::{
+    // Effectors
+    AmbisonicDecoderBlock,
+    BinauralDecoderBlock,
+    BinauralStrategy,
+    ChannelMergerBlock,
+    ChannelMode,
+    ChannelRouterBlock,
+    ChannelSplitterBlock,
+    DcBlockerBlock,
+    // Modulators
+    EnvelopeBlock,
+    // I/O
+    FileInputBlock,
+    FileOutputBlock,
+    GainBlock,
+    LfoBlock,
+    LowPassFilterBlock,
+    MatrixMixerBlock,
+    MixerBlock,
+    // Generators
+    OscillatorBlock,
+    OutputBlock,
+    OverdriveBlock,
+    PannerBlock,
+    PannerMode,
+    VcaBlock,
+};
 pub use crate::{
     block::{Block, BlockId, BlockType},
     buffer::AudioBuffer,
