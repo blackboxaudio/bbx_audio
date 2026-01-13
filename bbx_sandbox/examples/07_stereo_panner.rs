@@ -45,26 +45,26 @@ fn create_graph() -> Graph<f32> {
     builder.modulate(lfo3, pan3, "position");
 
     // Layer 4: Upper-mid (220 Hz, A3) with filtering - texture
-    // let osc4 = builder.add_oscillator(220.0, Waveform::Sawtooth, None);
-    // let lpf = builder.add_low_pass_filter(800.0, 1.5);
-    // let gain4 = builder.add_gain(-12.0, None);
-    // let pan4 = builder.add_panner_stereo(0.0);
-    // let lfo4 = builder.add_lfo(0.12, 90.0, None);
-    //
-    // builder.connect(osc4, 0, lpf, 0);
-    // builder.connect(lpf, 0, gain4, 0);
-    // builder.connect(gain4, 0, pan4, 0);
-    // builder.modulate(lfo4, pan4, "position");
+    let osc4 = builder.add_oscillator(220.0, Waveform::Sawtooth, None);
+    let lpf = builder.add_low_pass_filter(800.0, 1.5);
+    let gain4 = builder.add_gain(-12.0, None);
+    let pan4 = builder.add_panner_stereo(0.0);
+    let lfo4 = builder.add_lfo(0.12, 90.0, None);
+
+    builder.connect(osc4, 0, lpf, 0);
+    builder.connect(lpf, 0, gain4, 0);
+    builder.connect(gain4, 0, pan4, 0);
+    builder.modulate(lfo4, pan4, "position");
 
     // Layer 5: High (330 Hz, E4 - octave + fifth) - ethereal
-    // let osc5 = builder.add_oscillator(330.0, Waveform::Sine, None);
-    // let gain5 = builder.add_gain(-15.0, None);
-    // let pan5 = builder.add_panner_stereo(0.0);
-    // let lfo5 = builder.add_lfo(0.07, 100.0, None);
-    //
-    // builder.connect(osc5, 0, gain5, 0);
-    // builder.connect(gain5, 0, pan5, 0);
-    // builder.modulate(lfo5, pan5, "position");
+    let osc5 = builder.add_oscillator(330.0, Waveform::Sine, None);
+    let gain5 = builder.add_gain(-15.0, None);
+    let pan5 = builder.add_panner_stereo(0.0);
+    let lfo5 = builder.add_lfo(0.07, 100.0, None);
+
+    builder.connect(osc5, 0, gain5, 0);
+    builder.connect(gain5, 0, pan5, 0);
+    builder.modulate(lfo5, pan5, "position");
 
     builder.build()
 }

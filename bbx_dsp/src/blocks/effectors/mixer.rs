@@ -7,15 +7,13 @@ use crate::{
     sample::Sample,
 };
 
-/// Normalization mode for summed signals.
+/// Normalization strategy for summed signals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum MixNormalization {
-    /// No normalization - direct sum (can exceed 1.0).
-    #[default]
-    None,
+pub enum NormalizationStrategy {
     /// Divide by number of sources (average).
     Average,
     /// Divide by sqrt(N) for constant power summing.
+    #[default]
     ConstantPower,
 }
 
@@ -37,7 +35,7 @@ pub enum MixNormalization {
 pub struct MixerBlock<S: Sample> {
     num_sources: usize,
     num_channels: usize,
-    normalization: MixNormalization,
+    normalization: NormalizationStrategy,
     _phantom: PhantomData<S>,
 }
 
@@ -62,7 +60,7 @@ impl<S: Sample> MixerBlock<S> {
         Self {
             num_sources,
             num_channels,
-            normalization: MixNormalization::None,
+            normalization: NormalizationStrategy::ConstantPower,
             _phantom: PhantomData,
         }
     }
@@ -72,8 +70,8 @@ impl<S: Sample> MixerBlock<S> {
         Self::new(num_sources, 2)
     }
 
-    /// Set the normalization mode.
-    pub fn with_normalization(mut self, normalization: MixNormalization) -> Self {
+    /// Set the normalization strategy.
+    pub fn with_normalization(mut self, normalization: NormalizationStrategy) -> Self {
         self.normalization = normalization;
         self
     }
@@ -98,9 +96,8 @@ impl<S: Sample> Block<S> for MixerBlock<S> {
 
         let num_samples = outputs[0].len();
         let normalization_factor = match self.normalization {
-            MixNormalization::None => S::ONE,
-            MixNormalization::Average => S::from_f64(1.0 / self.num_sources as f64),
-            MixNormalization::ConstantPower => S::from_f64(1.0 / (self.num_sources as f64).sqrt()),
+            NormalizationStrategy::Average => S::from_f64(1.0 / self.num_sources as f64),
+            NormalizationStrategy::ConstantPower => S::from_f64(1.0 / (self.num_sources as f64).sqrt()),
         };
 
         for (ch, output) in outputs.iter_mut().enumerate().take(num_channels) {
@@ -118,10 +115,8 @@ impl<S: Sample> Block<S> for MixerBlock<S> {
                 }
             }
 
-            if self.normalization != MixNormalization::None {
-                for sample in output.iter_mut().take(num_samples) {
-                    *sample *= normalization_factor;
-                }
+            for sample in output.iter_mut().take(num_samples) {
+                *sample *= normalization_factor;
             }
         }
     }
@@ -181,18 +176,19 @@ mod tests {
 
         mixer.process(&inputs, &mut outputs, &[], &context);
 
-        // Expected: L = 1+3 = 4, R = 2+4 = 6
+        // Default is ConstantPower: L = (1+3)/sqrt(2), R = (2+4)/sqrt(2)
+        let sqrt2 = 2.0_f32.sqrt();
         for &sample in &out_l {
-            assert!((sample - 4.0).abs() < 1e-6);
+            assert!((sample - 4.0 / sqrt2).abs() < 1e-6);
         }
         for &sample in &out_r {
-            assert!((sample - 6.0).abs() < 1e-6);
+            assert!((sample - 6.0 / sqrt2).abs() < 1e-6);
         }
     }
 
     #[test]
     fn test_mixer_average_normalization() {
-        let mut mixer = MixerBlock::<f32>::stereo(2).with_normalization(MixNormalization::Average);
+        let mut mixer = MixerBlock::<f32>::stereo(2).with_normalization(NormalizationStrategy::Average);
         let context = test_context();
 
         let src0_l = [2.0f32; 4];
@@ -218,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_mixer_constant_power_normalization() {
-        let mut mixer = MixerBlock::<f32>::stereo(4).with_normalization(MixNormalization::ConstantPower);
+        let mut mixer = MixerBlock::<f32>::stereo(4).with_normalization(NormalizationStrategy::ConstantPower);
         let context = test_context();
 
         // 4 sources, all with value 1.0
@@ -251,9 +247,10 @@ mod tests {
 
         mixer.process(&inputs, &mut outputs, &[], &context);
 
-        // Expected: 1+2+3 = 6
+        // Default is ConstantPower: (1+2+3) / sqrt(3)
+        let expected = 6.0 / 3.0_f32.sqrt();
         for &sample in &output {
-            assert!((sample - 6.0).abs() < 1e-6);
+            assert!((sample - expected).abs() < 1e-6);
         }
     }
 
@@ -282,11 +279,13 @@ mod tests {
 
         mixer.process(&inputs, &mut outputs, &[], &context);
 
+        // Default is ConstantPower: (0.5+0.5)/sqrt(2) and (0.25+0.25)/sqrt(2)
+        let sqrt2 = 2.0_f64.sqrt();
         for &sample in &out_l {
-            assert!((sample - 1.0).abs() < 1e-12);
+            assert!((sample - 1.0 / sqrt2).abs() < 1e-12);
         }
         for &sample in &out_r {
-            assert!((sample - 0.5).abs() < 1e-12);
+            assert!((sample - 0.5 / sqrt2).abs() < 1e-12);
         }
     }
 
