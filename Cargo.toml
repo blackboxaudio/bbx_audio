@@ -6,6 +6,7 @@ members = [
     "bbx_dsp",
     "bbx_file",
     "bbx_midi",
+    "bbx_net",
     "bbx_plugin",
     "bbx_sandbox",
 ]

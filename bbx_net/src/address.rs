@@ -1,0 +1,237 @@
+//! Node identification and address parsing for network messages.
+//!
+//! Provides `NodeId` for unique node identification and `AddressPath` for
+//! parsing OSC-style address patterns.
+
+use bbx_core::random::XorShiftRng;
+
+use crate::error::{NetError, Result};
+
+/// A 128-bit node identifier generated from XorShiftRng.
+///
+/// NodeIds uniquely identify clients and nodes in the network. They are
+/// formatted as UUID-style strings for human readability and protocol
+/// compatibility.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct NodeId {
+    pub high: u64,
+    pub low: u64,
+}
+
+impl NodeId {
+    /// Generate a new random NodeId using XorShiftRng.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bbx_core::random::XorShiftRng;
+    /// use bbx_net::address::NodeId;
+    ///
+    /// let mut rng = XorShiftRng::new(12345);
+    /// let node_id = NodeId::generate(&mut rng);
+    /// ```
+    pub fn generate(rng: &mut XorShiftRng) -> Self {
+        let sample1 = (rng.next_noise_sample() + 1.0) / 2.0;
+        let sample2 = (rng.next_noise_sample() + 1.0) / 2.0;
+        Self {
+            high: (sample1 * u64::MAX as f64) as u64,
+            low: (sample2 * u64::MAX as f64) as u64,
+        }
+    }
+
+    /// Create a NodeId from explicit high and low parts.
+    pub const fn from_parts(high: u64, low: u64) -> Self {
+        Self { high, low }
+    }
+
+    /// Format as hyphenated UUID string.
+    ///
+    /// Returns a string in the format `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
+    pub fn to_uuid_string(&self) -> String {
+        format!(
+            "{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
+            (self.high >> 32) as u32,
+            ((self.high >> 16) & 0xFFFF) as u16,
+            (self.high & 0xFFFF) as u16,
+            ((self.low >> 48) & 0xFFFF) as u16,
+            (self.low & 0xFFFF_FFFF_FFFF)
+        )
+    }
+
+    /// Parse from UUID string.
+    ///
+    /// Accepts the format `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
+    pub fn from_uuid_string(s: &str) -> Result<Self> {
+        let s = s.trim();
+        let parts: Vec<&str> = s.split('-').collect();
+
+        if parts.len() != 5 {
+            return Err(NetError::InvalidNodeId);
+        }
+
+        let p0 = u32::from_str_radix(parts[0], 16).map_err(|_| NetError::InvalidNodeId)?;
+        let p1 = u16::from_str_radix(parts[1], 16).map_err(|_| NetError::InvalidNodeId)?;
+        let p2 = u16::from_str_radix(parts[2], 16).map_err(|_| NetError::InvalidNodeId)?;
+        let p3 = u16::from_str_radix(parts[3], 16).map_err(|_| NetError::InvalidNodeId)?;
+        let p4 = u64::from_str_radix(parts[4], 16).map_err(|_| NetError::InvalidNodeId)?;
+
+        if p4 > 0xFFFF_FFFF_FFFF {
+            return Err(NetError::InvalidNodeId);
+        }
+
+        let high = ((p0 as u64) << 32) | ((p1 as u64) << 16) | (p2 as u64);
+        let low = ((p3 as u64) << 48) | p4;
+
+        Ok(Self { high, low })
+    }
+}
+
+/// Parsed OSC-style address path.
+///
+/// Supports formats:
+/// - `/bbx/<uuid>/param/<name>` - Node-specific parameter
+/// - `/param/<name>` - Broadcast to all nodes
+#[derive(Debug, Clone)]
+pub struct AddressPath {
+    /// Target node (None for broadcast).
+    pub node_id: Option<NodeId>,
+    /// Parameter name.
+    pub param_name: String,
+}
+
+impl AddressPath {
+    /// Parse an OSC address string.
+    ///
+    /// # Supported Formats
+    ///
+    /// - `/bbx/<uuid>/param/<name>` - Node-specific parameter
+    /// - `/param/<name>` - Broadcast to all nodes
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bbx_net::address::AddressPath;
+    ///
+    /// let path = AddressPath::parse("/param/gain").unwrap();
+    /// assert!(path.node_id.is_none());
+    /// assert_eq!(path.param_name, "gain");
+    /// ```
+    pub fn parse(address: &str) -> Result<Self> {
+        let parts: Vec<&str> = address.split('/').filter(|s| !s.is_empty()).collect();
+
+        match parts.as_slice() {
+            ["bbx", uuid, "param", name] => {
+                let node_id = NodeId::from_uuid_string(uuid)?;
+                Ok(Self {
+                    node_id: Some(node_id),
+                    param_name: (*name).to_string(),
+                })
+            }
+            ["param", name] => Ok(Self {
+                node_id: None,
+                param_name: (*name).to_string(),
+            }),
+            _ => Err(NetError::InvalidAddress),
+        }
+    }
+
+    /// Format as an OSC address string.
+    pub fn to_address_string(&self) -> String {
+        match &self.node_id {
+            Some(id) => format!("/bbx/{}/param/{}", id.to_uuid_string(), self.param_name),
+            None => format!("/param/{}", self.param_name),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_node_id_generate() {
+        let mut rng = XorShiftRng::new(12345);
+        let id1 = NodeId::generate(&mut rng);
+        let id2 = NodeId::generate(&mut rng);
+
+        assert_ne!(id1, id2);
+        assert_ne!(id1.high, 0);
+        assert_ne!(id1.low, 0);
+    }
+
+    #[test]
+    fn test_node_id_deterministic() {
+        let mut rng1 = XorShiftRng::new(42);
+        let mut rng2 = XorShiftRng::new(42);
+
+        let id1 = NodeId::generate(&mut rng1);
+        let id2 = NodeId::generate(&mut rng2);
+
+        assert_eq!(id1, id2);
+    }
+
+    #[test]
+    fn test_node_id_uuid_roundtrip() {
+        let mut rng = XorShiftRng::new(54321);
+        let original = NodeId::generate(&mut rng);
+
+        let uuid_str = original.to_uuid_string();
+        let parsed = NodeId::from_uuid_string(&uuid_str).unwrap();
+
+        assert_eq!(original, parsed);
+    }
+
+    #[test]
+    fn test_node_id_uuid_format() {
+        let id = NodeId::from_parts(0x12345678_abcd_ef01, 0x2345_6789abcdef01);
+        let uuid = id.to_uuid_string();
+
+        assert_eq!(uuid, "12345678-abcd-ef01-2345-6789abcdef01");
+    }
+
+    #[test]
+    fn test_node_id_invalid_uuid() {
+        assert!(NodeId::from_uuid_string("invalid").is_err());
+        assert!(NodeId::from_uuid_string("12345678-abcd").is_err());
+        assert!(NodeId::from_uuid_string("zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz").is_err());
+    }
+
+    #[test]
+    fn test_address_path_broadcast() {
+        let path = AddressPath::parse("/param/gain").unwrap();
+        assert!(path.node_id.is_none());
+        assert_eq!(path.param_name, "gain");
+    }
+
+    #[test]
+    fn test_address_path_targeted() {
+        let id = NodeId::from_parts(0x12345678_abcd_ef01, 0x2345_6789abcdef01);
+        let address = format!("/bbx/{}/param/volume", id.to_uuid_string());
+
+        let path = AddressPath::parse(&address).unwrap();
+        assert_eq!(path.node_id, Some(id));
+        assert_eq!(path.param_name, "volume");
+    }
+
+    #[test]
+    fn test_address_path_roundtrip() {
+        let original = AddressPath {
+            node_id: Some(NodeId::from_parts(0xaabb_ccdd_eeff_0011, 0x2233_445566778899)),
+            param_name: "frequency".to_string(),
+        };
+
+        let address_str = original.to_address_string();
+        let parsed = AddressPath::parse(&address_str).unwrap();
+
+        assert_eq!(original.node_id, parsed.node_id);
+        assert_eq!(original.param_name, parsed.param_name);
+    }
+
+    #[test]
+    fn test_address_path_invalid() {
+        assert!(AddressPath::parse("/invalid/path").is_err());
+        assert!(AddressPath::parse("/bbx/notauuid/param/test").is_err());
+        assert!(AddressPath::parse("").is_err());
+    }
+}
