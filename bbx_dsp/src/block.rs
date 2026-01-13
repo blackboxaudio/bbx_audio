@@ -9,8 +9,8 @@ use crate::{
             ambisonic_decoder::AmbisonicDecoderBlock, binaural_decoder::BinauralDecoderBlock,
             channel_merger::ChannelMergerBlock, channel_router::ChannelRouterBlock,
             channel_splitter::ChannelSplitterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock,
-            low_pass_filter::LowPassFilterBlock, matrix_mixer::MatrixMixerBlock, overdrive::OverdriveBlock,
-            panner::PannerBlock, vca::VcaBlock,
+            low_pass_filter::LowPassFilterBlock, matrix_mixer::MatrixMixerBlock, mixer::MixerBlock,
+            overdrive::OverdriveBlock, panner::PannerBlock, vca::VcaBlock,
         },
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
@@ -131,6 +131,8 @@ pub enum BlockType<S: Sample> {
     LowPassFilter(LowPassFilterBlock<S>),
     /// NxM mixing matrix for flexible channel routing.
     MatrixMixer(MatrixMixerBlock<S>),
+    /// Channel-wise mixer that sums multiple sources per channel.
+    Mixer(MixerBlock<S>),
     /// Asymmetric soft-clipping distortion.
     Overdrive(OverdriveBlock<S>),
     /// Stereo panning with equal-power law.
@@ -174,6 +176,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Gain(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::LowPassFilter(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::MatrixMixer(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::Mixer(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Overdrive(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Panner(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Vca(block) => block.process(inputs, outputs, modulation_values, context),
@@ -206,6 +209,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Gain(block) => block.input_count(),
             BlockType::LowPassFilter(block) => block.input_count(),
             BlockType::MatrixMixer(block) => block.input_count(),
+            BlockType::Mixer(block) => block.input_count(),
             BlockType::Overdrive(block) => block.input_count(),
             BlockType::Panner(block) => block.input_count(),
             BlockType::Vca(block) => block.input_count(),
@@ -238,6 +242,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Gain(block) => block.output_count(),
             BlockType::LowPassFilter(block) => block.output_count(),
             BlockType::MatrixMixer(block) => block.output_count(),
+            BlockType::Mixer(block) => block.output_count(),
             BlockType::Overdrive(block) => block.output_count(),
             BlockType::Panner(block) => block.output_count(),
             BlockType::Vca(block) => block.output_count(),
@@ -270,6 +275,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Gain(block) => block.modulation_outputs(),
             BlockType::LowPassFilter(block) => block.modulation_outputs(),
             BlockType::MatrixMixer(block) => block.modulation_outputs(),
+            BlockType::Mixer(block) => block.modulation_outputs(),
             BlockType::Overdrive(block) => block.modulation_outputs(),
             BlockType::Panner(block) => block.modulation_outputs(),
             BlockType::Vca(block) => block.modulation_outputs(),
@@ -302,6 +308,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Gain(block) => block.channel_config(),
             BlockType::LowPassFilter(block) => block.channel_config(),
             BlockType::MatrixMixer(block) => block.channel_config(),
+            BlockType::Mixer(block) => block.channel_config(),
             BlockType::Overdrive(block) => block.channel_config(),
             BlockType::Panner(block) => block.channel_config(),
             BlockType::Vca(block) => block.channel_config(),
@@ -359,6 +366,7 @@ impl<S: Sample> BlockType<S> {
                 _ => Err(format!("Unknown low-pass filter parameter: {parameter_name}")),
             },
             BlockType::MatrixMixer(_) => Err("Matrix mixer uses set_gain method, not Parameter<S>".to_string()),
+            BlockType::Mixer(_) => Err("Mixer has no modulated parameters".to_string()),
             BlockType::Overdrive(block) => match parameter_name.to_lowercase().as_str() {
                 "drive" => {
                     block.drive = parameter;
@@ -448,6 +456,7 @@ impl<S: Sample> BlockType<S> {
             | BlockType::Gain(_)
             | BlockType::LowPassFilter(_)
             | BlockType::MatrixMixer(_)
+            | BlockType::Mixer(_)
             | BlockType::Overdrive(_)
             | BlockType::Panner(_)
             | BlockType::Vca(_) => BlockCategory::Effector,
@@ -472,6 +481,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Gain(_) => "Gain",
             BlockType::LowPassFilter(_) => "Low Pass Filter",
             BlockType::MatrixMixer(_) => "Matrix Mixer",
+            BlockType::Mixer(_) => "Mixer",
             BlockType::Overdrive(_) => "Overdrive",
             BlockType::Panner(_) => "Panner",
             BlockType::Vca(_) => "VCA",
@@ -511,6 +521,7 @@ impl<S: Sample> BlockType<S> {
             | BlockType::ChannelSplitter(_)
             | BlockType::DcBlocker(_)
             | BlockType::MatrixMixer(_)
+            | BlockType::Mixer(_)
             | BlockType::Vca(_) => {}
 
             BlockType::Gain(block) => {

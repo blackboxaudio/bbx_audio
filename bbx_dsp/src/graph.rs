@@ -24,6 +24,7 @@ use crate::{
             gain::GainBlock,
             low_pass_filter::LowPassFilterBlock,
             matrix_mixer::MatrixMixerBlock,
+            mixer::MixerBlock,
             overdrive::OverdriveBlock,
             panner::PannerBlock,
             vca::VcaBlock,
@@ -553,6 +554,32 @@ impl<S: Sample> GraphBuilder<S> {
         self.graph.add_block(block)
     }
 
+    /// Add a `MixerBlock` to the `Graph`.
+    ///
+    /// Creates a channel-wise mixer that sums multiple sources.
+    /// Each source provides `num_channels` outputs, and inputs are grouped by source.
+    ///
+    /// # Arguments
+    ///
+    /// * `num_sources` - Number of sources to mix
+    /// * `num_channels` - Number of channels per source (e.g., 2 for stereo)
+    pub fn add_mixer(&mut self, num_sources: usize, num_channels: usize) -> BlockId {
+        let block = BlockType::Mixer(MixerBlock::new(num_sources, num_channels));
+        self.graph.add_block(block)
+    }
+
+    /// Add a stereo `MixerBlock` to the `Graph`.
+    ///
+    /// Convenience method for mixing multiple stereo sources.
+    ///
+    /// # Arguments
+    ///
+    /// * `num_sources` - Number of stereo sources to mix
+    pub fn add_stereo_mixer(&mut self, num_sources: usize) -> BlockId {
+        let block = BlockType::Mixer(MixerBlock::stereo(num_sources));
+        self.graph.add_block(block)
+    }
+
     /// Add a `ChannelSplitterBlock` to the `Graph`.
     ///
     /// Splits multi-channel input into individual mono outputs.
@@ -813,16 +840,22 @@ impl<S: Sample> GraphBuilder<S> {
 
     /// Prepare the final DSP `Graph`.
     ///
+    /// Automatically inserts a mixer before the output block when multiple terminal
+    /// blocks exist, unless the developer has already provided their own mixer or
+    /// output block connections.
+    ///
     /// # Panics
     ///
     /// Panics if any block has more inputs or outputs than the realtime-safe
     /// limits (`MAX_BLOCK_INPUTS` or `MAX_BLOCK_OUTPUTS`).
     pub fn build(mut self) -> Graph<S> {
-        let output = self.graph.add_output_block();
+        let num_channels = self.graph.context.num_channels;
+
+        // Check if developer already added an output block
+        let existing_output = self.graph.blocks.iter().position(|b| b.is_output()).map(BlockId);
 
         // Find all terminal blocks: blocks with no outgoing connections,
         // excluding modulators (LFO, Envelope) and output-type blocks.
-        // These terminal blocks will all be mixed to the output.
         let terminal_blocks: Vec<BlockId> = self
             .graph
             .blocks
@@ -836,17 +869,53 @@ impl<S: Sample> GraphBuilder<S> {
             .map(|(idx, _)| BlockId(idx))
             .collect();
 
-        // Connect all terminal blocks to output (signals will be summed)
-        for block_id in terminal_blocks {
-            for channel_index in 0..self.graph.context.num_channels {
-                self.connect(block_id, 0, output, channel_index);
+        // Check if developer already added a mixer that receives from terminal blocks
+        let explicit_mixer = self.find_explicit_mixer(&terminal_blocks);
+
+        // Determine what needs to be added
+        let output_id = existing_output.unwrap_or_else(|| self.graph.add_output_block());
+
+        match (explicit_mixer, terminal_blocks.len()) {
+            // Developer provided a mixer - connect it to output if not already connected
+            (Some(mixer_id), _) => {
+                let mixer_has_outgoing = self.graph.connections.iter().any(|c| c.from == mixer_id);
+                if !mixer_has_outgoing {
+                    self.connect_block_to_output(mixer_id, output_id, num_channels);
+                }
+            }
+
+            // No explicit mixer, no terminal blocks - nothing to connect
+            (None, 0) => {}
+
+            // No explicit mixer, single terminal block - connect directly to output
+            (None, 1) => {
+                let block_id = terminal_blocks[0];
+                self.connect_block_to_output(block_id, output_id, num_channels);
+            }
+
+            // No explicit mixer, multiple terminal blocks - insert a mixer
+            (None, num_sources) => {
+                let mixer_id = self
+                    .graph
+                    .add_block(BlockType::Mixer(MixerBlock::new(num_sources, num_channels)));
+
+                // Connect each terminal block's outputs to the mixer's inputs
+                for (source_idx, &block_id) in terminal_blocks.iter().enumerate() {
+                    let block_output_count = self.graph.blocks[block_id.0].output_count();
+                    for ch in 0..num_channels.min(block_output_count) {
+                        let mixer_input = source_idx * num_channels + ch;
+                        self.connect(block_id, ch, mixer_id, mixer_input);
+                    }
+                }
+
+                // Connect mixer to output
+                self.connect_block_to_output(mixer_id, output_id, num_channels);
             }
         }
 
         self.graph.prepare_for_playback();
 
         // Validate that all blocks are within realtime-safe I/O limits
-        // This must run after prepare_for_playback() to check actual connection counts
         for (idx, block) in self.graph.blocks.iter().enumerate() {
             let connected_inputs = self.graph.block_input_buffers[idx].len();
             let output_count = block.output_count();
@@ -862,5 +931,35 @@ impl<S: Sample> GraphBuilder<S> {
         }
 
         self.graph
+    }
+
+    /// Find an explicit mixer (Mixer or MatrixMixer) that has connections from terminal blocks.
+    fn find_explicit_mixer(&self, terminal_blocks: &[BlockId]) -> Option<BlockId> {
+        for (idx, block) in self.graph.blocks.iter().enumerate() {
+            let is_mixer = matches!(block, BlockType::Mixer(_) | BlockType::MatrixMixer(_));
+            if !is_mixer {
+                continue;
+            }
+
+            let block_id = BlockId(idx);
+            let has_terminal_input = self
+                .graph
+                .connections
+                .iter()
+                .any(|c| c.to == block_id && terminal_blocks.contains(&c.from));
+
+            if has_terminal_input {
+                return Some(block_id);
+            }
+        }
+        None
+    }
+
+    /// Connect a block's outputs to the output block, channel by channel.
+    fn connect_block_to_output(&mut self, from: BlockId, to: BlockId, num_channels: usize) {
+        let output_count = self.graph.blocks[from.0].output_count();
+        for ch in 0..num_channels.min(output_count) {
+            self.connect(from, ch, to, ch);
+        }
     }
 }

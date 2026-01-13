@@ -145,3 +145,112 @@ fn test_different_waveforms() {
         assert!(max_amplitude > 0.0, "{:?} waveform should produce output", waveform);
     }
 }
+
+#[test]
+fn test_stereo_panners_summed_correctly() {
+    let sample_rate = 44100.0;
+    let buffer_size = 256;
+    let num_channels = 2;
+
+    let mut builder = GraphBuilder::<f32>::new(sample_rate, buffer_size, num_channels);
+
+    // Create two oscillators through panners (similar to 07_stereo_panner example)
+    let osc1 = builder.add_oscillator(440.0, Waveform::Sine, Some(12345));
+    let pan1 = builder.add_panner_stereo(-50.0); // pan left
+    builder.connect(osc1, 0, pan1, 0);
+
+    let osc2 = builder.add_oscillator(880.0, Waveform::Sine, Some(67890));
+    let pan2 = builder.add_panner_stereo(50.0); // pan right
+    builder.connect(osc2, 0, pan2, 0);
+
+    let mut graph = builder.build();
+
+    let mut left = vec![0.0f32; buffer_size];
+    let mut right = vec![0.0f32; buffer_size];
+    let mut output_buffers: Vec<&mut [f32]> = vec![&mut left, &mut right];
+
+    graph.process_buffers(&mut output_buffers);
+
+    // Both channels should have non-zero values (mixed from both panners)
+    let left_sum: f32 = left.iter().map(|s| s.abs()).sum();
+    let right_sum: f32 = right.iter().map(|s| s.abs()).sum();
+
+    assert!(left_sum > 0.0, "Left channel should have audio");
+    assert!(right_sum > 0.0, "Right channel should have audio");
+}
+
+#[test]
+fn test_explicit_mixer_produces_output() {
+    let sample_rate = 44100.0;
+    let buffer_size = 256;
+    let num_channels = 2;
+
+    let mut builder = GraphBuilder::<f32>::new(sample_rate, buffer_size, num_channels);
+
+    // Create two oscillators
+    let osc1 = builder.add_oscillator(440.0, Waveform::Sine, None);
+    let osc2 = builder.add_oscillator(880.0, Waveform::Sine, None);
+
+    // Explicitly add a stereo mixer
+    let mixer = builder.add_stereo_mixer(2);
+    builder.connect(osc1, 0, mixer, 0);
+    builder.connect(osc1, 0, mixer, 1); // mono -> stereo
+    builder.connect(osc2, 0, mixer, 2);
+    builder.connect(osc2, 0, mixer, 3); // mono -> stereo
+
+    let mut graph = builder.build();
+
+    let mut left = vec![0.0f32; buffer_size];
+    let mut right = vec![0.0f32; buffer_size];
+    let mut output_buffers: Vec<&mut [f32]> = vec![&mut left, &mut right];
+
+    graph.process_buffers(&mut output_buffers);
+
+    // Both channels should have audio from both oscillators
+    let left_sum: f32 = left.iter().map(|s| s.abs()).sum();
+    let right_sum: f32 = right.iter().map(|s| s.abs()).sum();
+
+    assert!(left_sum > 0.0, "Left channel should have audio with explicit mixer");
+    assert!(right_sum > 0.0, "Right channel should have audio with explicit mixer");
+}
+
+#[test]
+fn test_five_stereo_panners_all_audible() {
+    let sample_rate = 44100.0;
+    let buffer_size = 512;
+    let num_channels = 2;
+
+    let mut builder = GraphBuilder::<f32>::new(sample_rate, buffer_size, num_channels);
+
+    // Create 5 oscillators through stereo panners (like 07_stereo_panner example)
+    let frequencies = [55.0, 82.5, 110.0, 220.0, 330.0];
+    let pan_positions = [-80.0, -40.0, 0.0, 40.0, 80.0];
+
+    for (freq, pan) in frequencies.iter().zip(pan_positions.iter()) {
+        let osc = builder.add_oscillator(*freq, Waveform::Sine, None);
+        let panner = builder.add_panner_stereo(*pan);
+        builder.connect(osc, 0, panner, 0);
+    }
+
+    let mut graph = builder.build();
+
+    let mut left = vec![0.0f32; buffer_size];
+    let mut right = vec![0.0f32; buffer_size];
+    let mut output_buffers: Vec<&mut [f32]> = vec![&mut left, &mut right];
+
+    graph.process_buffers(&mut output_buffers);
+
+    // Both channels should have audio from all panners
+    let left_sum: f32 = left.iter().map(|s| s.abs()).sum();
+    let right_sum: f32 = right.iter().map(|s| s.abs()).sum();
+
+    // With 5 sources at various pan positions, both channels should have significant output
+    assert!(
+        left_sum > 100.0,
+        "Left channel should have significant audio from 5 panners"
+    );
+    assert!(
+        right_sum > 100.0,
+        "Right channel should have significant audio from 5 panners"
+    );
+}

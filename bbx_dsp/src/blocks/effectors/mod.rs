@@ -10,6 +10,7 @@ pub mod dc_blocker;
 pub mod gain;
 pub mod low_pass_filter;
 pub mod matrix_mixer;
+pub mod mixer;
 pub mod overdrive;
 pub mod panner;
 pub mod vca;
