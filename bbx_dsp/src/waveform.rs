@@ -53,11 +53,11 @@ fn generate_naive_samples_simd<S: Sample>(
         Waveform::Sine => Some(S::simd_to_array(phases.sin())),
 
         Waveform::Square => {
-            let sin_phases = phases.sin();
-            let zero = S::simd_splat(S::ZERO);
+            let half = S::simd_splat(S::from_f64(0.5));
             let one = S::simd_splat(S::ONE);
             let neg_one = S::simd_splat(-S::ONE);
-            Some(S::simd_to_array(S::simd_select_gt(sin_phases, zero, one, neg_one)))
+            let normalized = (phases % two_pi) * inv_two_pi;
+            Some(S::simd_to_array(S::simd_select_lt(normalized, half, one, neg_one)))
         }
 
         Waveform::Sawtooth => {

@@ -84,10 +84,10 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
         let target_drive = S::from_f64(self.drive.get_value(modulation_values).to_f64());
         let target_level = S::from_f64(self.level.get_value(modulation_values).to_f64().clamp(0.0, 1.0));
 
-        if (target_drive.to_f64() - self.drive_smoother.target().to_f64()).abs() > 1e-9 {
+        if (target_drive.to_f64() - self.drive_smoother.target().to_f64()).abs() > S::EPSILON.to_f64() {
             self.drive_smoother.set_target_value(target_drive);
         }
-        if (target_level.to_f64() - self.level_smoother.target().to_f64()).abs() > 1e-9 {
+        if (target_level.to_f64() - self.level_smoother.target().to_f64()).abs() > S::EPSILON.to_f64() {
             self.level_smoother.set_target_value(target_level);
         }
 

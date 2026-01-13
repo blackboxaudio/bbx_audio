@@ -13,6 +13,15 @@ params[0] = gainValue    -->  params[PARAM_GAIN]
 params[1] = panValue     -->  params[PARAM_PAN]
 ```
 
+### Parameter ID vs Index
+
+Note that parameter mapping is by **array index**, not by name:
+
+- **Rust** uses `SCREAMING_SNAKE_CASE` constants (`PARAM_GAIN = 0`)
+- **JUCE** uses lowercase string IDs (`"gain"`) for `AudioProcessorValueTreeState`
+
+The string IDs are for JUCE's parameter system. The array indices are what crosses the FFI boundary. As long as you load JUCE parameters into the array in the same order as your Rust constants, they will match.
+
 ## Two Approaches
 
 ### 1. JSON-Based (Recommended)

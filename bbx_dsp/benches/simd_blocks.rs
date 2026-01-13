@@ -5,7 +5,15 @@ mod common;
 use bbx_dsp::{
     block::Block,
     blocks::{
-        effectors::{gain::GainBlock, panner::PannerBlock},
+        effectors::{
+            channel_merger::ChannelMergerBlock,
+            channel_splitter::ChannelSplitterBlock,
+            gain::GainBlock,
+            low_pass_filter::LowPassFilterBlock,
+            matrix_mixer::MatrixMixerBlock,
+            mixer::{MixerBlock, NormalizationStrategy},
+            panner::PannerBlock,
+        },
         generators::oscillator::OscillatorBlock,
         modulators::lfo::LfoBlock,
     },
@@ -141,6 +149,46 @@ fn bench_gain_f64(c: &mut Criterion) {
     bench_gain::<f64>(c, "f64");
 }
 
+fn bench_low_pass_filter<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("low_pass_filter_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64));
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let context = create_context(size);
+            let mut block = LowPassFilterBlock::<S>::new(S::from_f64(1000.0), S::from_f64(0.707));
+            block.set_sample_rate(SAMPLE_RATE);
+            let inputs = create_input_buffers::<S>(size, 1);
+            let mut outputs = create_output_buffers::<S>(size, 1);
+            let modulation_values: Vec<S> = vec![];
+
+            b.iter(|| {
+                let input_slices = as_input_slices(&inputs);
+                let mut output_slices = as_output_slices(&mut outputs);
+                block.process(
+                    black_box(&input_slices),
+                    black_box(&mut output_slices),
+                    black_box(&modulation_values),
+                    black_box(&context),
+                );
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_low_pass_filter_f32(c: &mut Criterion) {
+    bench_low_pass_filter::<f32>(c, "f32");
+}
+
+fn bench_low_pass_filter_f64(c: &mut Criterion) {
+    bench_low_pass_filter::<f64>(c, "f64");
+}
+
 fn bench_lfo<S: Sample>(c: &mut Criterion, type_name: &str) {
     let mut group = c.benchmark_group(format!("lfo_{}", type_name));
 
@@ -177,6 +225,176 @@ fn bench_lfo_f32(c: &mut Criterion) {
 
 fn bench_lfo_f64(c: &mut Criterion) {
     bench_lfo::<f64>(c, "f64");
+}
+
+fn bench_mixer<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("mixer_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64 * 2)); // stereo output
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let context = create_context(size);
+            let mut block = MixerBlock::<S>::new(4, 2) // 4 stereo sources -> stereo out
+                .with_normalization(NormalizationStrategy::Average);
+
+            // 4 sources × 2 channels = 8 inputs
+            let inputs = create_input_buffers::<S>(size, 8);
+            let mut outputs = create_output_buffers::<S>(size, 2);
+            let modulation_values: Vec<S> = vec![];
+
+            b.iter(|| {
+                let input_slices = as_input_slices(&inputs);
+                let mut output_slices = as_output_slices(&mut outputs);
+                block.process(
+                    black_box(&input_slices),
+                    black_box(&mut output_slices),
+                    black_box(&modulation_values),
+                    black_box(&context),
+                );
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_mixer_f32(c: &mut Criterion) {
+    bench_mixer::<f32>(c, "f32");
+}
+
+fn bench_mixer_f64(c: &mut Criterion) {
+    bench_mixer::<f64>(c, "f64");
+}
+
+fn bench_matrix_mixer<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("matrix_mixer_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64 * 2)); // stereo output
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let context = create_context(size);
+            let mut block = MatrixMixerBlock::<S>::new(4, 2); // 4 inputs -> 2 outputs
+
+            // Set up a simple mixing matrix
+            block.set_gain(0, 0, S::from_f64(0.5));
+            block.set_gain(1, 0, S::from_f64(0.5));
+            block.set_gain(2, 1, S::from_f64(0.5));
+            block.set_gain(3, 1, S::from_f64(0.5));
+
+            let inputs = create_input_buffers::<S>(size, 4);
+            let mut outputs = create_output_buffers::<S>(size, 2);
+            let modulation_values: Vec<S> = vec![];
+
+            b.iter(|| {
+                let input_slices = as_input_slices(&inputs);
+                let mut output_slices = as_output_slices(&mut outputs);
+                block.process(
+                    black_box(&input_slices),
+                    black_box(&mut output_slices),
+                    black_box(&modulation_values),
+                    black_box(&context),
+                );
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_matrix_mixer_f32(c: &mut Criterion) {
+    bench_matrix_mixer::<f32>(c, "f32");
+}
+
+fn bench_matrix_mixer_f64(c: &mut Criterion) {
+    bench_matrix_mixer::<f64>(c, "f64");
+}
+
+fn bench_channel_splitter<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("channel_splitter_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64 * 4)); // 4 channels
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let context = create_context(size);
+            let block = ChannelSplitterBlock::<S>::new(4);
+            let mut block = block;
+
+            let inputs = create_input_buffers::<S>(size, 4);
+            let mut outputs = create_output_buffers::<S>(size, 4);
+            let modulation_values: Vec<S> = vec![];
+
+            b.iter(|| {
+                let input_slices = as_input_slices(&inputs);
+                let mut output_slices = as_output_slices(&mut outputs);
+                block.process(
+                    black_box(&input_slices),
+                    black_box(&mut output_slices),
+                    black_box(&modulation_values),
+                    black_box(&context),
+                );
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_channel_splitter_f32(c: &mut Criterion) {
+    bench_channel_splitter::<f32>(c, "f32");
+}
+
+fn bench_channel_splitter_f64(c: &mut Criterion) {
+    bench_channel_splitter::<f64>(c, "f64");
+}
+
+fn bench_channel_merger<S: Sample>(c: &mut Criterion, type_name: &str) {
+    let mut group = c.benchmark_group(format!("channel_merger_{}", type_name));
+
+    for buffer_size in BUFFER_SIZES {
+        group.throughput(Throughput::Elements(*buffer_size as u64 * 4)); // 4 channels
+
+        let bench_id = BenchmarkId::from_parameter(buffer_size);
+
+        group.bench_with_input(bench_id, buffer_size, |b, &size| {
+            let context = create_context(size);
+            let block = ChannelMergerBlock::<S>::new(4);
+            let mut block = block;
+
+            let inputs = create_input_buffers::<S>(size, 4);
+            let mut outputs = create_output_buffers::<S>(size, 4);
+            let modulation_values: Vec<S> = vec![];
+
+            b.iter(|| {
+                let input_slices = as_input_slices(&inputs);
+                let mut output_slices = as_output_slices(&mut outputs);
+                block.process(
+                    black_box(&input_slices),
+                    black_box(&mut output_slices),
+                    black_box(&modulation_values),
+                    black_box(&context),
+                );
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_channel_merger_f32(c: &mut Criterion) {
+    bench_channel_merger::<f32>(c, "f32");
+}
+
+fn bench_channel_merger_f64(c: &mut Criterion) {
+    bench_channel_merger::<f64>(c, "f64");
 }
 
 fn bench_buffer_zeroize<S: Sample>(c: &mut Criterion, type_name: &str) {
@@ -244,7 +462,25 @@ criterion_group!(panner_benches, bench_panner_f32, bench_panner_f64);
 
 criterion_group!(gain_benches, bench_gain_f32, bench_gain_f64);
 
+criterion_group!(
+    low_pass_filter_benches,
+    bench_low_pass_filter_f32,
+    bench_low_pass_filter_f64
+);
+
 criterion_group!(lfo_benches, bench_lfo_f32, bench_lfo_f64);
+
+criterion_group!(mixer_benches, bench_mixer_f32, bench_mixer_f64);
+
+criterion_group!(matrix_mixer_benches, bench_matrix_mixer_f32, bench_matrix_mixer_f64);
+
+criterion_group!(
+    channel_routing_benches,
+    bench_channel_splitter_f32,
+    bench_channel_splitter_f64,
+    bench_channel_merger_f32,
+    bench_channel_merger_f64
+);
 
 criterion_group!(
     buffer_benches,
@@ -258,6 +494,10 @@ criterion_main!(
     oscillator_benches,
     panner_benches,
     gain_benches,
+    low_pass_filter_benches,
     lfo_benches,
+    mixer_benches,
+    matrix_mixer_benches,
+    channel_routing_benches,
     buffer_benches
 );

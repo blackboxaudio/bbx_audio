@@ -211,3 +211,138 @@ impl<S: Sample + Send + 'static> Drop for FileOutputBlock<S> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use super::*;
+    use crate::channel::ChannelLayout;
+
+    struct MockWriter<S: Sample> {
+        sample_rate: f64,
+        num_channels: usize,
+        channels: Arc<Mutex<Vec<Vec<S>>>>,
+        finalized: Arc<AtomicBool>,
+    }
+
+    impl<S: Sample> MockWriter<S> {
+        fn new(sample_rate: f64, num_channels: usize) -> Self {
+            let channels: Vec<Vec<S>> = (0..num_channels).map(|_| Vec::new()).collect();
+            Self {
+                sample_rate,
+                num_channels,
+                channels: Arc::new(Mutex::new(channels)),
+                finalized: Arc::new(AtomicBool::new(false)),
+            }
+        }
+
+        fn get_channels(&self) -> Arc<Mutex<Vec<Vec<S>>>> {
+            self.channels.clone()
+        }
+
+        fn get_finalized(&self) -> Arc<AtomicBool> {
+            self.finalized.clone()
+        }
+    }
+
+    impl<S: Sample> Writer<S> for MockWriter<S> {
+        fn sample_rate(&self) -> f64 {
+            self.sample_rate
+        }
+
+        fn num_channels(&self) -> usize {
+            self.num_channels
+        }
+
+        fn can_write(&self) -> bool {
+            true
+        }
+
+        fn write_channel(&mut self, channel_index: usize, samples: &[S]) -> Result<(), Box<dyn std::error::Error>> {
+            let mut channels = self.channels.lock().unwrap();
+            if channel_index < channels.len() {
+                channels[channel_index].extend_from_slice(samples);
+            }
+            Ok(())
+        }
+
+        fn finalize(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+            self.finalized.store(true, Ordering::Relaxed);
+            Ok(())
+        }
+    }
+
+    fn test_context(buffer_size: usize) -> DspContext {
+        DspContext {
+            sample_rate: 44100.0,
+            buffer_size,
+            num_channels: 2,
+            current_sample: 0,
+            channel_layout: ChannelLayout::Stereo,
+        }
+    }
+
+    #[test]
+    fn test_file_output_block_counts() {
+        let writer = MockWriter::<f32>::new(44100.0, 2);
+        let block = FileOutputBlock::new(Box::new(writer));
+        assert_eq!(block.input_count(), 2);
+        assert_eq!(block.output_count(), 0);
+    }
+
+    #[test]
+    fn test_file_output_block_recording_state() {
+        let writer = MockWriter::<f32>::new(44100.0, 2);
+        let mut block = FileOutputBlock::new(Box::new(writer));
+
+        assert!(block.is_recording());
+
+        block.start_recording();
+        assert!(block.is_recording());
+    }
+
+    #[test]
+    fn test_file_output_block_writes_and_finalizes() {
+        let writer = MockWriter::<f32>::new(44100.0, 1);
+        let channels = writer.get_channels();
+        let finalized = writer.get_finalized();
+
+        let mut block = FileOutputBlock::new(Box::new(writer));
+
+        let context = test_context(10);
+        let input: Vec<f32> = vec![0.5; 10];
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 0] = [];
+
+        block.process(&inputs, &mut outputs, &[], &context);
+
+        block.stop_recording().unwrap();
+
+        assert!(finalized.load(Ordering::Relaxed));
+        let written = channels.lock().unwrap();
+        assert!(!written[0].is_empty());
+    }
+
+    #[test]
+    fn test_file_output_block_no_error_initially() {
+        let writer = MockWriter::<f32>::new(44100.0, 2);
+        let block = FileOutputBlock::new(Box::new(writer));
+        assert!(!block.error_occurred());
+    }
+
+    #[test]
+    fn test_file_output_block_empty_inputs() {
+        let writer = MockWriter::<f32>::new(44100.0, 1);
+        let mut block = FileOutputBlock::new(Box::new(writer));
+
+        let context = test_context(10);
+        let inputs: [&[f32]; 0] = [];
+        let mut outputs: [&mut [f32]; 0] = [];
+
+        block.process(&inputs, &mut outputs, &[], &context);
+
+        block.stop_recording().unwrap();
+        assert!(!block.error_occurred());
+    }
+}

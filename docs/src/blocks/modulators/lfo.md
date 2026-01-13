@@ -4,7 +4,86 @@ Low-frequency oscillator for parameter modulation.
 
 ## Overview
 
-`LfoBlock` generates low-frequency control signals for modulating parameters like pitch, amplitude, and filter cutoff.
+`LfoBlock` generates low-frequency control signals for modulating parameters like pitch, amplitude, filter cutoff, and panning. Unlike audio-rate oscillators, LFOs operate at **control rate** (typically < 20 Hz), producing smooth, slowly-varying signals.
+
+## Mathematical Foundation
+
+### What is Modulation?
+
+**Modulation** is the process of varying one signal (the **carrier**) using another signal (the **modulator**). In synthesis:
+
+- **Carrier**: The audio signal being modified (e.g., an oscillator)
+- **Modulator**: The control signal doing the modifying (the LFO)
+- **Modulation depth**: How much the modulator affects the carrier
+
+### Phase Accumulation
+
+Like audio oscillators, LFOs use a **phase accumulator**:
+
+$$
+\phi[n] = \phi[n-1] + \Delta\phi
+$$
+
+where the phase increment is:
+
+$$
+\Delta\phi = \frac{2\pi f_{LFO}}{f_s}
+$$
+
+The key difference is that $f_{LFO}$ is typically 0.01-20 Hz rather than 20-20000 Hz.
+
+### Output Scaling
+
+The raw oscillator output $w(\phi) \in [-1, 1]$ is scaled by **depth**:
+
+$$
+y[n] = d \cdot w(\phi[n])
+$$
+
+where $d$ is the depth parameter (0.0 to 1.0).
+
+The final output range is $[-d, +d]$, centered at zero.
+
+### Control Rate vs Audio Rate
+
+**Audio-rate modulation** (sample-by-sample):
+- Frequency: 20 Hz - 20 kHz
+- Creates new frequencies (sidebands)
+- Used for FM synthesis, ring modulation
+
+**Control-rate modulation** (per-buffer):
+- Frequency: 0.01 Hz - ~20 Hz
+- Smoothly varies parameters
+- Used for vibrato, tremolo, auto-pan
+
+Control-rate processing is more efficient because it computes one value per buffer rather than one per sample.
+
+### Maximum LFO Frequency
+
+Due to control-rate operation, the maximum useful LFO frequency is limited by the Nyquist criterion for control signals:
+
+$$
+f_{max} = \frac{f_s}{2 \cdot B}
+$$
+
+where $B$ is the buffer size.
+
+For 44.1 kHz sample rate and 512-sample buffers:
+$$
+f_{max} = \frac{44100}{2 \times 512} \approx 43 \text{ Hz}
+$$
+
+Above this frequency, the LFO output will alias in the control domain.
+
+### Common Modulation Effects
+
+| Effect | Target Parameter | Typical Rate | Typical Depth |
+|--------|------------------|--------------|---------------|
+| Vibrato | Pitch/Frequency | 4-7 Hz | 0.1-0.5 |
+| Tremolo | Amplitude/Gain | 4-10 Hz | 0.3-1.0 |
+| Auto-pan | Pan position | 0.1-1 Hz | 0.5-1.0 |
+| Filter sweep | Filter cutoff | 0.05-2 Hz | 0.3-0.8 |
+| Wobble bass | Filter cutoff | 1-4 Hz | 0.5-1.0 |
 
 ## Creating an LFO
 
@@ -17,29 +96,48 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let lfo = builder.add_lfo(5.0, 0.5, None);
 ```
 
-## Parameters
+For non-sine waveforms, use direct construction:
 
-| Parameter | Type | Range | Default |
-|-----------|------|-------|---------|
-| frequency | f64 | 0.01 - max* | 1.0 |
-| depth | f64 | 0.0 - 1.0 | 1.0 |
-| seed | Option\<u64\> | Any | None |
+```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::LfoBlock,
+    waveform::Waveform,
+    graph::GraphBuilder,
+};
 
-*Max frequency is `sample_rate / (2 * buffer_size)` due to control-rate operation (~43 Hz at 44.1 kHz with 512-sample buffers).
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Triangle LFO
+let lfo = builder.add_block(BlockType::Lfo(
+    LfoBlock::new(2.0, 0.8, Waveform::Triangle, None)
+));
+```
 
 ## Port Layout
 
 | Port | Direction | Description |
 |------|-----------|-------------|
-| 0 | Modulation Output | Control signal |
+| 0 | Modulation Output | Control signal (-depth to +depth) |
 
-## Modulation Output
+## Parameters
 
-The LFO output ranges from -1.0 to 1.0 (scaled by depth). The receiving block interprets this:
+| Parameter | Type | Range | Default | Description |
+|-----------|------|-------|---------|-------------|
+| frequency | f64 | 0.01 - ~43 Hz | 1.0 | Oscillation rate |
+| depth | f64 | 0.0 - 1.0 | 1.0 | Output amplitude |
+| waveform | Waveform | - | Sine | Shape of modulation |
+| seed | Option\<u64\> | Any | None | Random seed (for Noise) |
 
-- **Pitch**: Maps to frequency deviation
-- **Amplitude**: Maps to gain change
-- **Pan**: Maps to position change
+## Waveforms
+
+| Waveform | Character | Use Case |
+|----------|-----------|----------|
+| Sine | Smooth, natural | Vibrato, tremolo |
+| Triangle | Linear, symmetric | Pitch wobble |
+| Sawtooth | Rising ramp | Filter sweeps |
+| Square | Abrupt on/off | Gated effects |
+| Noise | Random | Organic variation |
 
 ## Usage Examples
 
@@ -63,26 +161,16 @@ builder.modulate(lfo, osc, "frequency");
 ### Tremolo (Amplitude Modulation)
 
 ```rust
-use bbx_dsp::{
-    block::BlockType,
-    blocks::GainBlock,
-    graph::GraphBuilder,
-    waveform::Waveform,
-};
+use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let lfo = builder.add_lfo(6.0, 1.0, None);  // 6 Hz, full depth
+let gain = builder.add_gain(-6.0, None);
 
-// LFO for tremolo (6 Hz, full depth)
-let lfo = builder.add_lfo(6.0, 1.0, None);
-
-// Gain block
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
 builder.connect(osc, 0, gain, 0);
-
-// Modulate gain level
-builder.modulate(lfo, gain, "level");
+builder.modulate(lfo, gain, "level_db");
 ```
 
 ### Auto-Pan
@@ -98,32 +186,70 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-
-// Slow LFO for pan sweep
-let lfo = builder.add_lfo(0.25, 1.0, None);
-
-// Panner
+let lfo = builder.add_lfo(0.25, 1.0, None);  // Slow sweep
 let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
-builder.connect(osc, 0, pan, 0);
 
-// Modulate pan position
+builder.connect(osc, 0, pan, 0);
 builder.modulate(lfo, pan, "position");
+```
+
+### Filter Sweep
+
+```rust
+use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
+let filter = builder.add_low_pass_filter(1000.0, 4.0);
+let lfo = builder.add_lfo(0.1, 0.8, None);  // Very slow sweep
+
+builder.connect(osc, 0, filter, 0);
+builder.modulate(lfo, filter, "cutoff");
+```
+
+### Square LFO for Gated Effect
+
+```rust
+use bbx_dsp::{
+    block::BlockType,
+    blocks::LfoBlock,
+    waveform::Waveform,
+    graph::GraphBuilder,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
+let lfo = builder.add_block(BlockType::Lfo(
+    LfoBlock::new(4.0, 1.0, Waveform::Square, None)
+));
+let gain = builder.add_gain(0.0, None);
+
+builder.connect(osc, 0, gain, 0);
+builder.modulate(lfo, gain, "level_db");
 ```
 
 ## Rate Guidelines
 
-| Application | Typical Rate |
-|-------------|--------------|
-| Vibrato | 4-7 Hz |
-| Tremolo | 4-10 Hz |
-| Auto-pan | 0.1-1 Hz |
-| Wobble bass | 1-4 Hz |
-| Sweep | 0.05-0.5 Hz |
+| Application | Rate Range | Notes |
+|-------------|------------|-------|
+| Vibrato | 4-7 Hz | Natural vocal/string range |
+| Tremolo | 4-10 Hz | Faster = more intense |
+| Auto-pan | 0.1-1 Hz | Slower = more subtle |
+| Filter wobble | 1-4 Hz | Dubstep/bass music |
+| Slow evolution | 0.01-0.1 Hz | Pad textures |
 
 ## Implementation Notes
 
-- Generates per-block (control-rate, not per-sample)
-- Phase is continuous across blocks
-- `GraphBuilder::add_lfo()` always uses Sine waveform; use `BlockType::Lfo(LfoBlock::new(...))` for other waveforms
-- Uses deterministic random when seed is provided (useful for Noise waveform)
-- SIMD optimizations when `simd` feature is enabled
+- Operates at control rate (per-buffer, not per-sample)
+- Phase is continuous across buffer boundaries
+- Uses band-limited waveforms (PolyBLEP) to reduce aliasing
+- Deterministic output when seed is provided
+- SIMD-optimized for non-Noise waveforms
+
+## Further Reading
+
+- Roads, C. (1996). *The Computer Music Tutorial*, Chapter 5: Modulation Synthesis. MIT Press.
+- Puckette, M. (2007). *Theory and Techniques of Electronic Music*, Chapter 7. World Scientific.
+- Russ, M. (2012). *Sound Synthesis and Sampling*, Chapter 3: Modifiers. Focal Press.

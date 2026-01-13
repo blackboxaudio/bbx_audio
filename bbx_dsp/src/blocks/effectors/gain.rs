@@ -65,7 +65,7 @@ impl<S: Sample> Block<S> for GainBlock<S> {
         let target_gain = S::from_f64(Self::db_to_linear(level_db));
 
         let current_target = self.gain_smoother.target();
-        if (target_gain.to_f64() - current_target.to_f64()).abs() > 1e-9 {
+        if (target_gain.to_f64() - current_target.to_f64()).abs() > S::EPSILON.to_f64() {
             self.gain_smoother.set_target_value(target_gain);
         }
 

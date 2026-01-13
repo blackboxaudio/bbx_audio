@@ -8,6 +8,10 @@ language = "en"
 [build]
 build-dir = "book"
 
+# KaTeX math rendering
+[preprocessor.katex]
+after = ["links"]
+
 [output.html]
 default-theme = "rust"
 preferred-dark-theme = "coal"

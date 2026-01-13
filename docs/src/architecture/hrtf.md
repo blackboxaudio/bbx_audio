@@ -10,15 +10,23 @@ When a sound wave travels from a source to a listener, it arrives at each ear wi
 - **Interaural Level Difference (ILD)**: The head shadows high frequencies, making the far ear quieter
 - **Spectral Cues**: The pinnae create frequency-dependent reflections and diffractions that encode elevation and front/back information
 
-An HRTF captures all these cues as a frequency-domain transfer function H(ω, θ, φ) where ω is frequency, θ is azimuth, and φ is elevation.
+### Spatial Coordinate System
+
+HRTF measurements use a spherical coordinate system centered on the listener:
+
+- **Azimuth (θ)**: The horizontal angle around the listener, measured in degrees. 0° is directly in front, 90° is to the right, 180° (or -180°) is directly behind, and -90° is to the left.
+- **Elevation (φ)**: The vertical angle above or below the horizontal plane. 0° is ear-level, +90° is directly above, and -90° is directly below.
+- **Frequency (ω)**: The angular frequency of the sound wave in radians per second (ω = 2πf where f is frequency in Hz). HRTFs describe how each frequency component is modified differently based on direction.
+
+An HRTF captures all these cues as a frequency-domain transfer function $H(\omega, \theta, \phi)$.
 
 ## HRIR: Time-Domain Representation
 
 The **Head-Related Impulse Response (HRIR)** is the time-domain equivalent of an HRTF. It represents what happens to an impulse (click) traveling from a specific direction:
 
-```
-HRIR(t, θ, φ) = IFFT{ HRTF(ω, θ, φ) }
-```
+$$
+\text{HRIR}(t, \theta, \phi) = \mathcal{F}^{-1}\left\{ \text{HRTF}(\omega, \theta, \phi) \right\}
+$$
 
 HRIRs are typically 128-512 samples long (2.7-10.7ms at 48kHz) and encode the full binaural transformation for a single direction.
 
@@ -26,37 +34,50 @@ HRIRs are typically 128-512 samples long (2.7-10.7ms at 48kHz) and encode the fu
 
 ### Binaural Rendering via Convolution
 
-To render a mono source at position (θ, φ), convolve it with the appropriate HRIRs:
+To render a mono source $x(t)$ at position $(\theta, \phi)$, convolve it with the appropriate HRIRs:
 
-```
-left_ear(t)  = source(t) * hrir_left(t, θ, φ)
-right_ear(t) = source(t) * hrir_right(t, θ, φ)
-```
+$$
+\begin{aligned}
+y_L(t) &= x(t) * h_L(t, \theta, \phi) \\
+y_R(t) &= x(t) * h_R(t, \theta, \phi)
+\end{aligned}
+$$
 
-Where `*` denotes convolution.
+where $*$ denotes convolution and $h_L$, $h_R$ are the left and right ear HRIRs.
 
 ### Time-Domain Convolution
 
-For an HRIR of length N and input signal x[n], the output y[n] at sample n is:
+For an HRIR of length $N$ and input signal $x[n]$, the output $y[n]$ at sample $n$ is:
 
-```
-y[n] = Σ(k=0 to N-1) x[n-k] · h[k]
-```
+$$
+y[n] = \sum_{k=0}^{N-1} x[n-k] \cdot h[k]
+$$
 
 This is an FIR filter operation with the HRIR as coefficients.
+
+### Complexity Analysis
+
+For each sample:
+- **Multiplications**: $N$ (HRIR length)
+- **Additions**: $N-1$
+
+Total per audio frame of $B$ samples:
+$$
+\text{Operations} = B \times N \times 2 \quad \text{(left + right ears)}
+$$
 
 ### Spherical Harmonics Decomposition
 
 For ambisonic signals, we decode to virtual speaker positions then apply HRTFs. Each virtual speaker's signal is computed by weighting ambisonic channels with spherical harmonic coefficients:
 
-```
-speaker_signal = Σ(l,m) Y_l^m(θ, φ) · ambisonic_channel[acn(l,m)]
-```
+$$
+s_i = \sum_{l=0}^{L} \sum_{m=-l}^{l} Y_l^m(\theta_i, \phi_i) \cdot a_{l,m}
+$$
 
-Where:
-- `Y_l^m(θ, φ)` are real spherical harmonics (SN3D normalized)
-- `acn(l,m)` maps degree l and order m to ACN channel index
-- (θ, φ) is the virtual speaker's position
+where:
+- $Y_l^m(\theta, \phi)$ are real spherical harmonics (SN3D normalized)
+- $a_{l,m}$ is the ambisonic channel for order $l$, degree $m$
+- $(\theta_i, \phi_i)$ is the virtual speaker's position
 
 ## Implementation in bbx_audio
 
@@ -64,14 +85,16 @@ Where:
 
 `BinauralDecoderBlock` uses a virtual speaker array for HRTF rendering:
 
-1. **Decode** ambisonic input to N virtual speaker signals using SH coefficients
+1. **Decode** ambisonic input to $N$ virtual speaker signals using SH coefficients
 2. **Convolve** each speaker signal with position-specific HRIRs
 3. **Sum** all convolved outputs for left and right ears
 
-```
-left_ear  = Σ(i=0 to N-1) decode(ambi, speaker[i]) * hrir_left[i]
-right_ear = Σ(i=0 to N-1) decode(ambi, speaker[i]) * hrir_right[i]
-```
+$$
+\begin{aligned}
+y_L &= \sum_{i=0}^{N-1} s_i * h_{L,i} \\
+y_R &= \sum_{i=0}^{N-1} s_i * h_{R,i}
+\end{aligned}
+$$
 
 ### HRIR Data
 
@@ -84,28 +107,32 @@ The implementation uses HRIR measurements from the MIT KEMAR database:
 
 ### Spherical Harmonic Coefficients
 
-For a virtual speaker at azimuth θ and elevation φ, the real SH coefficients (ACN/SN3D) are:
+For a virtual speaker at azimuth $\theta$ and elevation $\phi$, the real SH coefficients (ACN/SN3D) are:
 
 **Order 0:**
-```
+$$
 Y_0^0 = 1
-```
+$$
 
 **Order 1:**
-```
-Y_1^-1 = cos(φ) · sin(θ)     [Y channel]
-Y_1^0  = sin(φ)              [Z channel]
-Y_1^1  = cos(φ) · cos(θ)     [X channel]
-```
+$$
+\begin{aligned}
+Y_1^{-1} &= \cos\phi \cdot \sin\theta \quad \text{(Y channel)} \\
+Y_1^0 &= \sin\phi \quad \text{(Z channel)} \\
+Y_1^1 &= \cos\phi \cdot \cos\theta \quad \text{(X channel)}
+\end{aligned}
+$$
 
 **Order 2:**
-```
-Y_2^-2 = √(3/4) · cos²(φ) · sin(2θ)           [V channel]
-Y_2^-1 = √(3/4) · sin(2φ) · sin(θ)            [T channel]
-Y_2^0  = (3sin²(φ) - 1) / 2                   [R channel]
-Y_2^1  = √(3/4) · sin(2φ) · cos(θ)            [S channel]
-Y_2^2  = √(3/4) · cos²(φ) · cos(2θ)           [U channel]
-```
+$$
+\begin{aligned}
+Y_2^{-2} &= \sqrt{\frac{3}{4}} \cos^2\phi \cdot \sin(2\theta) \quad \text{(V channel)} \\
+Y_2^{-1} &= \sqrt{\frac{3}{4}} \sin(2\phi) \cdot \sin\theta \quad \text{(T channel)} \\
+Y_2^0 &= \frac{3\sin^2\phi - 1}{2} \quad \text{(R channel)} \\
+Y_2^1 &= \sqrt{\frac{3}{4}} \sin(2\phi) \cdot \cos\theta \quad \text{(S channel)} \\
+Y_2^2 &= \sqrt{\frac{3}{4}} \cos^2\phi \cdot \cos(2\theta) \quad \text{(U channel)}
+\end{aligned}
+$$
 
 ### Circular Buffer Convolution
 
@@ -125,7 +152,7 @@ for k in 0..hrir_length {
 write_pos = (write_pos + 1) % hrir_length;
 ```
 
-This achieves O(N) convolution per sample where N is HRIR length.
+This achieves $O(N)$ convolution per sample where $N$ is HRIR length.
 
 ## Decoding Strategies
 
@@ -151,7 +178,7 @@ Full HRTF convolution with virtual speakers:
 
 ### Ambisonic Decoding (FOA)
 
-4 virtual speakers at ±45° and ±135° azimuth:
+4 virtual speakers at $\pm 45°$ and $\pm 135°$ azimuth:
 
 ```
         Front
@@ -169,36 +196,45 @@ Full HRTF convolution with virtual speakers:
 Standard ITU-R speaker positions:
 
 **5.1 (ITU-R BS.775-1):**
-- L/R: ±30°
-- C: 0°
-- LFE: 0° (non-directional)
-- Ls/Rs: ±110°
+| Channel | Azimuth |
+|---------|---------|
+| L/R | $\pm 30°$ |
+| C | $0°$ |
+| LFE | $0°$ (non-directional) |
+| Ls/Rs | $\pm 110°$ |
 
 **7.1 (ITU-R BS.2051):**
-- L/R: ±30°
-- C: 0°
-- LFE: 0°
-- Ls/Rs: ±90° (side)
-- Lrs/Rrs: ±150° (rear)
+| Channel | Azimuth |
+|---------|---------|
+| L/R | $\pm 30°$ |
+| C | $0°$ |
+| LFE | $0°$ |
+| Ls/Rs | $\pm 90°$ (side) |
+| Lrs/Rrs | $\pm 150°$ (rear) |
 
 ## Performance Considerations
 
 ### CPU Cost
 
 HRTF convolution complexity per audio frame:
-```
-Operations = samples × speakers × hrir_length
-           = 512 × 4 × 256 = 524,288 multiply-adds (FOA)
-```
+
+$$
+\text{Operations} = B \times N_{speakers} \times L_{HRIR} \times 2
+$$
+
+For a 512-sample buffer with 4-speaker FOA and 256-sample HRIRs:
+$$
+512 \times 4 \times 256 \times 2 = 1,048,576 \text{ multiply-adds}
+$$
 
 ### Memory Usage
 
-- HRIR storage: `speakers × 2 × hrir_length × sizeof(f32)`
-- Signal buffers: `speakers × hrir_length × sizeof(f32)`
+- **HRIR storage**: $N_{speakers} \times 2 \times L_{HRIR} \times \text{sizeof}(f32)$
+- **Signal buffers**: $N_{speakers} \times L_{HRIR} \times \text{sizeof}(f32)$
 
 For 4-speaker FOA with 256-sample HRIRs:
-- HRIRs: 4 × 2 × 256 × 4 = 8 KB
-- Buffers: 4 × 256 × 4 = 4 KB
+- HRIRs: $4 \times 2 \times 256 \times 4 = 8$ KB
+- Buffers: $4 \times 256 \times 4 = 4$ KB
 
 ### Realtime Safety
 
@@ -224,7 +260,8 @@ Generic HRTFs (like KEMAR) work reasonably well for most listeners but optimal s
 
 ## Further Reading
 
-- Blauert, J. (1997). *Spatial Hearing: The Psychophysics of Human Sound Localization*
-- Zotter, F. & Frank, M. (2019). *Ambisonics: A Practical 3D Audio Theory*
-- MIT KEMAR Database: <https://sound.media.mit.edu/resources/KEMAR.html>
+- Blauert, J. (1997). *Spatial Hearing: The Psychophysics of Human Sound Localization*. MIT Press.
+- Zotter, F. & Frank, M. (2019). *Ambisonics: A Practical 3D Audio Theory*. Springer.
+- Wightman, F.L. & Kistler, D.J. (1989). "Headphone simulation of free-field listening." *JASA*, 85(2), 858-867.
+- MIT KEMAR Database: [https://sound.media.mit.edu/resources/KEMAR.html](https://sound.media.mit.edu/resources/KEMAR.html)
 - AES69-2015: *AES standard for file exchange - Spatial acoustic data file format (SOFA)*

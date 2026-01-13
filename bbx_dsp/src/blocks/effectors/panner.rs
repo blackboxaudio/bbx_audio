@@ -278,7 +278,7 @@ impl<S: Sample> PannerBlock<S> {
         }
 
         let target_position = self.position.get_value(modulation_values);
-        if (target_position.to_f64() - self.position_smoother.target().to_f64()).abs() > 1e-9 {
+        if (target_position.to_f64() - self.position_smoother.target().to_f64()).abs() > S::EPSILON.to_f64() {
             self.position_smoother.set_target_value(target_position);
         }
 
@@ -300,11 +300,11 @@ impl<S: Sample> PannerBlock<S> {
 
         #[cfg(feature = "simd")]
         {
-            let chunks = num_samples / 4;
-            let remainder_start = chunks * 4;
+            let chunks = num_samples / SIMD_LANES;
+            let remainder_start = chunks * SIMD_LANES;
 
             for chunk_idx in 0..chunks {
-                let offset = chunk_idx * 4;
+                let offset = chunk_idx * SIMD_LANES;
                 let pos_vec = f64x4::from_slice(&positions[offset..]);
 
                 let normalized = ((pos_vec + f64x4::splat(100.0)) / f64x4::splat(200.0))
@@ -314,7 +314,7 @@ impl<S: Sample> PannerBlock<S> {
 
                 let l_arr = angle.cos().to_array();
                 let r_arr = angle.sin().to_array();
-                for i in 0..4 {
+                for i in 0..SIMD_LANES {
                     left_gains[offset + i] = S::from_f64(l_arr[i]);
                     right_gains[offset + i] = S::from_f64(r_arr[i]);
                 }
@@ -383,10 +383,10 @@ impl<S: Sample> PannerBlock<S> {
         let target_azimuth = self.azimuth.get_value(modulation_values);
         let target_elevation = self.elevation.get_value(modulation_values);
 
-        if (target_azimuth.to_f64() - self.azimuth_smoother.target().to_f64()).abs() > 1e-9 {
+        if (target_azimuth.to_f64() - self.azimuth_smoother.target().to_f64()).abs() > S::EPSILON.to_f64() {
             self.azimuth_smoother.set_target_value(target_azimuth);
         }
-        if (target_elevation.to_f64() - self.elevation_smoother.target().to_f64()).abs() > 1e-9 {
+        if (target_elevation.to_f64() - self.elevation_smoother.target().to_f64()).abs() > S::EPSILON.to_f64() {
             self.elevation_smoother.set_target_value(target_elevation);
         }
 
@@ -416,10 +416,10 @@ impl<S: Sample> PannerBlock<S> {
         let target_azimuth = self.azimuth.get_value(modulation_values);
         let target_elevation = self.elevation.get_value(modulation_values);
 
-        if (target_azimuth.to_f64() - self.azimuth_smoother.target().to_f64()).abs() > 1e-9 {
+        if (target_azimuth.to_f64() - self.azimuth_smoother.target().to_f64()).abs() > S::EPSILON.to_f64() {
             self.azimuth_smoother.set_target_value(target_azimuth);
         }
-        if (target_elevation.to_f64() - self.elevation_smoother.target().to_f64()).abs() > 1e-9 {
+        if (target_elevation.to_f64() - self.elevation_smoother.target().to_f64()).abs() > S::EPSILON.to_f64() {
             self.elevation_smoother.set_target_value(target_elevation);
         }
 
