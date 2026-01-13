@@ -6,10 +6,11 @@
 use crate::{
     blocks::{
         effectors::{
-            ambisonic_decoder::AmbisonicDecoderBlock, channel_merger::ChannelMergerBlock,
-            channel_router::ChannelRouterBlock, channel_splitter::ChannelSplitterBlock, dc_blocker::DcBlockerBlock,
-            gain::GainBlock, low_pass_filter::LowPassFilterBlock, matrix_mixer::MatrixMixerBlock,
-            overdrive::OverdriveBlock, panner::PannerBlock, vca::VcaBlock,
+            ambisonic_decoder::AmbisonicDecoderBlock, binaural_decoder::BinauralDecoderBlock,
+            channel_merger::ChannelMergerBlock, channel_router::ChannelRouterBlock,
+            channel_splitter::ChannelSplitterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock,
+            low_pass_filter::LowPassFilterBlock, matrix_mixer::MatrixMixerBlock, overdrive::OverdriveBlock,
+            panner::PannerBlock, vca::VcaBlock,
         },
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
@@ -114,6 +115,8 @@ pub enum BlockType<S: Sample> {
     // EFFECTORS
     /// Decodes ambisonics B-format to speaker layout.
     AmbisonicDecoder(AmbisonicDecoderBlock<S>),
+    /// Decodes ambisonics B-format to stereo for headphones.
+    BinauralDecoder(BinauralDecoderBlock<S>),
     /// Merges individual mono inputs into multi-channel output.
     ChannelMerger(ChannelMergerBlock<S>),
     /// Routes channels (mono to stereo, stereo to mono, etc.).
@@ -163,6 +166,7 @@ impl<S: Sample> BlockType<S> {
 
             // EFFECTORS
             BlockType::AmbisonicDecoder(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::BinauralDecoder(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::ChannelMerger(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::ChannelRouter(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::ChannelSplitter(block) => block.process(inputs, outputs, modulation_values, context),
@@ -194,6 +198,7 @@ impl<S: Sample> BlockType<S> {
 
             // EFFECTORS
             BlockType::AmbisonicDecoder(block) => block.input_count(),
+            BlockType::BinauralDecoder(block) => block.input_count(),
             BlockType::ChannelMerger(block) => block.input_count(),
             BlockType::ChannelRouter(block) => block.input_count(),
             BlockType::ChannelSplitter(block) => block.input_count(),
@@ -225,6 +230,7 @@ impl<S: Sample> BlockType<S> {
 
             // EFFECTORS
             BlockType::AmbisonicDecoder(block) => block.output_count(),
+            BlockType::BinauralDecoder(block) => block.output_count(),
             BlockType::ChannelMerger(block) => block.output_count(),
             BlockType::ChannelRouter(block) => block.output_count(),
             BlockType::ChannelSplitter(block) => block.output_count(),
@@ -256,6 +262,7 @@ impl<S: Sample> BlockType<S> {
 
             // EFFECTORS
             BlockType::AmbisonicDecoder(block) => block.modulation_outputs(),
+            BlockType::BinauralDecoder(block) => block.modulation_outputs(),
             BlockType::ChannelMerger(block) => block.modulation_outputs(),
             BlockType::ChannelRouter(block) => block.modulation_outputs(),
             BlockType::ChannelSplitter(block) => block.modulation_outputs(),
@@ -287,6 +294,7 @@ impl<S: Sample> BlockType<S> {
 
             // EFFECTORS
             BlockType::AmbisonicDecoder(block) => block.channel_config(),
+            BlockType::BinauralDecoder(block) => block.channel_config(),
             BlockType::ChannelMerger(block) => block.channel_config(),
             BlockType::ChannelRouter(block) => block.channel_config(),
             BlockType::ChannelSplitter(block) => block.channel_config(),
@@ -326,9 +334,8 @@ impl<S: Sample> BlockType<S> {
             },
 
             // EFFECTORS
-            BlockType::AmbisonicDecoder(_) => {
-                Err("Ambisonic decoder has no modulated parameters".to_string())
-            }
+            BlockType::AmbisonicDecoder(_) => Err("Ambisonic decoder has no modulated parameters".to_string()),
+            BlockType::BinauralDecoder(_) => Err("Binaural decoder has no modulated parameters".to_string()),
             BlockType::ChannelMerger(_) => Err("Channel merger has no modulated parameters".to_string()),
             BlockType::ChannelRouter(_) => Err("Channel router uses direct field access, not Parameter<S>".to_string()),
             BlockType::ChannelSplitter(_) => Err("Channel splitter has no modulated parameters".to_string()),
@@ -433,6 +440,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::FileInput(_) | BlockType::FileOutput(_) | BlockType::Output(_) => BlockCategory::IO,
             BlockType::Oscillator(_) => BlockCategory::Generator,
             BlockType::AmbisonicDecoder(_)
+            | BlockType::BinauralDecoder(_)
             | BlockType::ChannelMerger(_)
             | BlockType::ChannelRouter(_)
             | BlockType::ChannelSplitter(_)
@@ -456,6 +464,7 @@ impl<S: Sample> BlockType<S> {
             BlockType::Output(_) => "Output",
             BlockType::Oscillator(_) => "Oscillator",
             BlockType::AmbisonicDecoder(_) => "Ambisonic Decoder",
+            BlockType::BinauralDecoder(_) => "Binaural Decoder",
             BlockType::ChannelMerger(_) => "Channel Merger",
             BlockType::ChannelRouter(_) => "Channel Router",
             BlockType::ChannelSplitter(_) => "Channel Splitter",
@@ -491,6 +500,7 @@ impl<S: Sample> BlockType<S> {
             }
 
             BlockType::AmbisonicDecoder(_)
+            | BlockType::BinauralDecoder(_)
             | BlockType::ChannelMerger(_)
             | BlockType::ChannelRouter(_)
             | BlockType::ChannelSplitter(_)

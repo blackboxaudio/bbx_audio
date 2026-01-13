@@ -85,6 +85,7 @@
     - [ChannelMergerBlock](blocks/effectors/channel-merger.md)
     - [MatrixMixerBlock](blocks/effectors/matrix-mixer.md)
     - [AmbisonicDecoderBlock](blocks/effectors/ambisonic-decoder.md)
+    - [BinauralDecoderBlock](blocks/effectors/binaural-decoder.md)
     - [LowPassFilterBlock](blocks/effectors/low-pass-filter.md)
 - [Modulators](blocks/modulators.md)
     - [LfoBlock](blocks/modulators/lfo.md)

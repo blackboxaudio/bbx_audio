@@ -3,11 +3,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-    block::Block,
-    channel::ChannelConfig,
-    context::DspContext,
-    graph::MAX_BLOCK_OUTPUTS,
-    parameter::ModulationOutput,
+    block::Block, channel::ChannelConfig, context::DspContext, graph::MAX_BLOCK_OUTPUTS, parameter::ModulationOutput,
     sample::Sample,
 };
 

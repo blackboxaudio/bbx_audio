@@ -103,13 +103,11 @@ impl<S: Sample> Block<S> for MatrixMixerBlock<S> {
 
         let num_samples = inputs[0].len().min(outputs[0].len());
 
-        for out_ch in 0..num_outputs {
-            let output = &mut outputs[out_ch];
-
+        for (out_ch, output) in outputs.iter_mut().enumerate().take(num_outputs) {
             for i in 0..num_samples {
                 let mut sum = S::ZERO;
-                for in_ch in 0..num_inputs {
-                    sum = sum + inputs[in_ch][i] * self.gains[out_ch][in_ch];
+                for (in_ch, input) in inputs.iter().enumerate().take(num_inputs) {
+                    sum += input[i] * self.gains[out_ch][in_ch];
                 }
                 output[i] = sum;
             }

@@ -26,7 +26,7 @@ use crate::{
 pub struct AmbisonicDecoderBlock<S: Sample> {
     input_order: usize,
     output_layout: ChannelLayout,
-    decoder_matrix: [[f64; MAX_BLOCK_INPUTS]; MAX_BLOCK_OUTPUTS],
+    decoder_matrix: Box<[[f64; MAX_BLOCK_INPUTS]; MAX_BLOCK_OUTPUTS]>,
     _phantom: PhantomData<S>,
 }
 
@@ -45,7 +45,7 @@ impl<S: Sample> AmbisonicDecoderBlock<S> {
         let mut decoder = Self {
             input_order: order,
             output_layout,
-            decoder_matrix: [[0.0; MAX_BLOCK_INPUTS]; MAX_BLOCK_OUTPUTS],
+            decoder_matrix: Box::new([[0.0; MAX_BLOCK_INPUTS]; MAX_BLOCK_OUTPUTS]),
             _phantom: PhantomData,
         };
         decoder.compute_decoder_matrix();
@@ -69,9 +69,7 @@ impl<S: Sample> AmbisonicDecoderBlock<S> {
 
         for (spk, &(azimuth, elevation)) in speaker_positions.iter().enumerate().take(num_speakers) {
             let coeffs = self.compute_sh_coefficients(azimuth, elevation);
-            for ch in 0..num_channels {
-                self.decoder_matrix[spk][ch] = coeffs[ch];
-            }
+            self.decoder_matrix[spk][..num_channels].copy_from_slice(&coeffs[..num_channels]);
         }
 
         self.normalize_decoder_matrix();
@@ -108,8 +106,8 @@ impl<S: Sample> AmbisonicDecoderBlock<S> {
             }
             ChannelLayout::Custom(n) => {
                 let angle_step = 360.0 / n as f64;
-                for i in 0..n {
-                    positions[i] = (i as f64 * angle_step - 90.0, 0.0);
+                for (i, pos) in positions.iter_mut().enumerate().take(n) {
+                    *pos = (i as f64 * angle_step - 90.0, 0.0);
                 }
             }
             _ => {}
@@ -206,13 +204,11 @@ impl<S: Sample> Block<S> for AmbisonicDecoderBlock<S> {
 
         let num_samples = inputs[0].len().min(outputs[0].len());
 
-        for out_ch in 0..num_outputs {
-            let output = &mut outputs[out_ch];
-
+        for (out_ch, output) in outputs.iter_mut().enumerate().take(num_outputs) {
             for i in 0..num_samples {
                 let mut sum = 0.0f64;
-                for in_ch in 0..num_inputs {
-                    sum += inputs[in_ch][i].to_f64() * self.decoder_matrix[out_ch][in_ch];
+                for (in_ch, input) in inputs.iter().enumerate().take(num_inputs) {
+                    sum += input[i].to_f64() * self.decoder_matrix[out_ch][in_ch];
                 }
                 output[i] = S::from_f64(sum);
             }

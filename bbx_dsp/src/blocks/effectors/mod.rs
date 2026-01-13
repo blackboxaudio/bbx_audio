@@ -2,6 +2,7 @@
 //! of other blocks.
 
 pub mod ambisonic_decoder;
+pub mod binaural_decoder;
 pub mod channel_merger;
 pub mod channel_router;
 pub mod channel_splitter;

@@ -25,6 +25,7 @@ A block-based audio DSP system for building signal processing graphs.
 - `ChannelMergerBlock` - Merge mono inputs to multi-channel
 - `MatrixMixerBlock` - NxM mixing matrix
 - `AmbisonicDecoderBlock` - Ambisonics B-format decoder
+- `BinauralDecoderBlock` - Ambisonics B-format to stereo binaural for headphones
 - `LowPassFilterBlock` - SVF-based TPT low-pass filter with cutoff/resonance
 
 ### Modulators

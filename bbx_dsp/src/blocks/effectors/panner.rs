@@ -3,7 +3,7 @@
 //! Supports stereo panning, surround (VBAP), and ambisonic encoding.
 
 #[cfg(feature = "simd")]
-use std::simd::{f64x4, num::SimdFloat, StdFloat};
+use std::simd::{StdFloat, f64x4, num::SimdFloat};
 
 #[cfg(feature = "simd")]
 use crate::sample::SIMD_LANES;
@@ -181,9 +181,14 @@ impl<S: Sample> PannerBlock<S> {
         let num_speakers = self.output_layout.channel_count();
         let azimuth_rad = azimuth_deg.to_radians();
 
-        for i in 0..num_speakers {
-            if i == 3 && matches!(self.output_layout, ChannelLayout::Surround51 | ChannelLayout::Surround71) {
-                gains[i] = 0.0;
+        for (i, gain) in gains.iter_mut().enumerate().take(num_speakers) {
+            if i == 3
+                && matches!(
+                    self.output_layout,
+                    ChannelLayout::Surround51 | ChannelLayout::Surround71
+                )
+            {
+                *gain = 0.0;
                 continue;
             }
 
@@ -197,10 +202,10 @@ impl<S: Sample> PannerBlock<S> {
 
             let spread = std::f64::consts::FRAC_PI_2;
             if angle_diff < spread {
-                gains[i] = ((spread - angle_diff) / spread * std::f64::consts::FRAC_PI_2).cos();
-                gains[i] = gains[i].max(0.0);
+                *gain = ((spread - angle_diff) / spread * std::f64::consts::FRAC_PI_2).cos();
+                *gain = gain.max(0.0);
             } else {
-                gains[i] = 0.0;
+                *gain = 0.0;
             }
         }
 
@@ -391,13 +396,12 @@ impl<S: Sample> PannerBlock<S> {
 
         let mut gains: [f64; MAX_BLOCK_OUTPUTS] = [0.0; MAX_BLOCK_OUTPUTS];
 
-        for i in 0..num_samples {
+        for (i, &input_sample) in mono_in.iter().enumerate().take(num_samples) {
             let azimuth = self.azimuth_smoother.get_next_value().to_f64();
             let elevation = self.elevation_smoother.get_next_value().to_f64();
 
             self.calculate_vbap_gains(azimuth, elevation, &mut gains);
 
-            let input_sample = mono_in[i];
             for ch in 0..num_outputs {
                 outputs[ch][i] = input_sample * S::from_f64(gains[ch]);
             }
@@ -425,13 +429,12 @@ impl<S: Sample> PannerBlock<S> {
 
         let mut gains: [f64; MAX_BLOCK_OUTPUTS] = [0.0; MAX_BLOCK_OUTPUTS];
 
-        for i in 0..num_samples {
+        for (i, &input_sample) in mono_in.iter().enumerate().take(num_samples) {
             let azimuth = self.azimuth_smoother.get_next_value().to_f64();
             let elevation = self.elevation_smoother.get_next_value().to_f64();
 
             self.calculate_ambisonic_gains(azimuth, elevation, &mut gains);
 
-            let input_sample = mono_in[i];
             for ch in 0..num_outputs {
                 outputs[ch][i] = input_sample * S::from_f64(gains[ch]);
             }

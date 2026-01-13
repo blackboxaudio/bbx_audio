@@ -16,6 +16,7 @@ Effector blocks process and transform audio signals.
 | [ChannelMergerBlock](effectors/channel-merger.md) | Merge mono inputs to multi-channel |
 | [MatrixMixerBlock](effectors/matrix-mixer.md) | NxM mixing matrix |
 | [AmbisonicDecoderBlock](effectors/ambisonic-decoder.md) | Ambisonics B-format decoder |
+| [BinauralDecoderBlock](effectors/binaural-decoder.md) | B-format to stereo binaural |
 | [LowPassFilterBlock](effectors/low-pass-filter.md) | SVF low-pass filter |
 
 ## Characteristics

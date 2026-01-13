@@ -15,11 +15,7 @@ const AMBISONIC_ORDER: usize = 1;
 
 fn create_graph() -> Graph<f32> {
     // Create graph with stereo output (decoded from ambisonics)
-    let mut builder = GraphBuilder::with_layout(
-        DEFAULT_SAMPLE_RATE,
-        DEFAULT_BUFFER_SIZE,
-        ChannelLayout::Stereo,
-    );
+    let mut builder = GraphBuilder::with_layout(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, ChannelLayout::Stereo);
 
     // Mono oscillator source
     let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
@@ -34,7 +30,7 @@ fn create_graph() -> Graph<f32> {
     builder.modulate(lfo, encoder, "azimuth");
 
     // Decode back to stereo for playback
-    let decoder = builder.add_ambisonic_decoder(AMBISONIC_ORDER, ChannelLayout::Stereo);
+    let decoder = builder.add_binaural_decoder(AMBISONIC_ORDER);
     for ch in 0..ChannelLayout::ambisonic_channel_count(AMBISONIC_ORDER) {
         builder.connect(encoder, ch, decoder, ch);
     }

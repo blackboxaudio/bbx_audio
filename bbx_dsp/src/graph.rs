@@ -15,9 +15,10 @@ use crate::{
     block::{BlockCategory, BlockId, BlockType},
     blocks::{
         effectors::{
-            ambisonic_decoder::AmbisonicDecoderBlock, channel_merger::ChannelMergerBlock,
-            channel_splitter::ChannelSplitterBlock, gain::GainBlock, low_pass_filter::LowPassFilterBlock,
-            matrix_mixer::MatrixMixerBlock, overdrive::OverdriveBlock, panner::PannerBlock, vca::VcaBlock,
+            ambisonic_decoder::AmbisonicDecoderBlock, binaural_decoder::BinauralDecoderBlock,
+            channel_merger::ChannelMergerBlock, channel_splitter::ChannelSplitterBlock, gain::GainBlock,
+            low_pass_filter::LowPassFilterBlock, matrix_mixer::MatrixMixerBlock, overdrive::OverdriveBlock,
+            panner::PannerBlock, vca::VcaBlock,
         },
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
@@ -593,6 +594,19 @@ impl<S: Sample> GraphBuilder<S> {
     /// * `output_layout` - Target speaker layout for decoding
     pub fn add_ambisonic_decoder(&mut self, order: usize, output_layout: ChannelLayout) -> BlockId {
         let block = BlockType::AmbisonicDecoder(AmbisonicDecoderBlock::new(order, output_layout));
+        self.graph.add_block(block)
+    }
+
+    /// Add a `BinauralDecoderBlock` to the `Graph`.
+    ///
+    /// Decodes ambisonics B-format to stereo for headphone listening using
+    /// psychoacoustically-informed matrix coefficients.
+    ///
+    /// # Arguments
+    ///
+    /// * `order` - Ambisonic order (1, 2, or 3)
+    pub fn add_binaural_decoder(&mut self, order: usize) -> BlockId {
+        let block = BlockType::BinauralDecoder(BinauralDecoderBlock::new(order));
         self.graph.add_block(block)
     }
 
