@@ -1,6 +1,13 @@
 name: Documentation
 
 on:
+    workflow_dispatch:
+        inputs:
+            skip_api_docs:
+                description: 'Skip building Rust API docs (faster)'
+                required: false
+                default: 'false'
+                type: boolean
     push:
         branches: [main, develop]
 
@@ -17,6 +24,7 @@ jobs:
     build:
         name: Build
         runs-on: ubuntu-latest
+        timeout-minutes: 5
         steps:
             - name: Checkout Repository
               uses: actions/checkout@v4
@@ -25,7 +33,7 @@ jobs:
               run: sudo apt install alsa libasound2-dev libssl-dev pkg-config
 
             - name: Setup Rust
-              uses: dtolnay/rust-toolchain@stable
+              uses: dtolnay/rust-toolchain@nightly
 
             - name: Cache Rust dependencies
               uses: Swatinem/rust-cache@v2
@@ -44,9 +52,11 @@ jobs:
               run: mdbook build docs
 
             - name: Build API Docs
+              if: ${{ github.event.inputs.skip_api_docs != 'true' }}
               run: RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo doc --no-deps
 
             - name: Move API Docs
+              if: ${{ github.event.inputs.skip_api_docs != 'true' }}
               run: |
                   rm target/doc/.lock
                   mv target/doc docs/book/api
@@ -62,6 +72,7 @@ jobs:
             name: github-pages
             url: ${{ steps.deployment.outputs.page_url }}
         runs-on: ubuntu-latest
+        timeout-minutes: 5
         needs: build
         steps:
             - name: Deploy Pages
