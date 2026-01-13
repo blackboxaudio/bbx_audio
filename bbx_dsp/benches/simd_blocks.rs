@@ -42,7 +42,7 @@ fn bench_oscillator_waveforms<S: Sample>(c: &mut Criterion, type_name: &str) {
 
             group.bench_with_input(bench_id, buffer_size, |b, &size| {
                 let context = create_context(size);
-                let mut block = OscillatorBlock::<S>::new(S::from_f64(440.0), *waveform, None);
+                let mut block = OscillatorBlock::<S>::new(440.0, *waveform, None);
                 let mut outputs = create_output_buffers::<S>(size, 1);
                 let modulation_values: Vec<S> = vec![];
 
@@ -81,7 +81,7 @@ fn bench_panner<S: Sample>(c: &mut Criterion, type_name: &str) {
 
         group.bench_with_input(bench_id, buffer_size, |b, &size| {
             let context = create_context(size);
-            let mut block = PannerBlock::<S>::new(S::from_f64(25.0));
+            let mut block = PannerBlock::<S>::new(25.0);
             let inputs = create_input_buffers::<S>(size, 2);
             let mut outputs = create_output_buffers::<S>(size, 2);
             let modulation_values: Vec<S> = vec![];
@@ -120,7 +120,7 @@ fn bench_gain<S: Sample>(c: &mut Criterion, type_name: &str) {
 
         group.bench_with_input(bench_id, buffer_size, |b, &size| {
             let context = create_context(size);
-            let mut block = GainBlock::<S>::new(S::from_f64(-6.0), Some(S::ONE));
+            let mut block = GainBlock::<S>::new(-6.0, Some(1.0));
             let inputs = create_input_buffers::<S>(size, 1);
             let mut outputs = create_output_buffers::<S>(size, 1);
             let modulation_values: Vec<S> = vec![];
@@ -159,7 +159,7 @@ fn bench_low_pass_filter<S: Sample>(c: &mut Criterion, type_name: &str) {
 
         group.bench_with_input(bench_id, buffer_size, |b, &size| {
             let context = create_context(size);
-            let mut block = LowPassFilterBlock::<S>::new(S::from_f64(1000.0), S::from_f64(0.707));
+            let mut block = LowPassFilterBlock::<S>::new(1000.0, 0.707);
             block.set_sample_rate(SAMPLE_RATE);
             let inputs = create_input_buffers::<S>(size, 1);
             let mut outputs = create_output_buffers::<S>(size, 1);
@@ -199,7 +199,7 @@ fn bench_lfo<S: Sample>(c: &mut Criterion, type_name: &str) {
 
         group.bench_with_input(bench_id, buffer_size, |b, &size| {
             let context = create_context(size);
-            let mut block = LfoBlock::<S>::new(S::from_f64(5.0), S::from_f64(100.0), Waveform::Sine, None);
+            let mut block = LfoBlock::<S>::new(5.0, 100.0, Waveform::Sine, None);
             let mut outputs = create_output_buffers::<S>(size, 1);
             let modulation_values: Vec<S> = vec![];
 
