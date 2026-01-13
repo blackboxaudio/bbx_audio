@@ -2,6 +2,19 @@
 
 All notable changes to bbx_audio will be documented in this file.
 
+## [0.4.0] - 2026-01-13
+
+### Bug Fixes
+
+- Add filter resonance compensation curve (#67) ([#67](https://github.com/blackboxaudio/bbx_audio/pull/67))
+
+### Features
+
+- Add support for channel layouts (#69) ([#69](https://github.com/blackboxaudio/bbx_audio/pull/69))
+
+### Refactor
+
+- Use PolyBLEP algorithms (#65) ([#65](https://github.com/blackboxaudio/bbx_audio/pull/65))
 ## [0.3.1] - 2026-01-10
 
 ### Bug Fixes

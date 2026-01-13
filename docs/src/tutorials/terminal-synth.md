@@ -40,7 +40,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bbx_dsp = "0.3.1"
+bbx_dsp = "0.4.0"
 rodio = "0.20.1"
 ```
 
@@ -165,7 +165,7 @@ Add the `bbx_dsp` block import:
 
 ```toml
 [dependencies]
-bbx_dsp = "0.3.1"
+bbx_dsp = "0.4.0"
 rodio = "0.20.1"
 ```
 
@@ -248,7 +248,7 @@ Update `Cargo.toml`:
 
 ```toml
 [dependencies]
-bbx_dsp = "0.3.1"
+bbx_dsp = "0.4.0"
 bbx_midi = "0.1.0"
 rodio = "0.20.1"
 midir = "0.11"
