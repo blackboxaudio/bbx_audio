@@ -303,6 +303,7 @@ impl<S: Sample> Graph<S> {
     ///
     /// Executes blocks in topologically sorted order, copying final output
     /// to the provided buffers (one per channel).
+    #[inline]
     pub fn process_buffers(&mut self, output_buffers: &mut [&mut [S]]) {
         for buffer in &mut self.audio_buffers {
             buffer.zeroize();
@@ -317,6 +318,7 @@ impl<S: Sample> Graph<S> {
         self.copy_to_output_buffer(output_buffers);
     }
 
+    #[inline]
     fn process_block_unsafe(&mut self, block_id: BlockId) {
         // Use pre-computed input buffer indices (O(1) lookup instead of O(n) scan)
         let input_indices = &self.block_input_buffers[block_id.0];
@@ -388,6 +390,7 @@ impl<S: Sample> Graph<S> {
     ///
     /// This design is intentional for performance reasons: audio-rate modulation would
     /// require per-sample parameter updates, significantly increasing CPU usage.
+    #[inline]
     fn collect_modulation_values(&mut self, block_id: BlockId) {
         // Bounds check to prevent panic in audio thread
         if block_id.0 >= self.blocks.len() {

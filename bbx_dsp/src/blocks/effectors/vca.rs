@@ -31,6 +31,7 @@ impl<S: Sample> Default for VcaBlock<S> {
 }
 
 impl<S: Sample> Block<S> for VcaBlock<S> {
+    #[inline]
     fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
         let output = match outputs.first_mut() {
             Some(out) => out,
