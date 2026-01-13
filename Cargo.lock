@@ -276,10 +276,12 @@ dependencies = [
  "bbx_dsp",
  "bbx_file",
  "bbx_midi",
+ "bbx_net",
  "ctrlc",
  "midir",
  "rand 0.8.5",
  "rodio",
+ "tokio",
 ]
 
 [[package]]

@@ -67,11 +67,12 @@ pub struct WsServer {
     config: WsServerConfig,
     room_manager: Arc<RwLock<RoomManager>>,
     clock_sync: Arc<ClockSync>,
-    #[allow(dead_code)]
     producer: NetBufferProducer,
     state_broadcast: broadcast::Sender<ServerMessage>,
     command_rx: mpsc::Receiver<ServerCommand>,
     connections: Arc<RwLock<HashMap<NodeId, ConnectionState>>>,
+    message_tx: mpsc::Sender<NetMessage>,
+    message_rx: mpsc::Receiver<NetMessage>,
 }
 
 impl WsServer {
@@ -84,6 +85,7 @@ impl WsServer {
     /// * `command_rx` - Channel for receiving commands from main thread
     pub fn new(config: WsServerConfig, producer: NetBufferProducer, command_rx: mpsc::Receiver<ServerCommand>) -> Self {
         let (state_broadcast, _) = broadcast::channel(config.broadcast_capacity);
+        let (message_tx, message_rx) = mpsc::channel(1024);
 
         Self {
             config,
@@ -93,6 +95,8 @@ impl WsServer {
             state_broadcast,
             command_rx,
             connections: Arc::new(RwLock::new(HashMap::new())),
+            message_tx,
+            message_rx,
         }
     }
 
@@ -130,6 +134,10 @@ impl WsServer {
                             continue;
                         }
                     }
+                }
+
+                Some(msg) = self.message_rx.recv() => {
+                    let _ = self.producer.try_send(msg);
                 }
 
                 Some(cmd) = self.command_rx.recv() => {
@@ -178,6 +186,7 @@ impl WsServer {
         let clock_sync = Arc::clone(&self.clock_sync);
         let connections = Arc::clone(&self.connections);
         let mut broadcast_rx = self.state_broadcast.subscribe();
+        let message_tx = self.message_tx.clone();
 
         tokio::spawn(async move {
             let mut node_id: Option<NodeId> = None;
@@ -239,14 +248,26 @@ impl WsServer {
                                         }
                                         ClientMessage::Parameter { param, value, at: _ } => {
                                             if let Some(nid) = node_id {
-                                                let _msg = NetMessage {
+                                                let msg = NetMessage {
                                                     message_type: NetMessageType::ParameterChange,
                                                     param_hash: hash_param_name(&param),
                                                     value,
                                                     node_id: nid,
                                                     timestamp: clock_sync.now(),
                                                 };
-                                                // TODO: Send msg via mpsc channel to producer
+                                                let _ = message_tx.send(msg).await;
+                                            }
+                                        }
+                                        ClientMessage::Trigger { name, at: _ } => {
+                                            if let Some(nid) = node_id {
+                                                let msg = NetMessage {
+                                                    message_type: NetMessageType::Trigger,
+                                                    param_hash: hash_param_name(&name),
+                                                    value: 1.0,
+                                                    node_id: nid,
+                                                    timestamp: clock_sync.now(),
+                                                };
+                                                let _ = message_tx.send(msg).await;
                                             }
                                         }
                                         ClientMessage::Ping { client_time } => {

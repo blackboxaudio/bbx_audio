@@ -17,4 +17,4 @@ mod server;
 pub use connection::ConnectionState;
 pub use protocol::{ClientMessage, ParamState, ServerMessage};
 pub use room::{Room, RoomConfig, RoomManager};
-pub use server::{WsServer, WsServerConfig};
+pub use server::{ServerCommand, WsServer, WsServerConfig};
