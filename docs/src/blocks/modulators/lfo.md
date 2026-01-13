@@ -130,6 +130,14 @@ let lfo = builder.add(LfoBlock::new(2.0, 0.8, Waveform::Triangle, None));
 | Square | Abrupt on/off | Gated effects |
 | Noise | Random | Organic variation |
 
+## Modulation Output
+
+The LFO output ranges from -1.0 to 1.0 (scaled by depth). The receiving block interprets this:
+
+- **Pitch**: Maps to frequency deviation
+- **Amplitude**: Maps to gain change
+- **Pan**: Maps to position change
+
 ## Usage Examples
 
 ### Vibrato (Pitch Modulation)

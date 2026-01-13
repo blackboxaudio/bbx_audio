@@ -114,6 +114,7 @@ jobs:
 
   publish:
     name: Publish to crates.io
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: validate
     environment: crates-io
@@ -153,6 +154,7 @@ jobs:
 
   github-release:
     name: Create GitHub Release
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: [create-tag, validate, publish]
     permissions:
