@@ -21,6 +21,7 @@
 //! - `freq` - Oscillator frequency (0.0-1.0 → 20-2000 Hz)
 //! - `cutoff` - Filter cutoff (0.0-1.0 → 100-5000 Hz)
 //! - `gain` - Output gain (0.0-1.0 → -60 to 0 dB)
+//! - `pan` - Stereo pan position (0.0-1.0 → full left to full right)
 //!
 //! # Usage
 //!
@@ -63,6 +64,7 @@ struct ParamHashes {
     freq: u32,
     cutoff: u32,
     gain: u32,
+    pan: u32,
 }
 
 impl ParamHashes {
@@ -71,6 +73,7 @@ impl ParamHashes {
             freq: hash_param_name("freq"),
             cutoff: hash_param_name("cutoff"),
             gain: hash_param_name("gain"),
+            pan: hash_param_name("pan"),
         }
     }
 }
@@ -82,6 +85,7 @@ struct WsSynth {
     oscillator_id: BlockId,
     filter_id: BlockId,
     gain_id: BlockId,
+    panner_id: BlockId,
     param_hashes: ParamHashes,
     sample_rate: u32,
     num_channels: usize,
@@ -122,6 +126,7 @@ impl WsSynth {
             oscillator_id,
             filter_id,
             gain_id,
+            panner_id,
             param_hashes: ParamHashes::new(),
             sample_rate: sample_rate as u32,
             num_channels,
@@ -148,6 +153,9 @@ impl WsSynth {
             } else if msg.param_hash == self.param_hashes.gain {
                 let gain_db = scale_gain(msg.value);
                 self.set_gain(gain_db);
+            } else if msg.param_hash == self.param_hashes.pan {
+                let position = scale_pan(msg.value);
+                self.set_panner_position(position);
             }
         }
     }
@@ -172,6 +180,14 @@ impl WsSynth {
         if let Some(bbx_dsp::block::BlockType::Gain(gain)) = self.graph.get_block_mut(self.gain_id)
         {
             gain.level_db = bbx_dsp::parameter::Parameter::Constant(gain_db);
+        }
+    }
+
+    fn set_panner_position(&mut self, position: f32) {
+        if let Some(bbx_dsp::block::BlockType::Panner(panner)) =
+            self.graph.get_block_mut(self.panner_id)
+        {
+            panner.position = bbx_dsp::parameter::Parameter::Constant(position);
         }
     }
 
@@ -239,6 +255,12 @@ fn scale_gain(normalized: f32) -> f32 {
     let min_db = -60.0_f32;
     let max_db = 0.0_f32;
     min_db + (max_db - min_db) * normalized.clamp(0.0, 1.0)
+}
+
+fn scale_pan(normalized: f32) -> f32 {
+    let min_pos = -100.0_f32;
+    let max_pos = 100.0_f32;
+    min_pos + (max_pos - min_pos) * normalized.clamp(0.0, 1.0)
 }
 
 fn get_local_ip() -> Option<String> {
@@ -309,6 +331,7 @@ fn main() {
     println!("  freq   - Oscillator frequency (0.0-1.0)");
     println!("  cutoff - Filter cutoff (0.0-1.0)");
     println!("  gain   - Output gain (0.0-1.0)");
+    println!("  pan    - Stereo pan position (0.0-1.0)");
     println!("\nPress Ctrl+C to exit.\n");
 
     let synth = WsSynth::new(consumer);
