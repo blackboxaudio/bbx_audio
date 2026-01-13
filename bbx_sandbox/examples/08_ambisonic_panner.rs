@@ -22,8 +22,7 @@ const NUM_SOURCES: usize = 5;
 fn create_graph() -> Graph<f32> {
     let num_ambi_channels = ChannelLayout::ambisonic_channel_count(AMBISONIC_ORDER);
 
-    let mut builder =
-        GraphBuilder::with_layout(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, ChannelLayout::Stereo);
+    let mut builder = GraphBuilder::with_layout(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, ChannelLayout::Stereo);
 
     // Create matrix mixer to sum all ambisonic sources
     // 5 sources × 4 FOA channels = 20 inputs → 4 outputs
