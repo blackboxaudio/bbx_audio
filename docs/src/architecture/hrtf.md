@@ -16,7 +16,7 @@ HRTF measurements use a spherical coordinate system centered on the listener:
 
 - **Azimuth (θ)**: The horizontal angle around the listener, measured in degrees. 0° is directly in front, 90° is to the right, 180° (or -180°) is directly behind, and -90° is to the left.
 - **Elevation (φ)**: The vertical angle above or below the horizontal plane. 0° is ear-level, +90° is directly above, and -90° is directly below.
-- **Frequency (ω)**: The angular frequency of the sound wave in radians per second (ω = 2πf where f is frequency in Hz). HRTFs describe how each frequency component is modified differently based on direction.
+- **Frequency (ω)**: The angular frequency of the sound wave in radians per second (ω = 2πf where f is frequency in Hz). HRTFs are frequency-dependent because the head and ears affect different frequencies differently—low frequencies diffract around the head while high frequencies are shadowed by it, and the small structures of the pinnae only interact with wavelengths comparable to their size (roughly 1.5-17 kHz).
 
 An HRTF captures all these cues as a frequency-domain transfer function $H(\omega, \theta, \phi)$.
 

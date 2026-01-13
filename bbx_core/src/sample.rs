@@ -94,6 +94,9 @@ pub trait Sample:
     /// Convert to an `f64` value.
     fn to_f64(self) -> f64;
 
+    /// Returns the absolute value of this sample.
+    fn abs(self) -> Self;
+
     /// The SIMD vector type for this sample type.
     ///
     /// This associated type provides all necessary SIMD operations for DSP processing.
@@ -161,6 +164,11 @@ impl Sample for f32 {
         self as f64
     }
 
+    #[inline]
+    fn abs(self) -> Self {
+        self.abs()
+    }
+
     #[cfg(feature = "simd")]
     type Simd = f32x4;
 
@@ -225,6 +233,11 @@ impl Sample for f64 {
     #[inline]
     fn to_f64(self) -> f64 {
         self
+    }
+
+    #[inline]
+    fn abs(self) -> Self {
+        self.abs()
     }
 
     #[cfg(feature = "simd")]
