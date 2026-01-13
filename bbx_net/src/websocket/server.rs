@@ -202,10 +202,12 @@ impl WsServer {
                                     match client_msg {
                                         ClientMessage::Join { room_code: code, client_name } => {
                                             let mut rm = room_manager.write().await;
-                                            let mut rng = bbx_core::random::XorShiftRng::new(
-                                                clock_sync.now().as_micros()
+                                            let connections_read = connections.read().await;
+                                            let new_node_id = NodeId::generate_unique(
+                                                clock_sync.now().as_micros(),
+                                                |id| connections_read.contains_key(id),
                                             );
-                                            let new_node_id = NodeId::generate(&mut rng);
+                                            drop(connections_read);
 
                                             match rm.join_room(&code, new_node_id, client_name.clone()) {
                                                 Ok(()) => {
@@ -311,16 +313,16 @@ impl WsServer {
                 }
             }
 
-            if should_cleanup
-                && let (Some(nid), Some(code)) = (node_id, room_code) {
-                    room_manager.write().await.leave_room(&code, nid);
-                    connections.write().await.remove(&nid);
-                }
+            if should_cleanup && let (Some(nid), Some(code)) = (node_id, room_code) {
+                room_manager.write().await.leave_room(&code, nid);
+                connections.write().await.remove(&nid);
+            }
         });
     }
 }
 
 /// Create a parameter state list for state synchronization.
+#[allow(dead_code)]
 pub fn create_param_state_list(params: &[(String, f32)]) -> Vec<ParamState> {
     params
         .iter()

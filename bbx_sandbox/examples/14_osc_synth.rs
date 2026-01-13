@@ -17,7 +17,13 @@
 //!
 //! 1. Set OSC host to your computer's IP address
 //! 2. Set OSC port to 9000
-//! 3. Create faders with addresses `/blocks/param/freq`, `/blocks/param/cutoff`, `/blocks/param/gain`, `/blocks/param/pan`
+//! 3. Create faders with addresses `/blocks/param/freq`, `/blocks/param/cutoff`, `/blocks/param/gain`,
+//!    `/blocks/param/pan`
+//!
+//! # Included TouchOSC Patch
+//!
+//! A pre-configured TouchOSC interface is included at `bbx_sandbox/examples/14_osc_synth.tosc`.
+//! Import this file into TouchOSC to get started immediately without manual fader configuration.
 //!
 //! # Usage
 //!
@@ -150,32 +156,25 @@ impl OscSynth {
     }
 
     fn set_oscillator_frequency(&mut self, frequency: f32) {
-        if let Some(bbx_dsp::block::BlockType::Oscillator(osc)) =
-            self.graph.get_block_mut(self.oscillator_id)
-        {
+        if let Some(bbx_dsp::block::BlockType::Oscillator(osc)) = self.graph.get_block_mut(self.oscillator_id) {
             osc.set_midi_frequency(frequency);
         }
     }
 
     fn set_filter_cutoff(&mut self, cutoff: f32) {
-        if let Some(bbx_dsp::block::BlockType::LowPassFilter(filter)) =
-            self.graph.get_block_mut(self.filter_id)
-        {
+        if let Some(bbx_dsp::block::BlockType::LowPassFilter(filter)) = self.graph.get_block_mut(self.filter_id) {
             filter.cutoff = bbx_dsp::parameter::Parameter::Constant(cutoff);
         }
     }
 
     fn set_gain(&mut self, gain_db: f32) {
-        if let Some(bbx_dsp::block::BlockType::Gain(gain)) = self.graph.get_block_mut(self.gain_id)
-        {
+        if let Some(bbx_dsp::block::BlockType::Gain(gain)) = self.graph.get_block_mut(self.gain_id) {
             gain.level_db = bbx_dsp::parameter::Parameter::Constant(gain_db);
         }
     }
 
     fn set_panner_position(&mut self, position: f32) {
-        if let Some(bbx_dsp::block::BlockType::Panner(panner)) =
-            self.graph.get_block_mut(self.panner_id)
-        {
+        if let Some(bbx_dsp::block::BlockType::Panner(panner)) = self.graph.get_block_mut(self.panner_id) {
             panner.position = bbx_dsp::parameter::Parameter::Constant(position);
         }
     }
@@ -184,8 +183,7 @@ impl OscSynth {
         if self.channel_index == 0 && self.sample_index == 0 {
             self.process_net_events();
 
-            let mut output_refs: Vec<&mut [f32]> =
-                self.output_buffers.iter_mut().map(|b| b.as_mut_slice()).collect();
+            let mut output_refs: Vec<&mut [f32]> = self.output_buffers.iter_mut().map(|b| b.as_mut_slice()).collect();
             self.graph.process_buffers(&mut output_refs);
         }
 

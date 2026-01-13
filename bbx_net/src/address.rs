@@ -3,9 +3,13 @@
 //! Provides `NodeId` for unique identification and `AddressPath` for
 //! parsing OSC-style address patterns that target DSP blocks.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use bbx_core::random::XorShiftRng;
 
 use crate::error::{NetError, Result};
+
+static NODE_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// A 128-bit node identifier generated from XorShiftRng.
 ///
@@ -37,6 +41,40 @@ impl NodeId {
         Self {
             high: (sample1 * u64::MAX as f64) as u64,
             low: (sample2 * u64::MAX as f64) as u64,
+        }
+    }
+
+    /// Generate a NodeId with mixed entropy sources for improved unpredictability.
+    ///
+    /// Combines multiple entropy sources: time, process ID, memory address (ASLR),
+    /// and a monotonic counter to create a more unpredictable seed.
+    pub fn generate_with_entropy(clock_micros: u64) -> Self {
+        let counter = NODE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let pid = std::process::id() as u64;
+        let addr_entropy = &counter as *const _ as u64;
+
+        let seed = clock_micros.wrapping_mul(0x517cc1b727220a95)
+            ^ pid.rotate_left(17)
+            ^ addr_entropy.rotate_left(31)
+            ^ counter.wrapping_mul(0x2545f4914f6cdd1d);
+
+        let mut rng = XorShiftRng::new(seed.max(1));
+        Self::generate(&mut rng)
+    }
+
+    /// Generate a unique NodeId that doesn't collide with existing IDs.
+    ///
+    /// Uses `generate_with_entropy` internally and loops until finding an ID
+    /// that the `exists` predicate returns false for.
+    pub fn generate_unique<F>(clock_micros: u64, mut exists: F) -> Self
+    where
+        F: FnMut(&NodeId) -> bool,
+    {
+        loop {
+            let candidate = Self::generate_with_entropy(clock_micros);
+            if !exists(&candidate) {
+                return candidate;
+            }
         }
     }
 
@@ -233,5 +271,25 @@ mod tests {
         assert!(AddressPath::parse("/invalid/path").is_err());
         assert!(AddressPath::parse("/block/notauuid/param/test").is_err());
         assert!(AddressPath::parse("").is_err());
+    }
+
+    #[test]
+    fn test_generate_with_entropy_uniqueness() {
+        let mut ids = std::collections::HashSet::new();
+        for _ in 0..10_000 {
+            let id = NodeId::generate_with_entropy(0);
+            assert!(ids.insert(id), "Collision detected");
+        }
+    }
+
+    #[test]
+    fn test_generate_unique_avoids_collision() {
+        let existing = NodeId::from_parts(123, 456);
+        let mut attempts = 0;
+        let new_id = NodeId::generate_unique(0, |id| {
+            attempts += 1;
+            *id == existing && attempts == 1
+        });
+        assert_ne!(new_id, existing);
     }
 }

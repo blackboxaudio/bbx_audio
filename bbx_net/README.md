@@ -1,6 +1,6 @@
 # bbx_net
 
-Network audio control for art installations: OSC and WebSocket protocols.
+Network audio control for art installations and live performance: OSC and WebSocket protocols.
 
 This crate provides lock-free, realtime-safe network message passing for distributed audio systems. It supports:
 

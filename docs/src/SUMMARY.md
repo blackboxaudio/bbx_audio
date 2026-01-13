@@ -17,7 +17,8 @@
 - [Parameter Modulation with LFOs](tutorials/modulation.md) — *dynamic control*
 - [Working with Audio Files](tutorials/audio-files.md) — *file I/O*
 - [MIDI Integration](tutorials/midi.md) — *external control*
-- [Network Audio Control](tutorials/network-audio.md) — *OSC & WebSocket*
+- [OSC Audio Control](tutorials/osc-audio.md) — *TouchOSC & external apps*
+- [WebSocket Audio Control](tutorials/websocket-audio.md) — *browser & web clients*
 - [Real-Time Visualization](tutorials/visualization.md) — *visual feedback*
 - [Sketch Discovery](tutorials/sketchbook.md) — *project organization*
 
@@ -123,6 +124,7 @@
     - [Zero-Allocation Processing](architecture/zero-allocation.md)
     - [Cache Efficiency](architecture/cache-efficiency.md)
     - [SIMD Optimizations](architecture/simd.md)
+- [Network Architecture](architecture/networking.md)
 
 # Contributing
 

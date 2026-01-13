@@ -143,9 +143,10 @@ impl RoomManager {
     /// Update client activity timestamp.
     pub fn update_activity(&mut self, code: &str, node_id: NodeId) {
         if let Some(room) = self.rooms.get_mut(code)
-            && let Some(client) = room.clients.get_mut(&node_id) {
-                client.last_activity = Instant::now();
-            }
+            && let Some(client) = room.clients.get_mut(&node_id)
+        {
+            client.last_activity = Instant::now();
+        }
     }
 
     /// Get all node IDs in a room.
