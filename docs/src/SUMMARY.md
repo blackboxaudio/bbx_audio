@@ -84,6 +84,7 @@
     - [ChannelSplitterBlock](blocks/effectors/channel-splitter.md)
     - [ChannelMergerBlock](blocks/effectors/channel-merger.md)
     - [MatrixMixerBlock](blocks/effectors/matrix-mixer.md)
+    - [MixerBlock](blocks/effectors/mixer.md)
     - [AmbisonicDecoderBlock](blocks/effectors/ambisonic-decoder.md)
     - [BinauralDecoderBlock](blocks/effectors/binaural-decoder.md)
     - [LowPassFilterBlock](blocks/effectors/low-pass-filter.md)
