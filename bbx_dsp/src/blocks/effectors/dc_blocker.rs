@@ -159,4 +159,79 @@ mod tests {
         let final_val = output[1023].abs();
         assert!(final_val < 0.1, "DC should be mostly removed, got {final_val}");
     }
+
+    #[test]
+    fn test_dc_blocker_input_output_counts_f32() {
+        let blocker = DcBlockerBlock::<f32>::new(true);
+        assert_eq!(blocker.input_count(), DEFAULT_EFFECTOR_INPUT_COUNT);
+        assert_eq!(blocker.output_count(), DEFAULT_EFFECTOR_OUTPUT_COUNT);
+    }
+
+    #[test]
+    fn test_dc_blocker_input_output_counts_f64() {
+        let blocker = DcBlockerBlock::<f64>::new(true);
+        assert_eq!(blocker.input_count(), DEFAULT_EFFECTOR_INPUT_COUNT);
+        assert_eq!(blocker.output_count(), DEFAULT_EFFECTOR_OUTPUT_COUNT);
+    }
+
+    #[test]
+    fn test_dc_blocker_basic_f64() {
+        let mut blocker = DcBlockerBlock::<f64>::new(true);
+        blocker.set_sample_rate(44100.0);
+        let context = test_context(64);
+
+        let input: [f64; 64] = [0.5; 64];
+        let mut output: [f64; 64] = [0.0; 64];
+
+        let inputs: [&[f64]; 1] = [&input];
+        let mut outputs: [&mut [f64]; 1] = [&mut output];
+
+        blocker.process(&inputs, &mut outputs, &[], &context);
+
+        assert!(output[63].abs() > 0.0, "DC blocker should produce output");
+    }
+
+    #[test]
+    fn test_dc_blocker_modulation_outputs_empty() {
+        let blocker = DcBlockerBlock::<f32>::new(true);
+        assert!(blocker.modulation_outputs().is_empty());
+    }
+
+    #[test]
+    fn test_dc_blocker_disabled_passthrough() {
+        let mut blocker = DcBlockerBlock::<f32>::new(false);
+        let context = test_context(4);
+
+        let input: [f32; 4] = [0.5, 0.6, 0.7, 0.8];
+        let mut output: [f32; 4] = [0.0; 4];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        blocker.process(&inputs, &mut outputs, &[], &context);
+
+        assert_eq!(output, input, "Disabled DC blocker should pass through unchanged");
+    }
+
+    #[test]
+    fn test_dc_blocker_reset() {
+        let mut blocker = DcBlockerBlock::<f32>::new(true);
+        blocker.set_sample_rate(44100.0);
+        let context = test_context(64);
+
+        let input: [f32; 64] = [0.5; 64];
+        let mut output: [f32; 64] = [0.0; 64];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        blocker.process(&inputs, &mut outputs, &[], &context);
+        blocker.reset();
+
+        let mut output2: [f32; 64] = [0.0; 64];
+        let mut outputs2: [&mut [f32]; 1] = [&mut output2];
+        blocker.process(&inputs, &mut outputs2, &[], &context);
+
+        assert!((output[0] - output2[0]).abs() < 1e-6, "Reset should clear state");
+    }
 }

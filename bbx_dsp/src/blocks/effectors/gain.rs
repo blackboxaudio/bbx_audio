@@ -126,3 +126,403 @@ impl<S: Sample> Block<S> for GainBlock<S> {
         &[]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::channel::ChannelLayout;
+
+    fn test_context(buffer_size: usize) -> DspContext {
+        DspContext {
+            sample_rate: 44100.0,
+            num_channels: 2,
+            buffer_size,
+            current_sample: 0,
+            channel_layout: ChannelLayout::Stereo,
+        }
+    }
+
+    #[test]
+    fn test_gain_input_output_counts_f32() {
+        let gain = GainBlock::<f32>::new(0.0, None);
+        assert_eq!(gain.input_count(), DEFAULT_EFFECTOR_INPUT_COUNT);
+        assert_eq!(gain.output_count(), DEFAULT_EFFECTOR_OUTPUT_COUNT);
+    }
+
+    #[test]
+    fn test_gain_input_output_counts_f64() {
+        let gain = GainBlock::<f64>::new(0.0, None);
+        assert_eq!(gain.input_count(), DEFAULT_EFFECTOR_INPUT_COUNT);
+        assert_eq!(gain.output_count(), DEFAULT_EFFECTOR_OUTPUT_COUNT);
+    }
+
+    #[test]
+    fn test_unity_gain_passthrough_f32() {
+        let mut gain = GainBlock::<f32>::unity();
+        let context = test_context(4);
+
+        let input = [0.5f32, -0.5, 0.25, -0.25];
+        let mut output = [0.0f32; 4];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        for (i, (&inp, &out)) in input.iter().zip(output.iter()).enumerate() {
+            assert!(
+                (inp - out).abs() < 1e-5,
+                "Unity gain should passthrough: input[{}]={}, output[{}]={}",
+                i,
+                inp,
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_unity_gain_passthrough_f64() {
+        let mut gain = GainBlock::<f64>::unity();
+        let context = test_context(4);
+
+        let input = [0.5f64, -0.5, 0.25, -0.25];
+        let mut output = [0.0f64; 4];
+
+        let inputs: [&[f64]; 1] = [&input];
+        let mut outputs: [&mut [f64]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        for (i, (&inp, &out)) in input.iter().zip(output.iter()).enumerate() {
+            assert!(
+                (inp - out).abs() < 1e-10,
+                "Unity gain should passthrough: input[{}]={}, output[{}]={}",
+                i,
+                inp,
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_silence_at_min_db_f32() {
+        let mut gain = GainBlock::<f32>::new(-80.0, None);
+        let context = test_context(4);
+
+        let input = [1.0f32; 4];
+        let mut output = [1.0f32; 4];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        for (i, &out) in output.iter().enumerate() {
+            assert!(
+                out.abs() < 0.001,
+                "Output should be nearly silent at -80dB: output[{}]={}",
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_silence_at_min_db_f64() {
+        let mut gain = GainBlock::<f64>::new(-80.0, None);
+        let context = test_context(4);
+
+        let input = [1.0f64; 4];
+        let mut output = [1.0f64; 4];
+
+        let inputs: [&[f64]; 1] = [&input];
+        let mut outputs: [&mut [f64]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        for (i, &out) in output.iter().enumerate() {
+            assert!(
+                out.abs() < 0.001,
+                "Output should be nearly silent at -80dB: output[{}]={}",
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_amplification_at_positive_db_f32() {
+        let mut gain = GainBlock::<f32>::new(6.0, None);
+        let context = test_context(4);
+
+        let input = [0.5f32; 4];
+        let mut output = [0.0f32; 4];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        let expected_linear = 10.0_f32.powf(6.0 / 20.0);
+        for (i, &out) in output.iter().enumerate() {
+            let expected = 0.5 * expected_linear;
+            assert!(
+                (out - expected).abs() < 0.05,
+                "Output should be amplified at +6dB: expected={}, output[{}]={}",
+                expected,
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_amplification_at_positive_db_f64() {
+        let mut gain = GainBlock::<f64>::new(6.0, None);
+        let context = test_context(4);
+
+        let input = [0.5f64; 4];
+        let mut output = [0.0f64; 4];
+
+        let inputs: [&[f64]; 1] = [&input];
+        let mut outputs: [&mut [f64]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        let expected_linear = 10.0_f64.powf(6.0 / 20.0);
+        for (i, &out) in output.iter().enumerate() {
+            let expected = 0.5 * expected_linear;
+            assert!(
+                (out - expected).abs() < 0.05,
+                "Output should be amplified at +6dB: expected={}, output[{}]={}",
+                expected,
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_attenuation_at_negative_db_f32() {
+        let mut gain = GainBlock::<f32>::new(-6.0, None);
+        let context = test_context(4);
+
+        let input = [1.0f32; 4];
+        let mut output = [0.0f32; 4];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        let expected_linear = 10.0_f32.powf(-6.0 / 20.0);
+        for (i, &out) in output.iter().enumerate() {
+            assert!(
+                (out - expected_linear).abs() < 0.05,
+                "Output should be attenuated at -6dB: expected={}, output[{}]={}",
+                expected_linear,
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_attenuation_at_negative_db_f64() {
+        let mut gain = GainBlock::<f64>::new(-6.0, None);
+        let context = test_context(4);
+
+        let input = [1.0f64; 4];
+        let mut output = [0.0f64; 4];
+
+        let inputs: [&[f64]; 1] = [&input];
+        let mut outputs: [&mut [f64]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        let expected_linear = 10.0_f64.powf(-6.0 / 20.0);
+        for (i, &out) in output.iter().enumerate() {
+            assert!(
+                (out - expected_linear).abs() < 0.05,
+                "Output should be attenuated at -6dB: expected={}, output[{}]={}",
+                expected_linear,
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_base_gain_multiplier_f32() {
+        let mut gain = GainBlock::<f32>::new(0.0, Some(0.5));
+        let context = test_context(4);
+
+        let input = [1.0f32; 4];
+        let mut output = [0.0f32; 4];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        for (i, &out) in output.iter().enumerate() {
+            assert!(
+                (out - 0.5).abs() < 0.05,
+                "Base gain of 0.5 should halve output: output[{}]={}",
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_multichannel_processing_f32() {
+        let mut gain = GainBlock::<f32>::new(0.0, None);
+        let context = test_context(4);
+
+        let input_l = [1.0f32, 0.5, 0.25, 0.125];
+        let input_r = [0.8f32, 0.4, 0.2, 0.1];
+        let mut output_l = [0.0f32; 4];
+        let mut output_r = [0.0f32; 4];
+
+        let inputs: [&[f32]; 2] = [&input_l, &input_r];
+        let mut outputs: [&mut [f32]; 2] = [&mut output_l, &mut output_r];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        for (i, (&inp, &out)) in input_l.iter().zip(output_l.iter()).enumerate() {
+            assert!(
+                (inp - out).abs() < 0.05,
+                "Left channel passthrough: input[{}]={}, output[{}]={}",
+                i,
+                inp,
+                i,
+                out
+            );
+        }
+        for (i, (&inp, &out)) in input_r.iter().zip(output_r.iter()).enumerate() {
+            assert!(
+                (inp - out).abs() < 0.05,
+                "Right channel passthrough: input[{}]={}, output[{}]={}",
+                i,
+                inp,
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_db_clamping_below_min_f32() {
+        let mut gain = GainBlock::<f32>::new(-100.0, None);
+        let context = test_context(4);
+
+        let input = [1.0f32; 4];
+        let mut output = [0.0f32; 4];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        let expected = 10.0_f32.powf(-80.0 / 20.0);
+        for &out in &output {
+            assert!(out.abs() < expected * 2.0, "Should clamp to -80dB minimum");
+        }
+    }
+
+    #[test]
+    fn test_db_clamping_above_max_f32() {
+        let mut gain = GainBlock::<f32>::new(50.0, None);
+        let context = test_context(4);
+
+        let input = [0.1f32; 4];
+        let mut output = [0.0f32; 4];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        for _ in 0..10 {
+            gain.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        let max_gain = 10.0_f32.powf(30.0 / 20.0);
+        for &out in &output {
+            assert!(
+                out <= 0.1 * max_gain * 1.1,
+                "Should clamp to +30dB maximum, got {}",
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_silence_input_f32() {
+        let mut gain = GainBlock::<f32>::new(20.0, None);
+        let context = test_context(4);
+
+        let input = [0.0f32; 4];
+        let mut output = [1.0f32; 4];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        gain.process(&inputs, &mut outputs, &[], &context);
+
+        for (i, &out) in output.iter().enumerate() {
+            assert!(
+                out.abs() < 1e-10,
+                "Silence input should produce silence: output[{}]={}",
+                i,
+                out
+            );
+        }
+    }
+
+    #[test]
+    fn test_silence_input_f64() {
+        let mut gain = GainBlock::<f64>::new(20.0, None);
+        let context = test_context(4);
+
+        let input = [0.0f64; 4];
+        let mut output = [1.0f64; 4];
+
+        let inputs: [&[f64]; 1] = [&input];
+        let mut outputs: [&mut [f64]; 1] = [&mut output];
+
+        gain.process(&inputs, &mut outputs, &[], &context);
+
+        for (i, &out) in output.iter().enumerate() {
+            assert!(
+                out.abs() < 1e-15,
+                "Silence input should produce silence: output[{}]={}",
+                i,
+                out
+            );
+        }
+    }
+}

@@ -115,4 +115,51 @@ mod tests {
             assert!((sample - 0.5).abs() < 1e-6);
         }
     }
+
+    #[test]
+    fn test_vca_input_output_counts_f32() {
+        let vca = VcaBlock::<f32>::new();
+        assert_eq!(vca.input_count(), 2);
+        assert_eq!(vca.output_count(), 1);
+    }
+
+    #[test]
+    fn test_vca_input_output_counts_f64() {
+        let vca = VcaBlock::<f64>::new();
+        assert_eq!(vca.input_count(), 2);
+        assert_eq!(vca.output_count(), 1);
+    }
+
+    #[test]
+    fn test_vca_multiplication_f64() {
+        let mut vca = VcaBlock::<f64>::new();
+        let context = test_context(4);
+
+        let audio = [1.0f64, 0.5, -0.5, -1.0];
+        let control = [1.0f64, 0.5, 0.5, 0.0];
+        let mut output = [0.0f64; 4];
+
+        let inputs: [&[f64]; 2] = [&audio, &control];
+        let mut outputs: [&mut [f64]; 1] = [&mut output];
+
+        vca.process(&inputs, &mut outputs, &[], &context);
+
+        assert!((output[0] - 1.0).abs() < 1e-12);
+        assert!((output[1] - 0.25).abs() < 1e-12);
+        assert!((output[2] - -0.25).abs() < 1e-12);
+        assert!((output[3] - 0.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_vca_default() {
+        let vca = VcaBlock::<f32>::default();
+        assert_eq!(vca.input_count(), 2);
+        assert_eq!(vca.output_count(), 1);
+    }
+
+    #[test]
+    fn test_vca_modulation_outputs_empty() {
+        let vca = VcaBlock::<f32>::new();
+        assert!(vca.modulation_outputs().is_empty());
+    }
 }

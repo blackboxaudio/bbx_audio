@@ -28,3 +28,123 @@ impl Default for XorShiftRng {
         Self { state: 1 }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_output_range() {
+        let mut rng = XorShiftRng::new(12345);
+        for _ in 0..10000 {
+            let sample = rng.next_noise_sample();
+            assert!(
+                sample >= -1.0 && sample <= 1.0,
+                "Sample {} out of [-1, 1] range",
+                sample
+            );
+        }
+    }
+
+    #[test]
+    fn test_deterministic_with_same_seed() {
+        let mut rng1 = XorShiftRng::new(42);
+        let mut rng2 = XorShiftRng::new(42);
+
+        for _ in 0..100 {
+            let s1 = rng1.next_noise_sample();
+            let s2 = rng2.next_noise_sample();
+            assert!((s1 - s2).abs() < 1e-15, "Same seed should produce identical sequences");
+        }
+    }
+
+    #[test]
+    fn test_different_seeds_produce_different_sequences() {
+        let mut rng1 = XorShiftRng::new(1);
+        let mut rng2 = XorShiftRng::new(2);
+
+        let mut all_same = true;
+        for _ in 0..100 {
+            let s1 = rng1.next_noise_sample();
+            let s2 = rng2.next_noise_sample();
+            if (s1 - s2).abs() > 1e-15 {
+                all_same = false;
+                break;
+            }
+        }
+        assert!(!all_same, "Different seeds should produce different sequences");
+    }
+
+    #[test]
+    fn test_zero_seed_handled() {
+        let mut rng = XorShiftRng::new(0);
+        let sample = rng.next_noise_sample();
+        assert!(
+            sample >= -1.0 && sample <= 1.0,
+            "Zero seed should work (converted to 1)"
+        );
+    }
+
+    #[test]
+    fn test_default_produces_valid_output() {
+        let mut rng = XorShiftRng::default();
+        for _ in 0..100 {
+            let sample = rng.next_noise_sample();
+            assert!(sample >= -1.0 && sample <= 1.0);
+        }
+    }
+
+    #[test]
+    fn test_default_matches_seed_one() {
+        let mut rng_default = XorShiftRng::default();
+        let mut rng_one = XorShiftRng::new(1);
+
+        for _ in 0..100 {
+            let s1 = rng_default.next_noise_sample();
+            let s2 = rng_one.next_noise_sample();
+            assert!((s1 - s2).abs() < 1e-15, "Default should match seed=1");
+        }
+    }
+
+    #[test]
+    fn test_not_constant() {
+        let mut rng = XorShiftRng::new(42);
+        let first = rng.next_noise_sample();
+        let mut found_different = false;
+
+        for _ in 0..100 {
+            let sample = rng.next_noise_sample();
+            if (sample - first).abs() > 1e-10 {
+                found_different = true;
+                break;
+            }
+        }
+        assert!(found_different, "RNG should produce varying values");
+    }
+
+    #[test]
+    fn test_distribution_rough_balance() {
+        let mut rng = XorShiftRng::new(54321);
+        let mut positive_count = 0;
+        let mut negative_count = 0;
+        let num_samples = 10000;
+
+        for _ in 0..num_samples {
+            let sample = rng.next_noise_sample();
+            if sample > 0.0 {
+                positive_count += 1;
+            } else if sample < 0.0 {
+                negative_count += 1;
+            }
+        }
+
+        let ratio = positive_count as f64 / negative_count as f64;
+        assert!(
+            ratio > 0.8 && ratio < 1.25,
+            "Distribution should be roughly balanced: pos={}, neg={}, ratio={}",
+            positive_count,
+            negative_count,
+            ratio
+        );
+    }
+}

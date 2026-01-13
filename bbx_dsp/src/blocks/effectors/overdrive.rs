@@ -192,4 +192,66 @@ mod tests {
         assert!(outputs[2][63].abs() < outputs[0][63].abs());
         assert!(outputs[3][63] < 0.0);
     }
+
+    #[test]
+    fn test_overdrive_input_output_counts_f32() {
+        let overdrive = OverdriveBlock::<f32>::new(2.0, 0.8, 0.5, 44100.0);
+        assert_eq!(overdrive.input_count(), DEFAULT_EFFECTOR_INPUT_COUNT);
+        assert_eq!(overdrive.output_count(), DEFAULT_EFFECTOR_OUTPUT_COUNT);
+    }
+
+    #[test]
+    fn test_overdrive_input_output_counts_f64() {
+        let overdrive = OverdriveBlock::<f64>::new(2.0, 0.8, 0.5, 44100.0);
+        assert_eq!(overdrive.input_count(), DEFAULT_EFFECTOR_INPUT_COUNT);
+        assert_eq!(overdrive.output_count(), DEFAULT_EFFECTOR_OUTPUT_COUNT);
+    }
+
+    #[test]
+    fn test_overdrive_basic_f64() {
+        let mut overdrive = OverdriveBlock::<f64>::new(2.0, 0.8, 0.5, 44100.0);
+        let context = test_context(64);
+
+        let input: [f64; 64] = [0.5; 64];
+        let mut output: [f64; 64] = [0.0; 64];
+
+        let inputs: [&[f64]; 1] = [&input];
+        let mut outputs: [&mut [f64]; 1] = [&mut output];
+
+        overdrive.process(&inputs, &mut outputs, &[], &context);
+
+        assert!(output[63].abs() > 0.0, "Overdrive should produce output");
+        assert!(output[63] <= 1.0, "Overdrive output should be bounded");
+    }
+
+    #[test]
+    fn test_overdrive_modulation_outputs_empty() {
+        let overdrive = OverdriveBlock::<f32>::new(2.0, 0.8, 0.5, 44100.0);
+        assert!(overdrive.modulation_outputs().is_empty());
+    }
+
+    #[test]
+    fn test_overdrive_asymmetric_saturation() {
+        let mut overdrive = OverdriveBlock::<f32>::new(5.0, 1.0, 0.5, 44100.0);
+        let context = test_context(64);
+
+        let pos_input: [f32; 64] = [0.8; 64];
+        let neg_input: [f32; 64] = [-0.8; 64];
+        let mut pos_output: [f32; 64] = [0.0; 64];
+        let mut neg_output: [f32; 64] = [0.0; 64];
+
+        let pos_inputs: [&[f32]; 1] = [&pos_input];
+        let mut pos_outputs: [&mut [f32]; 1] = [&mut pos_output];
+        overdrive.process(&pos_inputs, &mut pos_outputs, &[], &context);
+
+        let mut overdrive2 = OverdriveBlock::<f32>::new(5.0, 1.0, 0.5, 44100.0);
+        let neg_inputs: [&[f32]; 1] = [&neg_input];
+        let mut neg_outputs: [&mut [f32]; 1] = [&mut neg_output];
+        overdrive2.process(&neg_inputs, &mut neg_outputs, &[], &context);
+
+        assert!(
+            pos_output[63].abs() != neg_output[63].abs(),
+            "Asymmetric saturation should produce different magnitudes for +/- inputs"
+        );
+    }
 }

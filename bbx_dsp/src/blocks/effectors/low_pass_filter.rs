@@ -195,4 +195,68 @@ mod tests {
         assert!(outputs[2][63].abs() < outputs[0][63].abs());
         assert!(outputs[3][63] < 0.0);
     }
+
+    #[test]
+    fn test_low_pass_filter_input_output_counts_f32() {
+        let filter = LowPassFilterBlock::<f32>::new(1000.0, 0.707);
+        assert_eq!(filter.input_count(), DEFAULT_EFFECTOR_INPUT_COUNT);
+        assert_eq!(filter.output_count(), DEFAULT_EFFECTOR_OUTPUT_COUNT);
+    }
+
+    #[test]
+    fn test_low_pass_filter_input_output_counts_f64() {
+        let filter = LowPassFilterBlock::<f64>::new(1000.0, 0.707);
+        assert_eq!(filter.input_count(), DEFAULT_EFFECTOR_INPUT_COUNT);
+        assert_eq!(filter.output_count(), DEFAULT_EFFECTOR_OUTPUT_COUNT);
+    }
+
+    #[test]
+    fn test_low_pass_filter_basic_f64() {
+        let mut filter = LowPassFilterBlock::<f64>::new(1000.0, 0.707);
+        let context = test_context(64);
+
+        let input: [f64; 64] = [1.0; 64];
+        let mut output: [f64; 64] = [0.0; 64];
+
+        let inputs: [&[f64]; 1] = [&input];
+        let mut outputs: [&mut [f64]; 1] = [&mut output];
+
+        filter.process(&inputs, &mut outputs, &[], &context);
+
+        assert!(output[63].abs() > 0.0, "Filter should produce output");
+    }
+
+    #[test]
+    fn test_low_pass_filter_modulation_outputs_empty() {
+        let filter = LowPassFilterBlock::<f32>::new(1000.0, 0.707);
+        assert!(filter.modulation_outputs().is_empty());
+    }
+
+    #[test]
+    fn test_low_pass_filter_reset() {
+        let mut filter = LowPassFilterBlock::<f32>::new(1000.0, 0.707);
+        let context = test_context(64);
+
+        let input: [f32; 64] = [1.0; 64];
+        let mut output: [f32; 64] = [0.0; 64];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        filter.process(&inputs, &mut outputs, &[], &context);
+        filter.reset();
+
+        let mut output2: [f32; 64] = [0.0; 64];
+        let mut outputs2: [&mut [f32]; 1] = [&mut output2];
+        filter.process(&inputs, &mut outputs2, &[], &context);
+
+        assert!((output[0] - output2[0]).abs() < 1e-6, "Reset should clear state");
+    }
+
+    #[test]
+    fn test_low_pass_filter_set_sample_rate() {
+        let mut filter = LowPassFilterBlock::<f32>::new(1000.0, 0.707);
+        filter.set_sample_rate(48000.0);
+        assert_eq!(filter.sample_rate, 48000.0);
+    }
 }

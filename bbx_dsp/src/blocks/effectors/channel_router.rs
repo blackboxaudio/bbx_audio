@@ -151,10 +151,230 @@ impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::channel::ChannelLayout;
+
+    fn test_context(buffer_size: usize) -> DspContext {
+        DspContext {
+            sample_rate: 44100.0,
+            num_channels: 2,
+            buffer_size,
+            current_sample: 0,
+            channel_layout: ChannelLayout::Stereo,
+        }
+    }
+
+    #[test]
+    fn test_channel_router_input_output_counts_f32() {
+        let router = ChannelRouterBlock::<f32>::default_new();
+        assert_eq!(router.input_count(), 2);
+        assert_eq!(router.output_count(), 2);
+    }
+
+    #[test]
+    fn test_channel_router_input_output_counts_f64() {
+        let router = ChannelRouterBlock::<f64>::default_new();
+        assert_eq!(router.input_count(), 2);
+        assert_eq!(router.output_count(), 2);
+    }
 
     #[test]
     fn test_channel_router_returns_explicit_config() {
         let router = ChannelRouterBlock::<f32>::default_new();
         assert_eq!(router.channel_config(), ChannelConfig::Explicit);
+    }
+
+    #[test]
+    fn test_channel_router_stereo_passthrough_f32() {
+        let mut router = ChannelRouterBlock::<f32>::new(ChannelMode::Stereo, false, false, false);
+        let context = test_context(4);
+
+        let left_in = [1.0f32, 2.0, 3.0, 4.0];
+        let right_in = [5.0f32, 6.0, 7.0, 8.0];
+        let mut left_out = [0.0f32; 4];
+        let mut right_out = [0.0f32; 4];
+
+        let inputs: [&[f32]; 2] = [&left_in, &right_in];
+        let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
+
+        router.process(&inputs, &mut outputs, &[], &context);
+
+        assert_eq!(left_out, left_in);
+        assert_eq!(right_out, right_in);
+    }
+
+    #[test]
+    fn test_channel_router_stereo_passthrough_f64() {
+        let mut router = ChannelRouterBlock::<f64>::new(ChannelMode::Stereo, false, false, false);
+        let context = test_context(4);
+
+        let left_in = [1.0f64, 2.0, 3.0, 4.0];
+        let right_in = [5.0f64, 6.0, 7.0, 8.0];
+        let mut left_out = [0.0f64; 4];
+        let mut right_out = [0.0f64; 4];
+
+        let inputs: [&[f64]; 2] = [&left_in, &right_in];
+        let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
+
+        router.process(&inputs, &mut outputs, &[], &context);
+
+        assert_eq!(left_out, left_in);
+        assert_eq!(right_out, right_in);
+    }
+
+    #[test]
+    fn test_channel_router_left_mode_f32() {
+        let mut router = ChannelRouterBlock::<f32>::new(ChannelMode::Left, false, false, false);
+        let context = test_context(4);
+
+        let left_in = [1.0f32, 2.0, 3.0, 4.0];
+        let right_in = [5.0f32, 6.0, 7.0, 8.0];
+        let mut left_out = [0.0f32; 4];
+        let mut right_out = [0.0f32; 4];
+
+        let inputs: [&[f32]; 2] = [&left_in, &right_in];
+        let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
+
+        router.process(&inputs, &mut outputs, &[], &context);
+
+        assert_eq!(left_out, left_in);
+        assert_eq!(right_out, left_in);
+    }
+
+    #[test]
+    fn test_channel_router_right_mode_f32() {
+        let mut router = ChannelRouterBlock::<f32>::new(ChannelMode::Right, false, false, false);
+        let context = test_context(4);
+
+        let left_in = [1.0f32, 2.0, 3.0, 4.0];
+        let right_in = [5.0f32, 6.0, 7.0, 8.0];
+        let mut left_out = [0.0f32; 4];
+        let mut right_out = [0.0f32; 4];
+
+        let inputs: [&[f32]; 2] = [&left_in, &right_in];
+        let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
+
+        router.process(&inputs, &mut outputs, &[], &context);
+
+        assert_eq!(left_out, right_in);
+        assert_eq!(right_out, right_in);
+    }
+
+    #[test]
+    fn test_channel_router_swap_mode_f32() {
+        let mut router = ChannelRouterBlock::<f32>::new(ChannelMode::Swap, false, false, false);
+        let context = test_context(4);
+
+        let left_in = [1.0f32, 2.0, 3.0, 4.0];
+        let right_in = [5.0f32, 6.0, 7.0, 8.0];
+        let mut left_out = [0.0f32; 4];
+        let mut right_out = [0.0f32; 4];
+
+        let inputs: [&[f32]; 2] = [&left_in, &right_in];
+        let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
+
+        router.process(&inputs, &mut outputs, &[], &context);
+
+        assert_eq!(left_out, right_in);
+        assert_eq!(right_out, left_in);
+    }
+
+    #[test]
+    fn test_channel_router_mono_sum_f32() {
+        let mut router = ChannelRouterBlock::<f32>::new(ChannelMode::Stereo, true, false, false);
+        let context = test_context(4);
+
+        let left_in = [2.0f32, 4.0, 6.0, 8.0];
+        let right_in = [4.0f32, 6.0, 8.0, 10.0];
+        let mut left_out = [0.0f32; 4];
+        let mut right_out = [0.0f32; 4];
+
+        let inputs: [&[f32]; 2] = [&left_in, &right_in];
+        let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
+
+        router.process(&inputs, &mut outputs, &[], &context);
+
+        let expected = [3.0f32, 5.0, 7.0, 9.0];
+        for i in 0..4 {
+            assert!((left_out[i] - expected[i]).abs() < 1e-6);
+            assert!((right_out[i] - expected[i]).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_channel_router_invert_left_f32() {
+        let mut router = ChannelRouterBlock::<f32>::new(ChannelMode::Stereo, false, true, false);
+        let context = test_context(4);
+
+        let left_in = [1.0f32, 2.0, 3.0, 4.0];
+        let right_in = [5.0f32, 6.0, 7.0, 8.0];
+        let mut left_out = [0.0f32; 4];
+        let mut right_out = [0.0f32; 4];
+
+        let inputs: [&[f32]; 2] = [&left_in, &right_in];
+        let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
+
+        router.process(&inputs, &mut outputs, &[], &context);
+
+        let expected_left = [-1.0f32, -2.0, -3.0, -4.0];
+        assert_eq!(left_out, expected_left);
+        assert_eq!(right_out, right_in);
+    }
+
+    #[test]
+    fn test_channel_router_invert_right_f32() {
+        let mut router = ChannelRouterBlock::<f32>::new(ChannelMode::Stereo, false, false, true);
+        let context = test_context(4);
+
+        let left_in = [1.0f32, 2.0, 3.0, 4.0];
+        let right_in = [5.0f32, 6.0, 7.0, 8.0];
+        let mut left_out = [0.0f32; 4];
+        let mut right_out = [0.0f32; 4];
+
+        let inputs: [&[f32]; 2] = [&left_in, &right_in];
+        let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
+
+        router.process(&inputs, &mut outputs, &[], &context);
+
+        let expected_right = [-5.0f32, -6.0, -7.0, -8.0];
+        assert_eq!(left_out, left_in);
+        assert_eq!(right_out, expected_right);
+    }
+
+    #[test]
+    fn test_channel_router_invert_both_f32() {
+        let mut router = ChannelRouterBlock::<f32>::new(ChannelMode::Stereo, false, true, true);
+        let context = test_context(4);
+
+        let left_in = [1.0f32, 2.0, 3.0, 4.0];
+        let right_in = [5.0f32, 6.0, 7.0, 8.0];
+        let mut left_out = [0.0f32; 4];
+        let mut right_out = [0.0f32; 4];
+
+        let inputs: [&[f32]; 2] = [&left_in, &right_in];
+        let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
+
+        router.process(&inputs, &mut outputs, &[], &context);
+
+        let expected_left = [-1.0f32, -2.0, -3.0, -4.0];
+        let expected_right = [-5.0f32, -6.0, -7.0, -8.0];
+        assert_eq!(left_out, expected_left);
+        assert_eq!(right_out, expected_right);
+    }
+
+    #[test]
+    fn test_channel_mode_from_i32() {
+        assert_eq!(ChannelMode::from(0), ChannelMode::Stereo);
+        assert_eq!(ChannelMode::from(1), ChannelMode::Left);
+        assert_eq!(ChannelMode::from(2), ChannelMode::Right);
+        assert_eq!(ChannelMode::from(3), ChannelMode::Swap);
+        assert_eq!(ChannelMode::from(999), ChannelMode::Stereo);
+    }
+
+    #[test]
+    fn test_channel_mode_from_f32() {
+        assert_eq!(ChannelMode::from(0.0f32), ChannelMode::Stereo);
+        assert_eq!(ChannelMode::from(1.0f32), ChannelMode::Left);
+        assert_eq!(ChannelMode::from(2.0f32), ChannelMode::Right);
+        assert_eq!(ChannelMode::from(3.0f32), ChannelMode::Swap);
     }
 }
