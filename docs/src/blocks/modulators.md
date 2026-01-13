@@ -27,15 +27,15 @@ Modulators have:
 ## Usage Pattern
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{LfoBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-// Create modulator (frequency, depth, seed)
-let lfo = builder.add_lfo(5.0, 0.5, None);
+// Create modulator (frequency, depth, waveform, seed)
+let lfo = builder.add(LfoBlock::new(5.0, 0.5, Waveform::Sine, None));
 
 // Create oscillator
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Connect modulation using the modulate() method
 builder.modulate(lfo, osc, "frequency");
@@ -47,8 +47,7 @@ Modulators connect using the `modulate()` builder method:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::GainBlock,
+    blocks::{GainBlock, LfoBlock, OscillatorBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -56,11 +55,11 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Create LFO
-let lfo = builder.add_lfo(6.0, 1.0, None);
+let lfo = builder.add(LfoBlock::new(6.0, 1.0, Waveform::Sine, None));
 
 // Create oscillator and gain
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let gain = builder.add(GainBlock::new(-6.0, None));
 
 // Audio connection
 builder.connect(osc, 0, gain, 0);
@@ -75,8 +74,7 @@ Layer multiple modulation sources:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::GainBlock,
+    blocks::{GainBlock, LfoBlock, OscillatorBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -84,17 +82,17 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Slow sweep for amplitude
-let slow_lfo = builder.add_lfo(0.1, 0.5, None);
+let slow_lfo = builder.add(LfoBlock::new(0.1, 0.5, Waveform::Sine, None));
 
 // Fast vibrato for pitch
-let fast_lfo = builder.add_lfo(6.0, 0.3, None);
+let fast_lfo = builder.add(LfoBlock::new(6.0, 0.3, Waveform::Sine, None));
 
 // Oscillator with vibrato
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 builder.modulate(fast_lfo, osc, "frequency");
 
 // Gain with tremolo
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
+let gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(osc, 0, gain, 0);
 builder.modulate(slow_lfo, gain, "level");
 ```

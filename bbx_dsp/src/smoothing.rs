@@ -6,6 +6,8 @@
 
 use std::marker::PhantomData;
 
+use bbx_core::flush_denormal_f64;
+
 use crate::sample::Sample;
 
 const INV_1000: f64 = 1.0 / 1000.0;
@@ -165,8 +167,11 @@ impl<S: Sample, T: SmoothingStrategy> SmoothedValue<S, T> {
 
         self.current_value = T::apply_increment::<S>(self.current_value, self.increment);
 
+        // Flush denormals to prevent CPU slowdown
+        let current_f64 = flush_denormal_f64(self.current_value.to_f64());
+        self.current_value = S::from_f64(current_f64);
+
         // Prevent overshoot
-        let current_f64 = self.current_value.to_f64();
         let target_f64 = self.target_value.to_f64();
         if (self.increment > 0.0 && current_f64 > target_f64) || (self.increment < 0.0 && current_f64 < target_f64) {
             self.current_value = self.target_value;
@@ -185,13 +190,15 @@ impl<S: Sample, T: SmoothingStrategy> SmoothedValue<S, T> {
 
         let new_value = T::apply_increment_n::<S>(self.current_value, self.increment, num_samples);
 
-        // Prevent overshoot
-        let new_f64 = new_value.to_f64();
+        // Flush denormals to prevent CPU slowdown
+        let new_f64 = flush_denormal_f64(new_value.to_f64());
         let target_f64 = self.target_value.to_f64();
+
+        // Prevent overshoot
         if (self.increment > 0.0 && new_f64 > target_f64) || (self.increment < 0.0 && new_f64 < target_f64) {
             self.current_value = self.target_value;
         } else {
-            self.current_value = new_value;
+            self.current_value = S::from_f64(new_f64);
         }
     }
 

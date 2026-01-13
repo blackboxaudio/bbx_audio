@@ -9,13 +9,13 @@ Read audio from files for processing in DSP graphs.
 ## Creating a File Input
 
 ```rust
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::FileInputBlock, graph::GraphBuilder};
 use bbx_file::readers::wav::WavFileReader;
 
 let reader = WavFileReader::<f32>::from_path("input.wav")?;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-let file_in = builder.add_file_input(Box::new(reader));
+let file_in = builder.add(FileInputBlock::new(Box::new(reader)));
 ```
 
 ## Port Layout
@@ -31,31 +31,31 @@ let file_in = builder.add_file_input(Box::new(reader));
 ### Basic File Playback
 
 ```rust
-use bbx_dsp::{block::BlockType, blocks::GainBlock, graph::GraphBuilder};
+use bbx_dsp::{blocks::{FileInputBlock, GainBlock}, graph::GraphBuilder};
 
 let reader = WavFileReader::from_path("audio.wav")?;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-let file_in = builder.add_file_input(Box::new(reader));
+let file_in = builder.add(FileInputBlock::new(Box::new(reader)));
 
 // Process through effects
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
+let gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(file_in, 0, gain, 0);
 ```
 
 ### Stereo File
 
 ```rust
-use bbx_dsp::{block::BlockType, blocks::{GainBlock, PannerBlock}, graph::GraphBuilder};
+use bbx_dsp::{blocks::{FileInputBlock, GainBlock, PannerBlock}, graph::GraphBuilder};
 
 let reader = WavFileReader::from_path("stereo.wav")?;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-let file_in = builder.add_file_input(Box::new(reader));
+let file_in = builder.add(FileInputBlock::new(Box::new(reader)));
 
 // Connect both channels
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
-let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
+let gain = builder.add(GainBlock::new(-6.0, None));
+let pan = builder.add(PannerBlock::new(0.0));
 
 // Left channel
 builder.connect(file_in, 0, gain, 0);
@@ -66,14 +66,16 @@ builder.connect(file_in, 1, pan, 0);
 ### File to File Processing
 
 ```rust
+use bbx_dsp::{blocks::{FileInputBlock, FileOutputBlock, OverdriveBlock}, graph::GraphBuilder};
+
 let reader = WavFileReader::from_path("input.wav")?;
 let writer = WavFileWriter::new("output.wav", 44100.0, 2)?;
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let file_in = builder.add_file_input(Box::new(reader));
-let effect = builder.add_overdrive(3.0, 1.0, 0.8, 44100.0);
-let file_out = builder.add_file_output(Box::new(writer));
+let file_in = builder.add(FileInputBlock::new(Box::new(reader)));
+let effect = builder.add(OverdriveBlock::new(3.0, 1.0, 0.8, 44100.0));
+let file_out = builder.add(FileOutputBlock::new(Box::new(writer)));
 
 builder.connect(file_in, 0, effect, 0);
 builder.connect(effect, 0, file_out, 0);

@@ -36,13 +36,13 @@ pub enum BlockType<S: Sample> {
 `BlockType` is primarily used internally by the graph system. Users interact with blocks through `GraphBuilder`:
 
 ```rust
-use bbx_dsp::{block::BlockType, blocks::GainBlock, graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{GainBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // These return BlockId, not BlockType
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let gain = builder.add(GainBlock::new(-6.0, None));
 ```
 
 ## Block Trait Implementation

@@ -104,20 +104,24 @@ pub fn flush_denormals_f32_batch(buffer: &mut [f32]) {
 /// of any audio processing thread.
 #[cfg(all(feature = "ftz-daz", any(target_arch = "x86", target_arch = "x86_64")))]
 pub fn enable_ftz_daz() {
-    #[cfg(target_arch = "x86")]
-    use std::arch::x86::{_MM_FLUSH_ZERO_ON, _MM_SET_FLUSH_ZERO_MODE, _mm_getcsr, _mm_setcsr};
-    #[cfg(target_arch = "x86_64")]
-    use std::arch::x86_64::{_MM_FLUSH_ZERO_ON, _MM_SET_FLUSH_ZERO_MODE, _mm_getcsr, _mm_setcsr};
+    use std::arch::asm;
 
+    const FTZ_BIT: u32 = 1 << 15;
     const DAZ_BIT: u32 = 1 << 6;
 
     unsafe {
-        // Enable FTZ (Flush-To-Zero)
-        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-
-        // Enable DAZ (Denormals-Are-Zero)
-        let mxcsr = _mm_getcsr();
-        _mm_setcsr(mxcsr | DAZ_BIT);
+        let mut mxcsr: u32 = 0;
+        asm!(
+            "stmxcsr [{}]",
+            in(reg) &mut mxcsr,
+            options(nostack, preserves_flags)
+        );
+        mxcsr |= FTZ_BIT | DAZ_BIT;
+        asm!(
+            "ldmxcsr [{}]",
+            in(reg) &mxcsr,
+            options(nostack, preserves_flags)
+        );
     }
 }
 

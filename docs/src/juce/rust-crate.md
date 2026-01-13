@@ -35,6 +35,17 @@ For the latest development version:
 bbx_plugin = { git = "https://github.com/blackboxaudio/bbx_audio" }
 ```
 
+## FFI Headers
+
+Copy these headers to `dsp/include/`:
+
+- `bbx_ffi.h` - C FFI function declarations
+- `bbx_graph.h` - C++ RAII wrapper class
+
+Get them from the [bbx_plugin include directory](https://github.com/blackboxaudio/bbx_audio/tree/main/bbx_plugin/include).
+
+For detailed header documentation, see [FFI Integration](ffi-integration.md).
+
 ## lib.rs Structure
 
 Your `dsp/src/lib.rs` should:
@@ -89,12 +100,3 @@ impl PluginDsp for PluginGraph {
 // Generate FFI exports
 bbx_plugin_ffi!(PluginGraph);
 ```
-
-## FFI Headers
-
-Copy the following headers to `dsp/include/`:
-
-- `bbx_ffi.h` - From `bbx_plugin/include/bbx_ffi.h`
-- `bbx_graph.h` - From `bbx_plugin/include/bbx_graph.h`
-
-These headers provide the C and C++ interfaces for your JUCE code.

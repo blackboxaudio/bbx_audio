@@ -47,8 +47,7 @@ Add a file input to your DSP graph:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::GainBlock,
+    blocks::{FileInputBlock, GainBlock},
     graph::GraphBuilder,
 };
 use bbx_file::readers::wav::WavFileReader;
@@ -60,10 +59,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let reader = WavFileReader::from_path("audio/sample.wav")?;
 
     // Add to graph
-    let file_input = builder.add_file_input(Box::new(reader));
+    let file_input = builder.add(FileInputBlock::new(Box::new(reader)));
 
     // Connect to effects
-    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
+    let gain = builder.add(GainBlock::new(-6.0, None));
     builder.connect(file_input, 0, gain, 0);
 
     let graph = builder.build();
@@ -95,20 +94,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 Add a file output to your DSP graph:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    blocks::{FileOutputBlock, OscillatorBlock},
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 use bbx_file::writers::wav::WavFileWriter;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
     // Add oscillator
-    let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
     // Create writer
     let writer = WavFileWriter::new("output.wav", 44100, 2, 16)?;
 
     // Add file output block
-    let file_output = builder.add_file_output(Box::new(writer));
+    let file_output = builder.add(FileOutputBlock::new(Box::new(writer)));
 
     // Connect oscillator to file output
     builder.connect(osc, 0, file_output, 0);
@@ -139,8 +142,7 @@ Combine file input and output for offline processing:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::{GainBlock, PannerBlock},
+    blocks::{FileInputBlock, FileOutputBlock, GainBlock, PannerBlock},
     graph::GraphBuilder,
 };
 use bbx_file::{
@@ -158,18 +160,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut builder = GraphBuilder::<f32>::new(sample_rate, 512, num_channels);
 
     // File input
-    let file_in = builder.add_file_input(Box::new(reader));
+    let file_in = builder.add(FileInputBlock::new(Box::new(reader)));
 
     // Process: add some effects
-    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-3.0, None)));
-    let pan = builder.add_block(BlockType::Panner(PannerBlock::new(25.0)));
+    let gain = builder.add(GainBlock::new(-3.0, None));
+    let pan = builder.add(PannerBlock::new(25.0));
 
     builder.connect(file_in, 0, gain, 0);
     builder.connect(gain, 0, pan, 0);
 
     // File output
     let writer = WavFileWriter::new("output.wav", sample_rate as u32, num_channels, 16)?;
-    let file_out = builder.add_file_output(Box::new(writer));
+    let file_out = builder.add(FileOutputBlock::new(Box::new(writer)));
 
     builder.connect(pan, 0, file_out, 0);
 
@@ -222,6 +224,8 @@ fn main() {
 2. **Non-blocking I/O**: `FileOutputBlock` uses non-blocking I/O internally
 3. **Memory**: Large files are streamed, not loaded entirely into memory
 4. **Finalization**: Always call `finalize()` to flush buffers and close files
+
+See the `13_file_processing` example for a complete offline processing pipeline.
 
 ## Next Steps
 

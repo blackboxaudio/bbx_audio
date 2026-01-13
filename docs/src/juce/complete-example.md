@@ -87,6 +87,7 @@ use bbx_plugin::{
 const PARAM_GAIN: usize = 0;
 const PARAM_PAN: usize = 1;
 const PARAM_MONO: usize = 2;
+const PARAM_COUNT: usize = 3;
 
 pub struct PluginGraph {
     gain: GainBlock<f32>,

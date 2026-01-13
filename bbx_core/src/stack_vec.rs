@@ -167,6 +167,12 @@ impl<T, const N: usize> Default for StackVec<T, N> {
     }
 }
 
+impl<T: core::fmt::Debug, const N: usize> core::fmt::Debug for StackVec<T, N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_list().entries(self.as_slice()).finish()
+    }
+}
+
 impl<T, const N: usize> Drop for StackVec<T, N> {
     fn drop(&mut self) {
         for i in 0..self.len {

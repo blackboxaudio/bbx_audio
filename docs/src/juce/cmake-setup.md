@@ -93,6 +93,23 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
+## Verify the Build
+
+After building, verify the Rust library was created:
+
+```bash
+# macOS/Linux - check for the static library
+ls build/cargo/build/*/release/libdsp.a
+
+# Windows - check for the static library
+dir build\cargo\build\*\release\dsp.lib
+```
+
+If the library is missing, check the `build/cargo/` directory for Rust build errors. Common issues:
+- Missing Rust toolchain (run `rustup show`)
+- Cargo.toml syntax errors
+- Missing `staticlib` crate type
+
 ## Troubleshooting
 
 ### "Cannot find -ldsp"

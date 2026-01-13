@@ -42,13 +42,33 @@ JUCE AudioProcessor (C++)
 - **`bbx_graph.h`** - Header-only C++ RAII wrapper class
 - **Parameter indices** - Generated `#define` constants matching Rust indices
 
+## Quick Start Checklist
+
+For experienced developers, here's the minimal setup:
+
+1. Add Corrosion submodule: `git submodule add https://github.com/corrosion-rs/corrosion.git vendor/corrosion`
+2. Create `dsp/Cargo.toml` with `bbx_plugin` dependency and `crate-type = ["staticlib"]`
+3. Copy `bbx_ffi.h` and `bbx_graph.h` to `dsp/include/`
+4. Implement `PluginDsp` trait and call `bbx_plugin_ffi!(YourType)`
+5. Add Corrosion to CMakeLists.txt and link `dsp` to your plugin target
+6. Use `bbx::Graph` in your AudioProcessor
+
+For detailed guidance, follow the integration steps below.
+
 ## Integration Steps
 
-1. [Project Setup](project-setup.md) - Create the Rust crate and CMake configuration
-2. [Implementing PluginDsp](plugin-dsp.md) - Write your DSP processing chain
-3. [Parameter System](parameters.md) - Define and manage plugin parameters
-4. [FFI Integration](ffi-integration.md) - Understand the C FFI layer
-5. [AudioProcessor Integration](audio-processor.md) - Connect to JUCE
+1. [Project Setup](project-setup.md) - Directory structure and prerequisites
+2. [Rust Crate Configuration](rust-crate.md) - Set up `Cargo.toml` and FFI headers
+3. [CMake with Corrosion](cmake-setup.md) - Configure the build system
+4. [Implementing PluginDsp](plugin-dsp.md) - Write your DSP processing chain
+5. [Parameter System](parameters.md) - Define and manage plugin parameters
+6. [AudioProcessor Integration](audio-processor.md) - Connect to JUCE
+7. [Complete Example](complete-example.md) - Full working reference
+
+**Reference Documentation:**
+- [FFI Integration](ffi-integration.md) - C FFI layer details
+- [C FFI Header Reference](ffi-header.md) - Complete `bbx_ffi.h` documentation
+- [C++ RAII Wrapper](cpp-wrapper.md) - Using `bbx::Graph` in JUCE
 
 ## Benefits
 

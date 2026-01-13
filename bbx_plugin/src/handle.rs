@@ -4,7 +4,7 @@
 //! to reference the Rust effects chain, along with the generic
 //! `GraphInner` wrapper that holds any `PluginDsp` implementation.
 
-use bbx_dsp::{PluginDsp, context::DspContext};
+use bbx_dsp::{ChannelLayout, PluginDsp, context::DspContext};
 
 /// Opaque handle representing a DSP effects chain.
 ///
@@ -39,6 +39,7 @@ impl<D: PluginDsp> GraphInner<D> {
                 buffer_size: 512,
                 num_channels: 2,
                 current_sample: 0,
+                channel_layout: ChannelLayout::default(),
             },
             dsp: D::new(),
             prepared: false,
@@ -58,6 +59,7 @@ impl<D: PluginDsp> GraphInner<D> {
             buffer_size,
             num_channels,
             current_sample: 0,
+            channel_layout: ChannelLayout::default(),
         };
 
         self.dsp.prepare(&self.context);

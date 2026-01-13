@@ -3,6 +3,8 @@
 //! This module provides monophonic voice state tracking with support
 //! for legato playing (last-note priority).
 
+use bbx_core::StackVec;
+
 /// Converts a MIDI note number to frequency in Hz.
 ///
 /// Uses A4 = 440 Hz as the reference.
@@ -28,18 +30,18 @@ pub struct VoiceState {
     /// Frequency in Hz for the current note.
     pub frequency: f32,
     /// Stack of held notes for legato playing: (note, velocity).
-    note_stack: Vec<(u8, u8)>,
+    note_stack: StackVec<(u8, u8), 16>,
 }
 
 impl VoiceState {
-    /// Create a new voice state with pre-allocated note stack.
+    /// Create a new voice state.
     pub fn new() -> Self {
         Self {
             active_note: None,
             velocity: 0.0,
             gate: false,
             frequency: 440.0,
-            note_stack: Vec::with_capacity(16),
+            note_stack: StackVec::new(),
         }
     }
 
@@ -47,13 +49,13 @@ impl VoiceState {
     ///
     /// Updates the active note, velocity, gate state, and frequency.
     /// The note is also pushed onto the note stack for legato handling.
+    /// If the note stack is full (16 notes), the note is silently dropped
+    /// from the stack but still becomes the active note.
     pub fn note_on(&mut self, note: u8, velocity: u8) {
         let vel_normalized = velocity as f32 / 127.0;
 
-        // Add to stack
-        self.note_stack.push((note, velocity));
+        let _ = self.note_stack.push((note, velocity));
 
-        // Update active state
         self.active_note = Some(note);
         self.velocity = vel_normalized;
         self.gate = true;
@@ -65,25 +67,31 @@ impl VoiceState {
     /// Returns `true` if the voice should enter release stage (no more notes held),
     /// or `false` if switching to a previous legato note.
     pub fn note_off(&mut self, note: u8) -> bool {
-        // Remove note from stack
-        self.note_stack.retain(|(n, _)| *n != note);
+        let mut i = 0;
+        while i < self.note_stack.len() {
+            if self.note_stack[i].0 == note {
+                for j in i..self.note_stack.len() - 1 {
+                    self.note_stack[j] = self.note_stack[j + 1];
+                }
+                self.note_stack.pop();
+            } else {
+                i += 1;
+            }
+        }
 
         if self.active_note == Some(note) {
-            // Check if there are other held notes (legato)
-            if let Some(&(prev_note, prev_vel)) = self.note_stack.last() {
-                // Switch to previous note (legato - don't retrigger envelope)
+            if let Some(&(prev_note, prev_vel)) = self.note_stack.as_slice().last() {
                 self.active_note = Some(prev_note);
                 self.velocity = prev_vel as f32 / 127.0;
                 self.frequency = midi_note_to_frequency(prev_note);
-                false // Don't release, just change pitch
+                false
             } else {
-                // No more notes held, release
                 self.active_note = None;
                 self.gate = false;
-                true // Trigger release
+                true
             }
         } else {
-            false // Note wasn't active anyway
+            false
         }
     }
 

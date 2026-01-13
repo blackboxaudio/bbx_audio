@@ -2,38 +2,43 @@
 
 mod common;
 
-use bbx_dsp::{graph::GraphBuilder, sample::Sample, waveform::Waveform};
+use bbx_dsp::{
+    blocks::{LfoBlock, OscillatorBlock, OverdriveBlock},
+    graph::GraphBuilder,
+    sample::Sample,
+    waveform::Waveform,
+};
 use common::*;
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 fn create_simple_chain<S: Sample>(buffer_size: usize) -> bbx_dsp::graph::Graph<S> {
     let mut builder = GraphBuilder::new(SAMPLE_RATE, buffer_size, NUM_CHANNELS);
-    builder.add_oscillator(440.0, Waveform::Sine, None);
+    builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
     builder.build()
 }
 
 fn create_effect_chain<S: Sample>(buffer_size: usize) -> bbx_dsp::graph::Graph<S> {
     let mut builder = GraphBuilder::new(SAMPLE_RATE, buffer_size, NUM_CHANNELS);
-    let osc = builder.add_oscillator(440.0, Waveform::Sawtooth, None);
-    let overdrive = builder.add_overdrive(2.0, 0.7, 0.5, SAMPLE_RATE);
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sawtooth, None));
+    let overdrive = builder.add(OverdriveBlock::new(2.0, 0.7, 0.5, SAMPLE_RATE));
     builder.connect(osc, 0, overdrive, 0);
     builder.build()
 }
 
 fn create_modulated_synth<S: Sample>(buffer_size: usize) -> bbx_dsp::graph::Graph<S> {
     let mut builder = GraphBuilder::new(SAMPLE_RATE, buffer_size, NUM_CHANNELS);
-    let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-    let lfo = builder.add_lfo(5.0, 50.0, None);
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+    let lfo = builder.add(LfoBlock::new(5.0, 50.0, Waveform::Sine, None));
     builder.modulate(lfo, osc, "frequency");
     builder.build()
 }
 
 fn create_multi_oscillator<S: Sample>(buffer_size: usize) -> bbx_dsp::graph::Graph<S> {
     let mut builder = GraphBuilder::new(SAMPLE_RATE, buffer_size, NUM_CHANNELS);
-    builder.add_oscillator(220.0, Waveform::Sine, Some(1));
-    builder.add_oscillator(440.0, Waveform::Sine, Some(2));
-    builder.add_oscillator(660.0, Waveform::Sine, Some(3));
-    builder.add_oscillator(880.0, Waveform::Sine, Some(4));
+    builder.add(OscillatorBlock::new(220.0, Waveform::Sine, Some(1)));
+    builder.add(OscillatorBlock::new(440.0, Waveform::Sine, Some(2)));
+    builder.add(OscillatorBlock::new(660.0, Waveform::Sine, Some(3)));
+    builder.add(OscillatorBlock::new(880.0, Waveform::Sine, Some(4)));
     builder.build()
 }
 

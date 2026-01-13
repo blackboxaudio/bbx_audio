@@ -108,3 +108,204 @@ impl<S: Sample> Block<S> for FileInputBlock<S> {
         &[]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::channel::ChannelLayout;
+
+    struct MockReader<S: Sample> {
+        sample_rate: f64,
+        channels: Vec<Vec<S>>,
+    }
+
+    impl<S: Sample> MockReader<S> {
+        fn new(sample_rate: f64, channels: Vec<Vec<S>>) -> Self {
+            Self { sample_rate, channels }
+        }
+    }
+
+    impl<S: Sample> Reader<S> for MockReader<S> {
+        fn sample_rate(&self) -> f64 {
+            self.sample_rate
+        }
+
+        fn num_channels(&self) -> usize {
+            self.channels.len()
+        }
+
+        fn num_samples(&self) -> usize {
+            self.channels.first().map(|c| c.len()).unwrap_or(0)
+        }
+
+        fn read_channel(&self, channel_index: usize) -> &[S] {
+            &self.channels[channel_index]
+        }
+    }
+
+    fn test_context(buffer_size: usize) -> DspContext {
+        DspContext {
+            sample_rate: 44100.0,
+            buffer_size,
+            num_channels: 2,
+            current_sample: 0,
+            channel_layout: ChannelLayout::Stereo,
+        }
+    }
+
+    #[test]
+    fn test_file_input_block_counts() {
+        let reader = MockReader::new(44100.0, vec![vec![0.0f32; 100], vec![0.0f32; 100]]);
+        let block = FileInputBlock::new(Box::new(reader));
+        assert_eq!(block.input_count(), 0);
+        assert_eq!(block.output_count(), 2);
+    }
+
+    #[test]
+    fn test_file_input_block_reads_samples() {
+        let samples: Vec<f32> = (0..100).map(|i| i as f32 / 100.0).collect();
+        let reader = MockReader::new(44100.0, vec![samples.clone()]);
+        let mut block = FileInputBlock::new(Box::new(reader));
+
+        let context = test_context(10);
+        let mut output = vec![0.0f32; 10];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        block.process(&[], &mut outputs, &[], &context);
+
+        for (i, &sample) in output.iter().enumerate() {
+            assert!((sample - (i as f32 / 100.0)).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_file_input_block_position_advances() {
+        let reader = MockReader::new(44100.0, vec![vec![0.0f32; 100]]);
+        let mut block = FileInputBlock::new(Box::new(reader));
+
+        assert_eq!(block.get_position(), 0);
+
+        let context = test_context(10);
+        let mut output = vec![0.0f32; 10];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        block.process(&[], &mut outputs, &[], &context);
+        assert_eq!(block.get_position(), 10);
+
+        block.process(&[], &mut outputs, &[], &context);
+        assert_eq!(block.get_position(), 20);
+    }
+
+    #[test]
+    fn test_file_input_block_set_position() {
+        let reader = MockReader::new(44100.0, vec![vec![0.0f32; 100]]);
+        let mut block = FileInputBlock::new(Box::new(reader));
+
+        block.set_position(50);
+        assert_eq!(block.get_position(), 50);
+    }
+
+    #[test]
+    fn test_file_input_block_is_finished() {
+        let reader = MockReader::new(44100.0, vec![vec![0.0f32; 20]]);
+        let mut block = FileInputBlock::new(Box::new(reader));
+
+        assert!(!block.is_finished());
+
+        let context = test_context(10);
+        let mut output = vec![0.0f32; 10];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        block.process(&[], &mut outputs, &[], &context);
+        assert!(!block.is_finished());
+
+        block.process(&[], &mut outputs, &[], &context);
+        assert!(block.is_finished());
+    }
+
+    #[test]
+    fn test_file_input_block_outputs_zero_past_end() {
+        let samples: Vec<f32> = vec![1.0; 5];
+        let reader = MockReader::new(44100.0, vec![samples]);
+        let mut block = FileInputBlock::new(Box::new(reader));
+
+        let context = test_context(10);
+        let mut output = vec![0.0f32; 10];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        block.process(&[], &mut outputs, &[], &context);
+
+        for i in 0..5 {
+            assert!((output[i] - 1.0).abs() < 1e-6);
+        }
+        for i in 5..10 {
+            assert!((output[i]).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_file_input_block_looping() {
+        let samples: Vec<f32> = vec![0.0, 1.0, 2.0, 3.0];
+        let reader = MockReader::new(44100.0, vec![samples]);
+        let mut block = FileInputBlock::new(Box::new(reader));
+        block.set_loop_enabled(true);
+
+        let context = test_context(8);
+        let mut output = vec![0.0f32; 8];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        block.process(&[], &mut outputs, &[], &context);
+
+        assert!((output[0] - 0.0).abs() < 1e-6);
+        assert!((output[1] - 1.0).abs() < 1e-6);
+        assert!((output[2] - 2.0).abs() < 1e-6);
+        assert!((output[3] - 3.0).abs() < 1e-6);
+        assert!((output[4] - 0.0).abs() < 1e-6);
+        assert!((output[5] - 1.0).abs() < 1e-6);
+        assert!((output[6] - 2.0).abs() < 1e-6);
+        assert!((output[7] - 3.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_file_input_block_stereo() {
+        let left: Vec<f32> = vec![1.0; 10];
+        let right: Vec<f32> = vec![0.5; 10];
+        let reader = MockReader::new(44100.0, vec![left, right]);
+        let mut block = FileInputBlock::new(Box::new(reader));
+
+        let context = test_context(5);
+        let mut output_l = vec![0.0f32; 5];
+        let mut output_r = vec![0.0f32; 5];
+        let mut outputs: [&mut [f32]; 2] = [&mut output_l, &mut output_r];
+
+        block.process(&[], &mut outputs, &[], &context);
+
+        for &sample in &output_l {
+            assert!((sample - 1.0).abs() < 1e-6);
+        }
+        for &sample in &output_r {
+            assert!((sample - 0.5).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_file_input_block_more_outputs_than_channels() {
+        let samples: Vec<f32> = vec![1.0; 10];
+        let reader = MockReader::new(44100.0, vec![samples]);
+        let mut block = FileInputBlock::new(Box::new(reader));
+
+        let context = test_context(5);
+        let mut output_0 = vec![0.0f32; 5];
+        let mut output_1 = vec![0.5f32; 5];
+        let mut outputs: [&mut [f32]; 2] = [&mut output_0, &mut output_1];
+
+        block.process(&[], &mut outputs, &[], &context);
+
+        for &sample in &output_0 {
+            assert!((sample - 1.0).abs() < 1e-6);
+        }
+        for &sample in &output_1 {
+            assert!(sample.abs() < 1e-6);
+        }
+    }
+}

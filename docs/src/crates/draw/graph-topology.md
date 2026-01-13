@@ -17,10 +17,10 @@ Displays DSP graph structure with blocks arranged by topological depth.
 
 ```rust
 use bbx_draw::GraphTopologyVisualizer;
-use bbx_dsp::graph::GraphBuilder;
+use bbx_dsp::{blocks::OscillatorBlock, graph::GraphBuilder, waveform::Waveform};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-builder.add_oscillator(440.0, Waveform::Sine, None);
+builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 let topology = builder.capture_topology();
 let visualizer = GraphTopologyVisualizer::new(topology);
@@ -100,7 +100,7 @@ visualizer.set_topology(new_topology);
 
 ```rust
 use bbx_draw::{GraphTopologyVisualizer, Visualizer};
-use bbx_dsp::{block::BlockType, blocks::GainBlock, graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{blocks::{GainBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 use nannou::prelude::*;
 
 struct Model {
@@ -111,8 +111,8 @@ fn model(app: &App) -> Model {
     app.new_window().view(view).build().unwrap();
 
     let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
-    let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-    let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+    let gain = builder.add(GainBlock::new(-6.0, None));
     builder.connect(osc, 0, gain, 0);
 
     let topology = builder.capture_topology();

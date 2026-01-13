@@ -27,6 +27,9 @@ jobs:
             - name: Setup Rust
               uses: dtolnay/rust-toolchain@stable
 
+            - name: Cache Rust dependencies
+              uses: Swatinem/rust-cache@v2
+
             - name: Setup mdbook
               run: |
                   curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.40/mdbook-v0.4.40-x86_64-unknown-linux-gnu.tar.gz | tar -xz

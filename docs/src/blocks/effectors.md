@@ -8,10 +8,16 @@ Effector blocks process and transform audio signals.
 |-------|-------------|
 | [GainBlock](effectors/gain.md) | Level control in dB |
 | [VcaBlock](effectors/vca.md) | Voltage controlled amplifier |
-| [PannerBlock](effectors/panner.md) | Stereo panning |
+| [PannerBlock](effectors/panner.md) | Stereo, surround (VBAP), and ambisonic panning |
 | [OverdriveBlock](effectors/overdrive.md) | Soft-clipping distortion |
 | [DcBlockerBlock](effectors/dc-blocker.md) | DC offset removal |
-| [ChannelRouterBlock](effectors/channel-router.md) | Channel routing |
+| [ChannelRouterBlock](effectors/channel-router.md) | Simple stereo channel routing |
+| [ChannelSplitterBlock](effectors/channel-splitter.md) | Split multi-channel to mono outputs |
+| [ChannelMergerBlock](effectors/channel-merger.md) | Merge mono inputs to multi-channel |
+| [MatrixMixerBlock](effectors/matrix-mixer.md) | NxM mixing matrix |
+| [MixerBlock](effectors/mixer.md) | Channel-wise audio mixer |
+| [AmbisonicDecoderBlock](effectors/ambisonic-decoder.md) | Ambisonics B-format decoder |
+| [BinauralDecoderBlock](effectors/binaural-decoder.md) | B-format to stereo binaural |
 | [LowPassFilterBlock](effectors/low-pass-filter.md) | SVF low-pass filter |
 
 ## Characteristics
@@ -39,8 +45,7 @@ Source -> Gain (input level)
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::{DcBlockerBlock, GainBlock},
+    blocks::{DcBlockerBlock, GainBlock, OscillatorBlock, OverdriveBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -48,12 +53,12 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Source
-let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
 
 // Effect chain
-let drive = builder.add_overdrive(3.0, 1.0, 0.8, 44100.0);
-let dc = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
+let drive = builder.add(OverdriveBlock::new(3.0, 1.0, 0.8, 44100.0));
+let dc = builder.add(DcBlockerBlock::new(true));
+let gain = builder.add(GainBlock::new(-6.0, None));
 
 // Connect in series
 builder.connect(osc, 0, drive, 0);
@@ -67,28 +72,27 @@ Split signal to multiple effects:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::GainBlock,
+    blocks::{GainBlock, OscillatorBlock, OverdriveBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let source = builder.add_oscillator(440.0, Waveform::Saw, None);
+let source = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
 
 // Dry path
-let dry_gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
+let dry_gain = builder.add(GainBlock::new(-6.0, None));
 
 // Wet path (distorted)
-let wet_drive = builder.add_overdrive(5.0, 1.0, 0.5, 44100.0);
+let wet_drive = builder.add(OverdriveBlock::new(5.0, 1.0, 0.5, 44100.0));
 
 // Connect source to both
 builder.connect(source, 0, dry_gain, 0);
 builder.connect(source, 0, wet_drive, 0);
 
 // Mix back together
-let mixer = builder.add_block(BlockType::Gain(GainBlock::new(-3.0, None)));
+let mixer = builder.add(GainBlock::new(-3.0, None));
 builder.connect(dry_gain, 0, mixer, 0);
 builder.connect(wet_drive, 0, mixer, 0);
 ```

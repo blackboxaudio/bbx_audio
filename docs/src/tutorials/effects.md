@@ -13,6 +13,8 @@ This tutorial covers the effect blocks available in bbx_audio.
 - `OverdriveBlock` - Soft-clipping distortion
 - `DcBlockerBlock` - DC offset removal
 - `ChannelRouterBlock` - Channel routing/manipulation
+- `ChannelSplitterBlock` - Split multi-channel to individual outputs
+- `ChannelMergerBlock` - Merge individual inputs to multi-channel
 - `LowPassFilterBlock` - SVF-based low-pass filter
 
 ## GainBlock
@@ -21,16 +23,15 @@ Control signal level in decibels:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::GainBlock,
+    blocks::{GainBlock, OscillatorBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));  // -6 dB
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let gain = builder.add(GainBlock::new(-6.0, None));  // -6 dB
 
 builder.connect(osc, 0, gain, 0);
 
@@ -49,16 +50,15 @@ Position audio in the stereo field:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::PannerBlock,
+    blocks::{OscillatorBlock, PannerBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));  // Center
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let pan = builder.add(PannerBlock::new(0.0));  // Center
 
 builder.connect(osc, 0, pan, 0);
 
@@ -77,19 +77,23 @@ The panner uses constant-power panning for natural-sounding transitions.
 Soft-clipping distortion for warmth and saturation:
 
 ```rust
-use bbx_dsp::{graph::GraphBuilder, waveform::Waveform};
+use bbx_dsp::{
+    blocks::{OscillatorBlock, OverdriveBlock},
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Overdrive with drive, level, tone, sample_rate
-let overdrive = builder.add_overdrive(
+let overdrive = builder.add(OverdriveBlock::new(
     5.0,      // Drive amount (higher = more distortion)
     1.0,      // Output level
     0.7,      // Tone (0.0-1.0, higher = brighter)
     44100.0   // Sample rate
-);
+));
 
 builder.connect(osc, 0, overdrive, 0);
 
@@ -102,16 +106,15 @@ Remove DC offset from signals:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::DcBlockerBlock,
+    blocks::{DcBlockerBlock, OscillatorBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Sine, None);
-let dc_blocker = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let dc_blocker = builder.add(DcBlockerBlock::new(true));
 
 builder.connect(osc, 0, dc_blocker, 0);
 
@@ -123,14 +126,116 @@ Use DC blockers after:
 - Asymmetric waveforms
 - External audio input
 
+## LowPassFilterBlock
+
+SVF-based low-pass filter with resonance control:
+
+```rust
+use bbx_dsp::{
+    blocks::{LowPassFilterBlock, OscillatorBlock},
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add(OscillatorBlock::new(110.0, Waveform::Sawtooth, None));
+
+// Low-pass filter with cutoff and resonance (Q)
+let filter = builder.add(LowPassFilterBlock::new(
+    800.0,   // Cutoff frequency in Hz
+    2.0      // Resonance (Q factor, 0.5-10.0)
+));
+
+builder.connect(osc, 0, filter, 0);
+
+let graph = builder.build();
+```
+
+The filter cutoff can be modulated by an LFO for classic wah/sweep effects. See the `10_filter_modulation` example.
+
+## ChannelSplitterBlock
+
+Split multi-channel audio into individual mono outputs:
+
+```rust
+use bbx_dsp::{blocks::ChannelSplitterBlock, graph::GraphBuilder};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Split stereo into two mono outputs
+let splitter = builder.add(ChannelSplitterBlock::new(2));
+
+// splitter output 0 = left channel
+// splitter output 1 = right channel
+```
+
+## ChannelMergerBlock
+
+Merge individual mono inputs into multi-channel output:
+
+```rust
+use bbx_dsp::{blocks::ChannelMergerBlock, graph::GraphBuilder};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+// Merge two mono inputs into stereo
+let merger = builder.add(ChannelMergerBlock::new(2));
+
+// merger input 0 = left channel
+// merger input 1 = right channel
+```
+
+### Parallel Processing with Split/Merge
+
+Process channels independently then recombine:
+
+```rust
+use bbx_dsp::{
+    blocks::{
+        ChannelMergerBlock, ChannelSplitterBlock, LowPassFilterBlock,
+        OscillatorBlock, PannerBlock,
+    },
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add(OscillatorBlock::new(110.0, Waveform::Sawtooth, None));
+let panner = builder.add(PannerBlock::new(0.0));
+
+// Split stereo signal
+let splitter = builder.add(ChannelSplitterBlock::new(2));
+
+// Different filters for each channel
+let filter_left = builder.add(LowPassFilterBlock::new(500.0, 2.0));   // Darker
+let filter_right = builder.add(LowPassFilterBlock::new(2000.0, 2.0)); // Brighter
+
+// Merge back to stereo
+let merger = builder.add(ChannelMergerBlock::new(2));
+
+// Build chain
+builder.connect(osc, 0, panner, 0);
+builder.connect(panner, 0, splitter, 0);
+builder.connect(panner, 1, splitter, 1);
+builder.connect(splitter, 0, filter_left, 0);
+builder.connect(splitter, 1, filter_right, 0);
+builder.connect(filter_left, 0, merger, 0);
+builder.connect(filter_right, 0, merger, 1);
+
+let graph = builder.build();
+```
+
+See the `11_channel_split_merge` example for a complete demonstration.
+
 ## Building Effect Chains
 
 Chain multiple effects together using the same connection pattern from [Your First DSP Graph](first-graph.md#connecting-blocks):
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::{DcBlockerBlock, GainBlock, PannerBlock},
+    blocks::{DcBlockerBlock, GainBlock, OscillatorBlock, OverdriveBlock, PannerBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
@@ -138,13 +243,13 @@ use bbx_dsp::{
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
 // Source
-let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
 
 // Effect chain
-let overdrive = builder.add_overdrive(3.0, 1.0, 0.8, 44100.0);
-let dc_blocker = builder.add_block(BlockType::DcBlocker(DcBlockerBlock::new(true)));
-let gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
-let pan = builder.add_block(BlockType::Panner(PannerBlock::new(0.0)));
+let overdrive = builder.add(OverdriveBlock::new(3.0, 1.0, 0.8, 44100.0));
+let dc_blocker = builder.add(DcBlockerBlock::new(true));
+let gain = builder.add(GainBlock::new(-6.0, None));
+let pan = builder.add(PannerBlock::new(0.0));
 
 // Connect: Osc -> Overdrive -> DC Blocker -> Gain -> Pan
 builder.connect(osc, 0, overdrive, 0);
@@ -161,22 +266,21 @@ Route signals to multiple effects in parallel:
 
 ```rust
 use bbx_dsp::{
-    block::BlockType,
-    blocks::GainBlock,
+    blocks::{GainBlock, OscillatorBlock, OverdriveBlock},
     graph::GraphBuilder,
     waveform::Waveform,
 };
 
 let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 
-let osc = builder.add_oscillator(440.0, Waveform::Saw, None);
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Saw, None));
 
 // Two parallel paths
-let clean_gain = builder.add_block(BlockType::Gain(GainBlock::new(-6.0, None)));
-let dirty_overdrive = builder.add_overdrive(8.0, 1.0, 0.5, 44100.0);
+let clean_gain = builder.add(GainBlock::new(-6.0, None));
+let dirty_overdrive = builder.add(OverdriveBlock::new(8.0, 1.0, 0.5, 44100.0));
 
 // Mix them back together
-let mix = builder.add_block(BlockType::Gain(GainBlock::new(-3.0, None)));
+let mix = builder.add(GainBlock::new(-3.0, None));
 
 // Split to both paths
 builder.connect(osc, 0, clean_gain, 0);

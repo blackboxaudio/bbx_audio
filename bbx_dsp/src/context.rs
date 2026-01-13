@@ -3,6 +3,8 @@
 //! This module provides [`DspContext`], which carries audio processing parameters
 //! through the DSP graph during block processing.
 
+use crate::channel::ChannelLayout;
+
 /// Default buffer size for DSP graphs (512 samples).
 pub const DEFAULT_BUFFER_SIZE: usize = 512;
 
@@ -28,4 +30,8 @@ pub struct DspContext {
     /// The absolute sample position since playback started.
     /// Increments by `buffer_size` after each process cycle.
     pub current_sample: u64,
+
+    /// The channel layout for audio processing.
+    /// Describes the speaker/channel configuration (stereo, surround, ambisonics).
+    pub channel_layout: ChannelLayout,
 }

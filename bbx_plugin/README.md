@@ -95,12 +95,11 @@ bbx_plugin_ffi!(MyPlugin);
 
 The `bbx_plugin_ffi!` macro generates:
 
-- `bbx_create() -> *mut BbxGraph` - Create plugin instance
-- `bbx_destroy(handle)` - Destroy plugin instance
-- `bbx_prepare(handle, sample_rate, buffer_size, channels)` - Prepare for playback
-- `bbx_reset(handle)` - Reset state
-- `bbx_apply_parameters(handle, params, count)` - Update parameters
-- `bbx_process(handle, inputs, outputs, midi_events, midi_count, channels, samples)` - Process audio with MIDI
+- `bbx_graph_create() -> *mut BbxGraph` - Create plugin instance
+- `bbx_graph_destroy(handle)` - Destroy plugin instance
+- `bbx_graph_prepare(handle, sample_rate, buffer_size, channels)` - Prepare for playback
+- `bbx_graph_reset(handle)` - Reset state
+- `bbx_graph_process(handle, inputs, outputs, channels, samples, params, num_params, midi_events, num_midi_events)` - Process audio with parameters and MIDI
 
 ### JUCE Integration
 

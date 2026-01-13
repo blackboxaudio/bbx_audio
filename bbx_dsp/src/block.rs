@@ -6,13 +6,17 @@
 use crate::{
     blocks::{
         effectors::{
-            channel_router::ChannelRouterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock,
-            low_pass_filter::LowPassFilterBlock, overdrive::OverdriveBlock, panner::PannerBlock, vca::VcaBlock,
+            ambisonic_decoder::AmbisonicDecoderBlock, binaural_decoder::BinauralDecoderBlock,
+            channel_merger::ChannelMergerBlock, channel_router::ChannelRouterBlock,
+            channel_splitter::ChannelSplitterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock,
+            low_pass_filter::LowPassFilterBlock, matrix_mixer::MatrixMixerBlock, mixer::MixerBlock,
+            overdrive::OverdriveBlock, panner::PannerBlock, vca::VcaBlock,
         },
         generators::oscillator::OscillatorBlock,
         io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
         modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
     },
+    channel::ChannelConfig,
     context::DspContext,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
@@ -80,6 +84,15 @@ pub trait Block<S: Sample> {
     /// Only modulator blocks (LFOs, envelopes) return non-empty slices.
     /// Generator and effector blocks return an empty slice.
     fn modulation_outputs(&self) -> &[ModulationOutput];
+
+    /// Returns how this block handles multi-channel audio.
+    ///
+    /// Default is [`ChannelConfig::Parallel`] (process each channel independently).
+    /// Override to [`ChannelConfig::Explicit`] for blocks that handle channel
+    /// routing internally (panners, mixers, splitters/mergers).
+    fn channel_config(&self) -> ChannelConfig {
+        ChannelConfig::Parallel
+    }
 }
 
 /// Type-erased container for all block implementations.
@@ -100,14 +113,26 @@ pub enum BlockType<S: Sample> {
     Oscillator(OscillatorBlock<S>),
 
     // EFFECTORS
+    /// Decodes ambisonics B-format to speaker layout.
+    AmbisonicDecoder(AmbisonicDecoderBlock<S>),
+    /// Decodes ambisonics B-format to stereo for headphones.
+    BinauralDecoder(BinauralDecoderBlock<S>),
+    /// Merges individual mono inputs into multi-channel output.
+    ChannelMerger(ChannelMergerBlock<S>),
     /// Routes channels (mono to stereo, stereo to mono, etc.).
     ChannelRouter(ChannelRouterBlock<S>),
+    /// Splits multi-channel input into individual mono outputs.
+    ChannelSplitter(ChannelSplitterBlock<S>),
     /// Removes DC offset from the signal.
     DcBlocker(DcBlockerBlock<S>),
     /// Adjusts signal level in decibels.
     Gain(GainBlock<S>),
     /// SVF-based low-pass filter.
     LowPassFilter(LowPassFilterBlock<S>),
+    /// NxM mixing matrix for flexible channel routing.
+    MatrixMixer(MatrixMixerBlock<S>),
+    /// Channel-wise mixer that sums multiple sources per channel.
+    Mixer(MixerBlock<S>),
     /// Asymmetric soft-clipping distortion.
     Overdrive(OverdriveBlock<S>),
     /// Stereo panning with equal-power law.
@@ -142,10 +167,16 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.process(inputs, outputs, modulation_values, context),
 
             // EFFECTORS
+            BlockType::AmbisonicDecoder(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::BinauralDecoder(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::ChannelMerger(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::ChannelRouter(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::ChannelSplitter(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::DcBlocker(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Gain(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::LowPassFilter(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::MatrixMixer(block) => block.process(inputs, outputs, modulation_values, context),
+            BlockType::Mixer(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Overdrive(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Panner(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Vca(block) => block.process(inputs, outputs, modulation_values, context),
@@ -169,10 +200,16 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.input_count(),
 
             // EFFECTORS
+            BlockType::AmbisonicDecoder(block) => block.input_count(),
+            BlockType::BinauralDecoder(block) => block.input_count(),
+            BlockType::ChannelMerger(block) => block.input_count(),
             BlockType::ChannelRouter(block) => block.input_count(),
+            BlockType::ChannelSplitter(block) => block.input_count(),
             BlockType::DcBlocker(block) => block.input_count(),
             BlockType::Gain(block) => block.input_count(),
             BlockType::LowPassFilter(block) => block.input_count(),
+            BlockType::MatrixMixer(block) => block.input_count(),
+            BlockType::Mixer(block) => block.input_count(),
             BlockType::Overdrive(block) => block.input_count(),
             BlockType::Panner(block) => block.input_count(),
             BlockType::Vca(block) => block.input_count(),
@@ -196,10 +233,16 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.output_count(),
 
             // EFFECTORS
+            BlockType::AmbisonicDecoder(block) => block.output_count(),
+            BlockType::BinauralDecoder(block) => block.output_count(),
+            BlockType::ChannelMerger(block) => block.output_count(),
             BlockType::ChannelRouter(block) => block.output_count(),
+            BlockType::ChannelSplitter(block) => block.output_count(),
             BlockType::DcBlocker(block) => block.output_count(),
             BlockType::Gain(block) => block.output_count(),
             BlockType::LowPassFilter(block) => block.output_count(),
+            BlockType::MatrixMixer(block) => block.output_count(),
+            BlockType::Mixer(block) => block.output_count(),
             BlockType::Overdrive(block) => block.output_count(),
             BlockType::Panner(block) => block.output_count(),
             BlockType::Vca(block) => block.output_count(),
@@ -223,10 +266,16 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.modulation_outputs(),
 
             // EFFECTORS
+            BlockType::AmbisonicDecoder(block) => block.modulation_outputs(),
+            BlockType::BinauralDecoder(block) => block.modulation_outputs(),
+            BlockType::ChannelMerger(block) => block.modulation_outputs(),
             BlockType::ChannelRouter(block) => block.modulation_outputs(),
+            BlockType::ChannelSplitter(block) => block.modulation_outputs(),
             BlockType::DcBlocker(block) => block.modulation_outputs(),
             BlockType::Gain(block) => block.modulation_outputs(),
             BlockType::LowPassFilter(block) => block.modulation_outputs(),
+            BlockType::MatrixMixer(block) => block.modulation_outputs(),
+            BlockType::Mixer(block) => block.modulation_outputs(),
             BlockType::Overdrive(block) => block.modulation_outputs(),
             BlockType::Panner(block) => block.modulation_outputs(),
             BlockType::Vca(block) => block.modulation_outputs(),
@@ -234,6 +283,39 @@ impl<S: Sample> BlockType<S> {
             // MODULATORS
             BlockType::Envelope(block) => block.modulation_outputs(),
             BlockType::Lfo(block) => block.modulation_outputs(),
+        }
+    }
+
+    /// Get the channel config of the underlying `Block`.
+    #[inline]
+    pub fn channel_config(&self) -> ChannelConfig {
+        match self {
+            // I/O
+            BlockType::FileInput(block) => block.channel_config(),
+            BlockType::FileOutput(block) => block.channel_config(),
+            BlockType::Output(block) => block.channel_config(),
+
+            // GENERATORS
+            BlockType::Oscillator(block) => block.channel_config(),
+
+            // EFFECTORS
+            BlockType::AmbisonicDecoder(block) => block.channel_config(),
+            BlockType::BinauralDecoder(block) => block.channel_config(),
+            BlockType::ChannelMerger(block) => block.channel_config(),
+            BlockType::ChannelRouter(block) => block.channel_config(),
+            BlockType::ChannelSplitter(block) => block.channel_config(),
+            BlockType::DcBlocker(block) => block.channel_config(),
+            BlockType::Gain(block) => block.channel_config(),
+            BlockType::LowPassFilter(block) => block.channel_config(),
+            BlockType::MatrixMixer(block) => block.channel_config(),
+            BlockType::Mixer(block) => block.channel_config(),
+            BlockType::Overdrive(block) => block.channel_config(),
+            BlockType::Panner(block) => block.channel_config(),
+            BlockType::Vca(block) => block.channel_config(),
+
+            // MODULATORS
+            BlockType::Envelope(block) => block.channel_config(),
+            BlockType::Lfo(block) => block.channel_config(),
         }
     }
 
@@ -259,7 +341,11 @@ impl<S: Sample> BlockType<S> {
             },
 
             // EFFECTORS
+            BlockType::AmbisonicDecoder(_) => Err("Ambisonic decoder has no modulated parameters".to_string()),
+            BlockType::BinauralDecoder(_) => Err("Binaural decoder has no modulated parameters".to_string()),
+            BlockType::ChannelMerger(_) => Err("Channel merger has no modulated parameters".to_string()),
             BlockType::ChannelRouter(_) => Err("Channel router uses direct field access, not Parameter<S>".to_string()),
+            BlockType::ChannelSplitter(_) => Err("Channel splitter has no modulated parameters".to_string()),
             BlockType::DcBlocker(_) => Err("DC blocker uses direct field access, not Parameter<S>".to_string()),
             BlockType::Gain(block) => match parameter_name.to_lowercase().as_str() {
                 "level" | "level_db" => {
@@ -279,6 +365,8 @@ impl<S: Sample> BlockType<S> {
                 }
                 _ => Err(format!("Unknown low-pass filter parameter: {parameter_name}")),
             },
+            BlockType::MatrixMixer(_) => Err("Matrix mixer uses set_gain method, not Parameter<S>".to_string()),
+            BlockType::Mixer(_) => Err("Mixer has no modulated parameters".to_string()),
             BlockType::Overdrive(block) => match parameter_name.to_lowercase().as_str() {
                 "drive" => {
                     block.drive = parameter;
@@ -293,6 +381,14 @@ impl<S: Sample> BlockType<S> {
             BlockType::Panner(block) => match parameter_name.to_lowercase().as_str() {
                 "position" | "pan" => {
                     block.position = parameter;
+                    Ok(())
+                }
+                "azimuth" => {
+                    block.azimuth = parameter;
+                    Ok(())
+                }
+                "elevation" => {
+                    block.elevation = parameter;
                     Ok(())
                 }
                 _ => Err(format!("Unknown panner parameter: {parameter_name}")),
@@ -351,10 +447,16 @@ impl<S: Sample> BlockType<S> {
         match self {
             BlockType::FileInput(_) | BlockType::FileOutput(_) | BlockType::Output(_) => BlockCategory::IO,
             BlockType::Oscillator(_) => BlockCategory::Generator,
-            BlockType::ChannelRouter(_)
+            BlockType::AmbisonicDecoder(_)
+            | BlockType::BinauralDecoder(_)
+            | BlockType::ChannelMerger(_)
+            | BlockType::ChannelRouter(_)
+            | BlockType::ChannelSplitter(_)
             | BlockType::DcBlocker(_)
             | BlockType::Gain(_)
             | BlockType::LowPassFilter(_)
+            | BlockType::MatrixMixer(_)
+            | BlockType::Mixer(_)
             | BlockType::Overdrive(_)
             | BlockType::Panner(_)
             | BlockType::Vca(_) => BlockCategory::Effector,
@@ -370,10 +472,16 @@ impl<S: Sample> BlockType<S> {
             BlockType::FileOutput(_) => "File Output",
             BlockType::Output(_) => "Output",
             BlockType::Oscillator(_) => "Oscillator",
+            BlockType::AmbisonicDecoder(_) => "Ambisonic Decoder",
+            BlockType::BinauralDecoder(_) => "Binaural Decoder",
+            BlockType::ChannelMerger(_) => "Channel Merger",
             BlockType::ChannelRouter(_) => "Channel Router",
+            BlockType::ChannelSplitter(_) => "Channel Splitter",
             BlockType::DcBlocker(_) => "DC Blocker",
             BlockType::Gain(_) => "Gain",
             BlockType::LowPassFilter(_) => "Low Pass Filter",
+            BlockType::MatrixMixer(_) => "Matrix Mixer",
+            BlockType::Mixer(_) => "Mixer",
             BlockType::Overdrive(_) => "Overdrive",
             BlockType::Panner(_) => "Panner",
             BlockType::Vca(_) => "VCA",
@@ -386,6 +494,11 @@ impl<S: Sample> BlockType<S> {
     ///
     /// Returns a list of (parameter_name, source_block_id) for each parameter
     /// that is modulated by another block.
+    ///
+    /// # Note
+    ///
+    /// This method allocates and is NOT realtime-safe. Only call during
+    /// graph setup or from non-audio threads.
     pub fn get_modulated_parameters(&self) -> Vec<(&'static str, BlockId)> {
         let mut result = Vec::new();
 
@@ -401,7 +514,15 @@ impl<S: Sample> BlockType<S> {
                 }
             }
 
-            BlockType::ChannelRouter(_) | BlockType::DcBlocker(_) | BlockType::Vca(_) => {}
+            BlockType::AmbisonicDecoder(_)
+            | BlockType::BinauralDecoder(_)
+            | BlockType::ChannelMerger(_)
+            | BlockType::ChannelRouter(_)
+            | BlockType::ChannelSplitter(_)
+            | BlockType::DcBlocker(_)
+            | BlockType::MatrixMixer(_)
+            | BlockType::Mixer(_)
+            | BlockType::Vca(_) => {}
 
             BlockType::Gain(block) => {
                 if let Parameter::Modulated(id) = &block.level_db {
@@ -431,6 +552,12 @@ impl<S: Sample> BlockType<S> {
                 if let Parameter::Modulated(id) = &block.position {
                     result.push(("position", *id));
                 }
+                if let Parameter::Modulated(id) = &block.azimuth {
+                    result.push(("azimuth", *id));
+                }
+                if let Parameter::Modulated(id) = &block.elevation {
+                    result.push(("elevation", *id));
+                }
             }
 
             BlockType::Envelope(block) => {
@@ -459,5 +586,125 @@ impl<S: Sample> BlockType<S> {
         }
 
         result
+    }
+}
+
+// From implementations for ergonomic block addition via GraphBuilder::add()
+
+// I/O
+impl<S: Sample> From<FileInputBlock<S>> for BlockType<S> {
+    fn from(block: FileInputBlock<S>) -> Self {
+        BlockType::FileInput(block)
+    }
+}
+
+impl<S: Sample> From<FileOutputBlock<S>> for BlockType<S> {
+    fn from(block: FileOutputBlock<S>) -> Self {
+        BlockType::FileOutput(block)
+    }
+}
+
+impl<S: Sample> From<OutputBlock<S>> for BlockType<S> {
+    fn from(block: OutputBlock<S>) -> Self {
+        BlockType::Output(block)
+    }
+}
+
+// Generators
+impl<S: Sample> From<OscillatorBlock<S>> for BlockType<S> {
+    fn from(block: OscillatorBlock<S>) -> Self {
+        BlockType::Oscillator(block)
+    }
+}
+
+// Effectors
+impl<S: Sample> From<AmbisonicDecoderBlock<S>> for BlockType<S> {
+    fn from(block: AmbisonicDecoderBlock<S>) -> Self {
+        BlockType::AmbisonicDecoder(block)
+    }
+}
+
+impl<S: Sample> From<BinauralDecoderBlock<S>> for BlockType<S> {
+    fn from(block: BinauralDecoderBlock<S>) -> Self {
+        BlockType::BinauralDecoder(block)
+    }
+}
+
+impl<S: Sample> From<ChannelMergerBlock<S>> for BlockType<S> {
+    fn from(block: ChannelMergerBlock<S>) -> Self {
+        BlockType::ChannelMerger(block)
+    }
+}
+
+impl<S: Sample> From<ChannelRouterBlock<S>> for BlockType<S> {
+    fn from(block: ChannelRouterBlock<S>) -> Self {
+        BlockType::ChannelRouter(block)
+    }
+}
+
+impl<S: Sample> From<ChannelSplitterBlock<S>> for BlockType<S> {
+    fn from(block: ChannelSplitterBlock<S>) -> Self {
+        BlockType::ChannelSplitter(block)
+    }
+}
+
+impl<S: Sample> From<DcBlockerBlock<S>> for BlockType<S> {
+    fn from(block: DcBlockerBlock<S>) -> Self {
+        BlockType::DcBlocker(block)
+    }
+}
+
+impl<S: Sample> From<GainBlock<S>> for BlockType<S> {
+    fn from(block: GainBlock<S>) -> Self {
+        BlockType::Gain(block)
+    }
+}
+
+impl<S: Sample> From<LowPassFilterBlock<S>> for BlockType<S> {
+    fn from(block: LowPassFilterBlock<S>) -> Self {
+        BlockType::LowPassFilter(block)
+    }
+}
+
+impl<S: Sample> From<MatrixMixerBlock<S>> for BlockType<S> {
+    fn from(block: MatrixMixerBlock<S>) -> Self {
+        BlockType::MatrixMixer(block)
+    }
+}
+
+impl<S: Sample> From<MixerBlock<S>> for BlockType<S> {
+    fn from(block: MixerBlock<S>) -> Self {
+        BlockType::Mixer(block)
+    }
+}
+
+impl<S: Sample> From<OverdriveBlock<S>> for BlockType<S> {
+    fn from(block: OverdriveBlock<S>) -> Self {
+        BlockType::Overdrive(block)
+    }
+}
+
+impl<S: Sample> From<PannerBlock<S>> for BlockType<S> {
+    fn from(block: PannerBlock<S>) -> Self {
+        BlockType::Panner(block)
+    }
+}
+
+impl<S: Sample> From<VcaBlock<S>> for BlockType<S> {
+    fn from(block: VcaBlock<S>) -> Self {
+        BlockType::Vca(block)
+    }
+}
+
+// Modulators
+impl<S: Sample> From<EnvelopeBlock<S>> for BlockType<S> {
+    fn from(block: EnvelopeBlock<S>) -> Self {
+        BlockType::Envelope(block)
+    }
+}
+
+impl<S: Sample> From<LfoBlock<S>> for BlockType<S> {
+    fn from(block: LfoBlock<S>) -> Self {
+        BlockType::Lfo(block)
     }
 }
