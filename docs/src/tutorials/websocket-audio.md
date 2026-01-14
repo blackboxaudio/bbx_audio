@@ -181,113 +181,241 @@ fn main() {
 
 ## Building a Web Client
 
-### Minimal JavaScript Client
+### Using the TypeScript Client
 
-```javascript
-const ws = new WebSocket('ws://192.168.1.100:8080');
+The [`@bbx-audio/net`](https://www.npmjs.com/package/@bbx-audio/net) package provides a high-level client with automatic reconnection, latency measurement, and type safety.
 
-ws.onopen = () => {
-    // Join the room (get code from server console output)
-    ws.send(JSON.stringify({ type: 'join', room_code: '123456' }));
-};
+**Installation:**
 
-ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-
-    switch (msg.type) {
-        case 'welcome':
-            console.log('Connected as', msg.node_id);
-            break;
-        case 'state':
-            console.log('Current state:', msg.params);
-            break;
-        case 'update':
-            console.log('Parameter changed:', msg.param, '=', msg.value);
-            break;
-        case 'error':
-            console.error('Error:', msg.code, msg.message);
-            break;
-    }
-};
-
-// Send parameter change
-function setParameter(name, value) {
-    ws.send(JSON.stringify({ type: 'param', param: name, value }));
-}
-
-// Example: control frequency with a slider
-document.getElementById('freq-slider').addEventListener('input', (e) => {
-    setParameter('freq', parseFloat(e.target.value));
-});
+```bash
+npm install @bbx-audio/net
 ```
 
-### TypeScript Interfaces
+**Basic usage:**
 
 ```typescript
-interface ClientMessage {
-    type: 'join' | 'param' | 'trigger' | 'sync' | 'ping' | 'leave';
-    room_code?: string;
-    client_name?: string;
-    param?: string;
-    name?: string;
-    value?: number;
-    at?: number;
-    client_time?: number;
-}
+import { BbxClient } from '@bbx-audio/net'
 
-interface ServerMessage {
-    type: 'welcome' | 'state' | 'update' | 'pong' | 'error' | 'closed';
-    node_id?: string;
-    server_time?: number;
-    params?: ParamState[];
-    param?: string;
-    value?: number;
-    client_time?: number;
-    code?: string;
-    message?: string;
-}
+const client = new BbxClient({
+    url: 'ws://192.168.1.100:8080',
+    roomCode: '123456',
+    clientName: 'My Controller',
+})
 
-interface ParamState {
-    name: string;
-    value: number;
-    min: number;
-    max: number;
-}
+// Handle events
+client.on('connected', (welcome) => {
+    console.log('Connected as', welcome.node_id)
+})
+
+client.on('state', (state) => {
+    console.log('Current state:', state.params)
+})
+
+client.on('update', (update) => {
+    console.log('Parameter changed:', update.param, '=', update.value)
+})
+
+client.on('error', (error) => {
+    console.error('Error:', error.code, error.message)
+})
+
+// Connect and control
+await client.connect()
+
+// Send parameter changes
+client.setParam('freq', 0.5)
+client.setParam('cutoff', 0.7)
+
+// Send trigger events
+client.trigger('note_on')
+
+// Request current state
+client.requestSync()
+```
+
+**HTML slider integration:**
+
+```typescript
+document.getElementById('freq-slider').addEventListener('input', (e) => {
+    client.setParam('freq', parseFloat((e.target as HTMLInputElement).value))
+})
 ```
 
 ## Clock Synchronization
 
-For time-sensitive applications (e.g., synchronized triggers), use the ping/pong mechanism:
+The client automatically measures latency and calculates clock offset. Use the built-in conversion methods for scheduled parameter changes:
 
-```javascript
-let clockOffset = 0;
-
-function measureLatency() {
-    const clientTime = Date.now() * 1000; // microseconds
-    ws.send(JSON.stringify({ type: 'ping', client_time: clientTime }));
-}
-
-ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-    if (msg.type === 'pong') {
-        const now = Date.now() * 1000;
-        const roundTrip = now - msg.client_time;
-        const latency = roundTrip / 2;
-        clockOffset = msg.server_time - (msg.client_time + latency);
-        console.log('Latency:', latency / 1000, 'ms');
-    }
-};
-
+```typescript
 // Schedule a parameter change 100ms in the future
-function scheduleParam(name, value, delayMs) {
-    const serverTime = Date.now() * 1000 + clockOffset + (delayMs * 1000);
-    ws.send(JSON.stringify({
-        type: 'param',
-        param: name,
-        value,
-        at: serverTime
-    }));
+const futureTime = Date.now() + 100
+client.setParam('freq', 0.8, client.toServerTime(futureTime))
+
+// Monitor latency
+client.on('latency', (latencyMs) => {
+    console.log('Latency:', latencyMs, 'ms')
+})
+
+// Access clock offset directly
+console.log('Clock offset:', client.clockOffset, 'ms')
+```
+
+## Framework Examples
+
+### React
+
+```tsx
+import { useEffect, useState, useCallback } from 'react'
+import { BbxClient, IParamState } from '@bbx-audio/net'
+
+function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
+    const [client] = useState(() => new BbxClient({ url, roomCode }))
+    const [connected, setConnected] = useState(false)
+    const [params, setParams] = useState<IParamState[]>([])
+
+    useEffect(() => {
+        client.on('connected', () => setConnected(true))
+        client.on('disconnected', () => setConnected(false))
+        client.on('state', (state) => setParams(state.params))
+        client.on('update', (update) => {
+            setParams((prev) =>
+                prev.map((p) => (p.name === update.param ? { ...p, value: update.value } : p))
+            )
+        })
+
+        client.connect()
+        return () => client.disconnect()
+    }, [client])
+
+    const handleChange = useCallback(
+        (param: string, value: number) => client.setParam(param, value),
+        [client]
+    )
+
+    if (!connected) return <div>Connecting...</div>
+
+    return (
+        <div>
+            {params.map((param) => (
+                <label key={param.name}>
+                    {param.name}
+                    <input
+                        type="range"
+                        min={param.min}
+                        max={param.max}
+                        step={0.01}
+                        value={param.value}
+                        onChange={(e) => handleChange(param.name, parseFloat(e.target.value))}
+                    />
+                </label>
+            ))}
+        </div>
+    )
 }
+```
+
+### Svelte
+
+```svelte
+<script lang="ts">
+    import { onMount, onDestroy } from 'svelte'
+    import { BbxClient, type IParamState } from '@bbx-audio/net'
+
+    export let url: string
+    export let roomCode: string
+
+    let client: BbxClient
+    let connected = false
+    let params: IParamState[] = []
+
+    onMount(() => {
+        client = new BbxClient({ url, roomCode })
+
+        client.on('connected', () => (connected = true))
+        client.on('disconnected', () => (connected = false))
+        client.on('state', (state) => (params = state.params))
+        client.on('update', (update) => {
+            params = params.map((p) =>
+                p.name === update.param ? { ...p, value: update.value } : p
+            )
+        })
+
+        client.connect()
+    })
+
+    onDestroy(() => client?.disconnect())
+
+    function handleChange(param: string, value: number) {
+        client.setParam(param, value)
+    }
+</script>
+
+{#if !connected}
+    <div>Connecting...</div>
+{:else}
+    {#each params as param}
+        <label>
+            {param.name}
+            <input
+                type="range"
+                min={param.min}
+                max={param.max}
+                step={0.01}
+                value={param.value}
+                on:input={(e) => handleChange(param.name, parseFloat(e.currentTarget.value))}
+            />
+        </label>
+    {/each}
+{/if}
+```
+
+### Vue 3
+
+```vue
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+import { BbxClient, type IParamState } from '@bbx-audio/net'
+
+const props = defineProps<{ url: string; roomCode: string }>()
+
+const client = new BbxClient({ url: props.url, roomCode: props.roomCode })
+const connected = ref(false)
+const params = ref<IParamState[]>([])
+
+onMounted(() => {
+    client.on('connected', () => (connected.value = true))
+    client.on('disconnected', () => (connected.value = false))
+    client.on('state', (state) => (params.value = state.params))
+    client.on('update', (update) => {
+        const param = params.value.find((p) => p.name === update.param)
+        if (param) param.value = update.value
+    })
+
+    client.connect()
+})
+
+onUnmounted(() => client.disconnect())
+
+function handleChange(param: string, value: number) {
+    client.setParam(param, value)
+}
+</script>
+
+<template>
+    <div v-if="!connected">Connecting...</div>
+    <div v-else>
+        <label v-for="param in params" :key="param.name">
+            {{ param.name }}
+            <input
+                type="range"
+                :min="param.min"
+                :max="param.max"
+                step="0.01"
+                :value="param.value"
+                @input="handleChange(param.name, parseFloat(($event.target as HTMLInputElement).value))"
+            />
+        </label>
+    </div>
+</template>
 ```
 
 ## Room Management

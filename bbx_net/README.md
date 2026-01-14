@@ -119,6 +119,37 @@ async fn main() {
 }
 ```
 
+## TypeScript Client
+
+The [`@bbx-audio/net`](https://www.npmjs.com/package/@bbx-audio/net) package provides a TypeScript/JavaScript client for web and Node.js applications.
+
+### Installation
+
+```bash
+npm install @bbx-audio/net
+# or
+yarn add @bbx-audio/net
+```
+
+### Usage
+
+```typescript
+import { BbxClient } from '@bbx-audio/net'
+
+const client = new BbxClient({
+    url: 'ws://localhost:8080',
+    roomCode: '123456',
+})
+
+client.on('connected', () => console.log('Connected!'))
+client.on('update', (msg) => console.log(`${msg.param} = ${msg.value}`))
+
+await client.connect()
+client.setParam('freq', 0.5)
+```
+
+See the [full documentation](./client/README.md) for the complete API reference.
+
 ### WebSocket JSON Protocol
 
 **Client → Server:**
