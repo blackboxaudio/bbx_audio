@@ -35,26 +35,23 @@ bbx_net = { version = "0.4", features = ["full"] }       # Both protocols
 Create a buffer pair for communication between network and audio threads:
 
 ```rust
-use bbx_net::{net_buffer, NetMessage, NetMessageType, hash_param_name};
+use bbx_net::{net_buffer, NetMessage, NodeId, hash_param_name};
 
 // Create buffer (network thread → audio thread)
 let (mut producer, mut consumer) = net_buffer(256);
 
 // Network thread: send parameter changes
-let msg = NetMessage {
-    message_type: NetMessageType::ParameterChange,
-    param_hash: hash_param_name("gain"),
-    value: 0.5,
-    node_id: Default::default(),
-    timestamp: Default::default(),
-};
+let msg = NetMessage::param_change("gain", 0.5, NodeId::default());
 producer.try_send(msg);
 
 // Audio thread: receive messages (realtime-safe, no allocation)
+let gain_hash = hash_param_name("gain");
 let events = consumer.drain_into_stack();
 for msg in events {
-    if msg.param_hash == hash_param_name("gain") {
-        // Apply gain change
+    if msg.param_hash == gain_hash {
+        if let Some(value) = msg.payload.value() {
+            // Apply gain change with value
+        }
     }
 }
 ```
@@ -91,12 +88,34 @@ The core message type for network communication:
 ```rust
 pub struct NetMessage {
     pub message_type: NetMessageType,  // ParameterChange, Trigger, etc.
-    pub param_hash: u32,                // FNV-1a hash of parameter name
-    pub value: f32,                     // Parameter value
-    pub node_id: NodeId,                // Source node identifier
-    pub timestamp: SyncedTimestamp,     // Synchronized timestamp
+    pub param_hash: u32,               // FNV-1a hash of parameter name
+    pub payload: NetPayload,           // Message payload data
+    pub node_id: NodeId,               // Source node identifier
+    pub timestamp: SyncedTimestamp,    // Synchronized timestamp
 }
 ```
+
+Convenience constructors:
+
+```rust
+NetMessage::param_change("gain", 0.5, node_id)     // Parameter change
+NetMessage::trigger("note_on", node_id)            // Trigger event
+NetMessage::trigger_with_coordinates("tap", x, y, node_id)  // Spatial trigger
+```
+
+### NetPayload
+
+Type-safe payload data:
+
+| Variant | Description | Use Case |
+|---------|-------------|----------|
+| `None` | No data | Triggers, ping/pong |
+| `Value(f32)` | Single float | Parameter changes |
+| `Coordinates { x, y }` | 2D position | Spatial triggers |
+
+Extract data with helper methods:
+- `payload.value()` → `Option<f32>`
+- `payload.coordinates()` → `Option<(f32, f32)>`
 
 ### Message Types
 

@@ -383,9 +383,27 @@ builder.connect(encoder, 2, decoder, 2);  // Z
 builder.connect(encoder, 3, decoder, 3);  // X
 ```
 
+## Configuring Smoothing
+
+By default, `position`, `azimuth`, and `elevation` parameter changes are smoothed over 50ms to prevent clicks. You can customize the smoothing time using `set_smoothing()`:
+
+```rust
+use bbx_dsp::{blocks::PannerBlock, graph::GraphBuilder};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+let pan_id = builder.add(PannerBlock::new(0.0));
+
+let mut graph = builder.build();
+if let Some(block) = graph.get_block_mut(pan_id) {
+    block.set_smoothing(44100.0, 100.0); // 100ms ramp time
+}
+```
+
+**Note:** `set_smoothing()` applies the same ramp time to all spatial parameters (`position`, `azimuth`, `elevation`). If you need different smoothing times per parameter, create and configure the block before passing it to `GraphBuilder::add()`.
+
 ## Implementation Notes
 
-- Click-free panning via linear smoothing on all parameters
+- Click-free panning via linear smoothing on all parameters (default 50ms ramp)
 - Uses `ChannelConfig::Explicit` (handles routing internally)
 - All modes accept mono input (1 channel)
 - VBAP normalizes gains for energy preservation

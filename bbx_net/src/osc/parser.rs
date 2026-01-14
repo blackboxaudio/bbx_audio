@@ -4,9 +4,8 @@ use rosc::{OscMessage, OscPacket, OscType};
 
 use crate::{
     address::{AddressPath, NodeId},
-    clock::SyncedTimestamp,
     error::Result,
-    message::{NetMessage, NetMessageType, hash_param_name},
+    message::NetMessage,
 };
 
 /// Parsed OSC data ready for conversion to NetMessage.
@@ -72,13 +71,7 @@ pub fn parse_osc_message(data: &[u8], source_node_id: NodeId) -> Result<Vec<NetM
 
     Ok(parsed
         .into_iter()
-        .map(|p| NetMessage {
-            message_type: NetMessageType::ParameterChange,
-            param_hash: hash_param_name(&p.address.param_name),
-            value: p.value,
-            node_id: source_node_id,
-            timestamp: SyncedTimestamp::default(),
-        })
+        .map(|p| NetMessage::param_change(&p.address.param_name, p.value, source_node_id))
         .collect())
 }
 
@@ -101,7 +94,7 @@ mod tests {
         let messages = parse_osc_message(&bytes, node_id).unwrap();
 
         assert_eq!(messages.len(), 1);
-        assert!((messages[0].value - 0.75).abs() < f32::EPSILON);
+        assert!((messages[0].payload.value().unwrap() - 0.75).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -117,7 +110,7 @@ mod tests {
         let messages = parse_osc_message(&bytes, node_id).unwrap();
 
         assert_eq!(messages.len(), 1);
-        assert!((messages[0].value - 100.0).abs() < f32::EPSILON);
+        assert!((messages[0].payload.value().unwrap() - 100.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -133,7 +126,7 @@ mod tests {
         let messages = parse_osc_message(&bytes, node_id).unwrap();
 
         assert_eq!(messages.len(), 1);
-        assert!((messages[0].value - 1.0).abs() < f32::EPSILON);
+        assert!((messages[0].payload.value().unwrap() - 1.0).abs() < f32::EPSILON);
     }
 
     #[test]

@@ -187,6 +187,29 @@ mod tests {
 }
 ```
 
+## Adding Parameter Smoothing
+
+If your block has parameters that need smoothing to avoid clicks, implement `set_smoothing()`:
+
+```rust
+use crate::smoothing::LinearSmoothedValue;
+
+pub struct MyEffectBlock<S: Sample> {
+    pub gain: Parameter<S>,
+    gain_smoother: LinearSmoothedValue<S>,
+}
+
+impl<S: Sample> Block<S> for MyEffectBlock<S> {
+    fn set_smoothing(&mut self, sample_rate: f64, ramp_time_ms: f64) {
+        self.gain_smoother.reset(sample_rate, ramp_time_ms);
+    }
+
+    // ... other trait methods
+}
+```
+
+**Note:** `set_smoothing()` should configure the same ramp time for all smoothed parameters in the block. Users who need per-parameter control should create and configure the block manually before passing it to `GraphBuilder::add()`.
+
 ## Update Documentation
 
 1. Add to blocks reference in docs

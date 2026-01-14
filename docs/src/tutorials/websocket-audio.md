@@ -181,113 +181,379 @@ fn main() {
 
 ## Building a Web Client
 
-### Minimal JavaScript Client
+### Using the TypeScript Client
 
-```javascript
-const ws = new WebSocket('ws://192.168.1.100:8080');
+The [`@bbx-audio/net`](https://www.npmjs.com/package/@bbx-audio/net) package provides a high-level client with automatic reconnection, latency measurement, and type safety.
 
-ws.onopen = () => {
-    // Join the room (get code from server console output)
-    ws.send(JSON.stringify({ type: 'join', room_code: '123456' }));
-};
+**Installation:**
 
-ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-
-    switch (msg.type) {
-        case 'welcome':
-            console.log('Connected as', msg.node_id);
-            break;
-        case 'state':
-            console.log('Current state:', msg.params);
-            break;
-        case 'update':
-            console.log('Parameter changed:', msg.param, '=', msg.value);
-            break;
-        case 'error':
-            console.error('Error:', msg.code, msg.message);
-            break;
-    }
-};
-
-// Send parameter change
-function setParameter(name, value) {
-    ws.send(JSON.stringify({ type: 'param', param: name, value }));
-}
-
-// Example: control frequency with a slider
-document.getElementById('freq-slider').addEventListener('input', (e) => {
-    setParameter('freq', parseFloat(e.target.value));
-});
+```bash
+npm install @bbx-audio/net
 ```
 
-### TypeScript Interfaces
+**Basic usage:**
 
 ```typescript
-interface ClientMessage {
-    type: 'join' | 'param' | 'trigger' | 'sync' | 'ping' | 'leave';
-    room_code?: string;
-    client_name?: string;
-    param?: string;
-    name?: string;
-    value?: number;
-    at?: number;
-    client_time?: number;
-}
+import { BbxClient } from '@bbx-audio/net'
 
-interface ServerMessage {
-    type: 'welcome' | 'state' | 'update' | 'pong' | 'error' | 'closed';
-    node_id?: string;
-    server_time?: number;
-    params?: ParamState[];
-    param?: string;
-    value?: number;
-    client_time?: number;
-    code?: string;
-    message?: string;
-}
+const client = new BbxClient({
+    url: 'ws://192.168.1.100:8080',
+    roomCode: '123456',
+    clientName: 'My Controller',
+})
 
-interface ParamState {
-    name: string;
-    value: number;
-    min: number;
-    max: number;
-}
+// Handle events
+client.on('connected', (welcome) => {
+    console.log('Connected as', welcome.node_id)
+})
+
+client.on('state', (state) => {
+    console.log('Current state:', state.params)
+})
+
+client.on('update', (update) => {
+    console.log('Parameter changed:', update.param, '=', update.value)
+})
+
+client.on('error', (error) => {
+    console.error('Error:', error.code, error.message)
+})
+
+// Connect and control
+await client.connect()
+
+// Send parameter changes
+client.setParam('freq', 0.5)
+client.setParam('cutoff', 0.7)
+
+// Send trigger events
+client.trigger('note_on')
+
+// Request current state
+client.requestSync()
+```
+
+**HTML slider integration:**
+
+```typescript
+document.getElementById('freq-slider').addEventListener('input', (e) => {
+    client.setParam('freq', parseFloat((e.target as HTMLInputElement).value))
+})
 ```
 
 ## Clock Synchronization
 
-For time-sensitive applications (e.g., synchronized triggers), use the ping/pong mechanism:
+The client automatically measures latency and calculates clock offset. Use the built-in conversion methods for scheduled parameter changes:
 
-```javascript
-let clockOffset = 0;
-
-function measureLatency() {
-    const clientTime = Date.now() * 1000; // microseconds
-    ws.send(JSON.stringify({ type: 'ping', client_time: clientTime }));
-}
-
-ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-    if (msg.type === 'pong') {
-        const now = Date.now() * 1000;
-        const roundTrip = now - msg.client_time;
-        const latency = roundTrip / 2;
-        clockOffset = msg.server_time - (msg.client_time + latency);
-        console.log('Latency:', latency / 1000, 'ms');
-    }
-};
-
+```typescript
 // Schedule a parameter change 100ms in the future
-function scheduleParam(name, value, delayMs) {
-    const serverTime = Date.now() * 1000 + clockOffset + (delayMs * 1000);
-    ws.send(JSON.stringify({
-        type: 'param',
-        param: name,
-        value,
-        at: serverTime
-    }));
+const futureTime = Date.now() + 100
+client.setParam('freq', 0.8, client.toServerTime(futureTime))
+
+// Monitor latency
+client.on('latency', (latencyMs) => {
+    console.log('Latency:', latencyMs, 'ms')
+})
+
+// Access clock offset directly
+console.log('Clock offset:', client.clockOffset, 'ms')
+```
+
+## Connection Handling
+
+### Configuration Options
+
+The client supports several connection-related options:
+
+```typescript
+const client = new BbxClient({
+    url: 'ws://192.168.1.100:8080',
+    roomCode: '123456',
+    clientName: 'My Controller',
+    reconnect: true,              // Auto-reconnect on disconnect (default: true)
+    reconnectDelay: 1000,         // Base delay between reconnects in ms (default: 1000)
+    maxReconnectAttempts: 5,      // Max reconnection attempts (default: 5)
+    connectionTimeout: 10000,     // Timeout for initial connection in ms (default: 10000)
+})
+```
+
+### Monitoring Connection State
+
+```typescript
+// Check connection state
+if (client.isConnected) {
+    client.setParam('freq', 0.5)
 }
+
+// Monitor reconnection attempts
+client.on('reconnecting', (attempt, maxAttempts, delayMs) => {
+    console.log(`Reconnecting (${attempt}/${maxAttempts}) in ${delayMs}ms...`)
+})
+
+client.on('disconnected', (reason) => {
+    console.log('Disconnected:', reason)
+})
+```
+
+### One-Time Event Listeners
+
+Use `once()` to listen for a single occurrence of an event:
+
+```typescript
+// Wait for initial state sync
+client.once('state', (state) => {
+    console.log('Initial state received:', state.params.length, 'params')
+    initializeUI(state.params)
+})
+
+await client.connect()
+client.requestSync()
+```
+
+### Cleanup
+
+Remove event listeners when cleaning up:
+
+```typescript
+// Remove all listeners for a specific event
+client.removeAllListeners('update')
+
+// Remove all listeners
+client.removeAllListeners()
+```
+
+## Framework Examples
+
+### React
+
+```tsx
+import { useEffect, useState, useCallback } from 'react'
+import { BbxClient, type IParamState } from '@bbx-audio/net'
+
+function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
+    const [client] = useState(() => new BbxClient({ url, roomCode, clientName: 'React Controller' }))
+    const [connected, setConnected] = useState(false)
+    const [reconnecting, setReconnecting] = useState<string | null>(null)
+    const [params, setParams] = useState<IParamState[]>([])
+    const [latency, setLatency] = useState<number | null>(null)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        client.on('connected', () => {
+            setConnected(true)
+            setReconnecting(null)
+            setError(null)
+        })
+        client.on('disconnected', () => setConnected(false))
+        client.on('reconnecting', (attempt, max, delay) => {
+            setReconnecting(`Reconnecting (${attempt}/${max}) in ${delay}ms...`)
+        })
+        client.on('state', (state) => setParams(state.params))
+        client.on('update', (update) => {
+            setParams((prev) =>
+                prev.map((p) => (p.name === update.param ? { ...p, value: update.value } : p))
+            )
+        })
+        client.on('latency', setLatency)
+        client.on('error', (err) => setError(`${err.code}: ${err.message}`))
+
+        client.connect()
+        return () => {
+            client.removeAllListeners()
+            client.disconnect()
+        }
+    }, [client])
+
+    const handleChange = useCallback(
+        (param: string, value: number) => client.setParam(param, value),
+        [client]
+    )
+
+    if (reconnecting) return <div>{reconnecting}</div>
+    if (!connected) return <div>Connecting...</div>
+
+    return (
+        <div>
+            {error && <div className="error">{error}</div>}
+            {latency !== null && <div className="latency">Latency: {latency.toFixed(0)}ms</div>}
+            {params.map((param) => (
+                <label key={param.name}>
+                    {param.name}
+                    <input
+                        type="range"
+                        min={param.min}
+                        max={param.max}
+                        step={0.01}
+                        value={param.value}
+                        onChange={(e) => handleChange(param.name, parseFloat(e.target.value))}
+                    />
+                </label>
+            ))}
+            <button onClick={() => client.trigger('note_on')}>Trigger Note</button>
+        </div>
+    )
+}
+```
+
+### Svelte
+
+```svelte
+<script lang="ts">
+    import { BbxClient, type IParamState } from '@bbx-audio/net'
+
+    let { url, roomCode }: { url: string; roomCode: string } = $props()
+
+    let client: BbxClient | null = $state(null)
+    let connected = $state(false)
+    let reconnectingMsg = $state<string | null>(null)
+    let params = $state<IParamState[]>([])
+    let latency = $state<number | null>(null)
+    let error = $state<string | null>(null)
+
+    $effect(() => {
+        const bbxClient = new BbxClient({ url, roomCode, clientName: 'Svelte Controller' })
+        client = bbxClient
+
+        bbxClient.on('connected', () => {
+            connected = true
+            reconnectingMsg = null
+            error = null
+        })
+        bbxClient.on('disconnected', () => (connected = false))
+        bbxClient.on('reconnecting', (attempt, max, delay) => {
+            reconnectingMsg = `Reconnecting (${attempt}/${max}) in ${delay}ms...`
+        })
+        bbxClient.on('state', (state) => (params = state.params))
+        bbxClient.on('update', (update) => {
+            params = params.map((p) =>
+                p.name === update.param ? { ...p, value: update.value } : p
+            )
+        })
+        bbxClient.on('latency', (ms) => (latency = ms))
+        bbxClient.on('error', (err) => (error = `${err.code}: ${err.message}`))
+
+        bbxClient.connect()
+
+        return () => {
+            bbxClient.removeAllListeners()
+            bbxClient.disconnect()
+        }
+    })
+
+    function handleChange(param: string, value: number) {
+        client?.setParam(param, value)
+    }
+
+    function handleTrigger() {
+        client?.trigger('note_on')
+    }
+</script>
+
+{#if reconnectingMsg}
+    <div>{reconnectingMsg}</div>
+{:else if !connected}
+    <div>Connecting...</div>
+{:else}
+    <div>
+        {#if error}
+            <div class="error">{error}</div>
+        {/if}
+        {#if latency !== null}
+            <div class="latency">Latency: {latency.toFixed(0)}ms</div>
+        {/if}
+        {#each params as param}
+            <label>
+                {param.name}
+                <input
+                    type="range"
+                    min={param.min}
+                    max={param.max}
+                    step={0.01}
+                    value={param.value}
+                    oninput={(e) => handleChange(param.name, parseFloat(e.currentTarget.value))}
+                />
+            </label>
+        {/each}
+        <button onclick={handleTrigger}>Trigger Note</button>
+    </div>
+{/if}
+```
+
+### Vue 3
+
+```vue
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+import { BbxClient, type IParamState } from '@bbx-audio/net'
+
+const props = defineProps<{ url: string; roomCode: string }>()
+
+const client = new BbxClient({
+    url: props.url,
+    roomCode: props.roomCode,
+    clientName: 'Vue Controller',
+})
+const connected = ref(false)
+const reconnectingMsg = ref<string | null>(null)
+const params = ref<IParamState[]>([])
+const latency = ref<number | null>(null)
+const error = ref<string | null>(null)
+
+onMounted(() => {
+    client.on('connected', () => {
+        connected.value = true
+        reconnectingMsg.value = null
+        error.value = null
+    })
+    client.on('disconnected', () => (connected.value = false))
+    client.on('reconnecting', (attempt, max, delay) => {
+        reconnectingMsg.value = `Reconnecting (${attempt}/${max}) in ${delay}ms...`
+    })
+    client.on('state', (state) => (params.value = state.params))
+    client.on('update', (update) => {
+        const param = params.value.find((p) => p.name === update.param)
+        if (param) param.value = update.value
+    })
+    client.on('latency', (ms) => (latency.value = ms))
+    client.on('error', (err) => (error.value = `${err.code}: ${err.message}`))
+
+    client.connect()
+})
+
+onUnmounted(() => {
+    client.removeAllListeners()
+    client.disconnect()
+})
+
+function handleChange(param: string, value: number) {
+    client.setParam(param, value)
+}
+
+function handleTrigger() {
+    client.trigger('note_on')
+}
+</script>
+
+<template>
+    <div v-if="reconnectingMsg">{{ reconnectingMsg }}</div>
+    <div v-else-if="!connected">Connecting...</div>
+    <div v-else>
+        <div v-if="error" class="error">{{ error }}</div>
+        <div v-if="latency !== null" class="latency">Latency: {{ latency.toFixed(0) }}ms</div>
+        <label v-for="param in params" :key="param.name">
+            {{ param.name }}
+            <input
+                type="range"
+                :min="param.min"
+                :max="param.max"
+                step="0.01"
+                :value="param.value"
+                @input="handleChange(param.name, parseFloat(($event.target as HTMLInputElement).value))"
+            />
+        </label>
+        <button @click="handleTrigger">Trigger Note</button>
+    </div>
+</template>
 ```
 
 ## Room Management
@@ -444,7 +710,8 @@ Then send JSON messages:
 |------|-------------|
 | `INVALID_ROOM` | Room code doesn't exist |
 | `ROOM_FULL` | Room is at capacity (default: 100 clients) |
-| `NOT_IN_ROOM` | Tried to send parameter without joining |
+| `CONNECTION_FAILED` | WebSocket connection error |
+| `TIMEOUT` | Connection timed out |
 
 ## Next Steps
 

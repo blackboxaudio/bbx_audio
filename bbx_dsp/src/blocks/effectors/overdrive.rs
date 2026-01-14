@@ -134,6 +134,11 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
     }
+
+    fn set_smoothing(&mut self, sample_rate: f64, ramp_time_ms: f64) {
+        self.drive_smoother.reset(sample_rate, ramp_time_ms);
+        self.level_smoother.reset(sample_rate, ramp_time_ms);
+    }
 }
 
 #[cfg(test)]

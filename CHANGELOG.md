@@ -2,6 +2,12 @@
 
 All notable changes to bbx_audio will be documented in this file.
 
+## [0.4.2] - 2026-01-14
+
+### Features
+
+- Include websocket client npm package (#77) ([#77](https://github.com/blackboxaudio/bbx_audio/pull/77))
+
 ## [0.4.1] - 2026-01-13
 
 ### Features
