@@ -265,15 +265,20 @@ console.log('Clock offset:', client.clockOffset, 'ms')
 
 ```tsx
 import { useEffect, useState, useCallback } from 'react'
-import { BbxClient, IParamState } from '@bbx-audio/net'
+import { BbxClient, type IParamState } from '@bbx-audio/net'
 
 function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
-    const [client] = useState(() => new BbxClient({ url, roomCode }))
+    const [client] = useState(() => new BbxClient({ url, roomCode, clientName: 'React Controller' }))
     const [connected, setConnected] = useState(false)
     const [params, setParams] = useState<IParamState[]>([])
+    const [latency, setLatency] = useState<number | null>(null)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        client.on('connected', () => setConnected(true))
+        client.on('connected', () => {
+            setConnected(true)
+            setError(null)
+        })
         client.on('disconnected', () => setConnected(false))
         client.on('state', (state) => setParams(state.params))
         client.on('update', (update) => {
@@ -281,6 +286,8 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
                 prev.map((p) => (p.name === update.param ? { ...p, value: update.value } : p))
             )
         })
+        client.on('latency', setLatency)
+        client.on('error', (err) => setError(`${err.code}: ${err.message}`))
 
         client.connect()
         return () => client.disconnect()
@@ -295,6 +302,8 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
 
     return (
         <div>
+            {error && <div className="error">{error}</div>}
+            {latency !== null && <div className="latency">Latency: {latency.toFixed(0)}ms</div>}
             {params.map((param) => (
                 <label key={param.name}>
                     {param.name}
@@ -308,6 +317,7 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
                     />
                 </label>
             ))}
+            <button onClick={() => client.trigger('note_on')}>Trigger Note</button>
         </div>
     )
 }
@@ -317,54 +327,73 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
 
 ```svelte
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte'
     import { BbxClient, type IParamState } from '@bbx-audio/net'
 
-    export let url: string
-    export let roomCode: string
+    let { url, roomCode }: { url: string; roomCode: string } = $props()
 
-    let client: BbxClient
-    let connected = false
-    let params: IParamState[] = []
+    let client: BbxClient | null = $state(null)
+    let connected = $state(false)
+    let params = $state<IParamState[]>([])
+    let latency = $state<number | null>(null)
+    let error = $state<string | null>(null)
 
-    onMount(() => {
-        client = new BbxClient({ url, roomCode })
+    $effect(() => {
+        const bbxClient = new BbxClient({ url, roomCode, clientName: 'Svelte Controller' })
+        client = bbxClient
 
-        client.on('connected', () => (connected = true))
-        client.on('disconnected', () => (connected = false))
-        client.on('state', (state) => (params = state.params))
-        client.on('update', (update) => {
+        bbxClient.on('connected', () => {
+            connected = true
+            error = null
+        })
+        bbxClient.on('disconnected', () => (connected = false))
+        bbxClient.on('state', (state) => (params = state.params))
+        bbxClient.on('update', (update) => {
             params = params.map((p) =>
                 p.name === update.param ? { ...p, value: update.value } : p
             )
         })
+        bbxClient.on('latency', (ms) => (latency = ms))
+        bbxClient.on('error', (err) => (error = `${err.code}: ${err.message}`))
 
-        client.connect()
+        bbxClient.connect()
+
+        return () => bbxClient.disconnect()
     })
 
-    onDestroy(() => client?.disconnect())
-
     function handleChange(param: string, value: number) {
-        client.setParam(param, value)
+        client?.setParam(param, value)
+    }
+
+    function handleTrigger() {
+        client?.trigger('note_on')
     }
 </script>
 
 {#if !connected}
     <div>Connecting...</div>
 {:else}
-    {#each params as param}
-        <label>
-            {param.name}
-            <input
-                type="range"
-                min={param.min}
-                max={param.max}
-                step={0.01}
-                value={param.value}
-                on:input={(e) => handleChange(param.name, parseFloat(e.currentTarget.value))}
-            />
-        </label>
-    {/each}
+    <div>
+        {#if error}
+            <div class="error">{error}</div>
+        {/if}
+        {#if latency !== null}
+            <div class="latency">Latency: {latency.toFixed(0)}ms</div>
+        {/if}
+        {#each params as param}
+            <label>
+                {param.name}
+                <input
+                    type="range"
+                    min={param.min}
+                    max={param.max}
+                    step={0.01}
+                    value={param.value}
+                    oninput={(e) => handleChange(param.name, parseFloat(e.currentTarget.value))}
+                />
+            </label>
+        {/each}
+        <button onclick={handleTrigger}>Trigger Note</button>
+    </div>
 {/if}
 ```
 
@@ -377,18 +406,29 @@ import { BbxClient, type IParamState } from '@bbx-audio/net'
 
 const props = defineProps<{ url: string; roomCode: string }>()
 
-const client = new BbxClient({ url: props.url, roomCode: props.roomCode })
+const client = new BbxClient({
+    url: props.url,
+    roomCode: props.roomCode,
+    clientName: 'Vue Controller',
+})
 const connected = ref(false)
 const params = ref<IParamState[]>([])
+const latency = ref<number | null>(null)
+const error = ref<string | null>(null)
 
 onMounted(() => {
-    client.on('connected', () => (connected.value = true))
+    client.on('connected', () => {
+        connected.value = true
+        error.value = null
+    })
     client.on('disconnected', () => (connected.value = false))
     client.on('state', (state) => (params.value = state.params))
     client.on('update', (update) => {
         const param = params.value.find((p) => p.name === update.param)
         if (param) param.value = update.value
     })
+    client.on('latency', (ms) => (latency.value = ms))
+    client.on('error', (err) => (error.value = `${err.code}: ${err.message}`))
 
     client.connect()
 })
@@ -398,11 +438,17 @@ onUnmounted(() => client.disconnect())
 function handleChange(param: string, value: number) {
     client.setParam(param, value)
 }
+
+function handleTrigger() {
+    client.trigger('note_on')
+}
 </script>
 
 <template>
     <div v-if="!connected">Connecting...</div>
     <div v-else>
+        <div v-if="error" class="error">{{ error }}</div>
+        <div v-if="latency !== null" class="latency">Latency: {{ latency.toFixed(0) }}ms</div>
         <label v-for="param in params" :key="param.name">
             {{ param.name }}
             <input
@@ -414,6 +460,7 @@ function handleChange(param: string, value: number) {
                 @input="handleChange(param.name, parseFloat(($event.target as HTMLInputElement).value))"
             />
         </label>
+        <button @click="handleTrigger">Trigger Note</button>
     </div>
 </template>
 ```

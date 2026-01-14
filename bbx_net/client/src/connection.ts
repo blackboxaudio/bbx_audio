@@ -5,7 +5,7 @@
 import { BbxError } from './errors.ts'
 import type { ClientMessage, ServerMessage, IWelcomeMessage } from './types.ts'
 
-export const connectionStates = ['disconnected', 'connecting', 'connected', 'reconnecting'] as const
+const connectionStates = ['disconnected', 'connecting', 'connected', 'reconnecting'] as const
 export type ConnectionState = (typeof connectionStates)[number]
 
 export interface IConnectionConfig {

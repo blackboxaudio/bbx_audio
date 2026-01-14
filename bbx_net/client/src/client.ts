@@ -5,7 +5,7 @@
 import { Connection, type ConnectionState } from './connection.ts'
 import type { ServerMessage, IWelcomeMessage, IStateMessage, IUpdateMessage, IErrorMessage } from './types.ts'
 
-export const clientEventNames = [
+const clientEventNames = [
     'connected',
     'disconnected',
     'state',
