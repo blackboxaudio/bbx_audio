@@ -52,11 +52,25 @@ All network protocols produce the same message type:
 pub struct NetMessage {
     pub message_type: NetMessageType,  // ParameterChange, Trigger, Ping, etc.
     pub param_hash: u32,               // FNV-1a hash of parameter name
-    pub value: f32,                    // Parameter value
+    pub payload: NetPayload,           // Message payload data
     pub node_id: NodeId,               // Source node identifier
     pub timestamp: SyncedTimestamp,    // Synchronized timestamp
 }
 ```
+
+### NetPayload
+
+Type-safe payload using a discriminated union:
+
+```rust
+pub enum NetPayload {
+    None,                           // Triggers, pings, pongs
+    Value(f32),                     // Parameter changes
+    Coordinates { x: f32, y: f32 }, // Spatial triggers
+}
+```
+
+This design maintains `Copy` semantics for lock-free buffer passing while supporting multiple payload types.
 
 ### FNV-1a Parameter Hashing
 
@@ -291,8 +305,9 @@ let freq_hash = hash_param_name("freq");
 let messages = consumer.drain_into_stack();
 for msg in messages {
     if msg.param_hash == freq_hash {
-        // Map to DSP block
-        oscillator.set_frequency(msg.value * 1000.0);
+        if let Some(value) = msg.payload.value() {
+            oscillator.set_frequency(value * 1000.0);
+        }
     }
 }
 ```

@@ -139,17 +139,21 @@ impl OscSynth {
                 continue;
             }
 
+            let Some(value) = msg.payload.value() else {
+                continue;
+            };
+
             if msg.param_hash == self.param_hashes.freq {
-                let freq = scale_frequency(msg.value);
+                let freq = scale_frequency(value);
                 self.set_oscillator_frequency(freq);
             } else if msg.param_hash == self.param_hashes.cutoff {
-                let cutoff = scale_cutoff(msg.value);
+                let cutoff = scale_cutoff(value);
                 self.set_filter_cutoff(cutoff);
             } else if msg.param_hash == self.param_hashes.gain {
-                let gain_db = scale_gain(msg.value);
+                let gain_db = scale_gain(value);
                 self.set_gain(gain_db);
             } else if msg.param_hash == self.param_hashes.pan {
-                let position = scale_pan(msg.value);
+                let position = scale_pan(value);
                 self.set_panner_position(position);
             }
         }
