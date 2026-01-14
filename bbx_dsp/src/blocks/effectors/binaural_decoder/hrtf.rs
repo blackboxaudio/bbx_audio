@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn test_new_ambisonic_foa() {
         let convolver = HrtfConvolver::new_ambisonic(1);
-        assert_eq!(convolver.num_speakers, 4);
+        assert_eq!(convolver.num_speakers, 8);
         assert_eq!(convolver.hrir_length, HRIR_LENGTH);
     }
 
@@ -314,19 +314,21 @@ mod tests {
         let mut convolver = HrtfConvolver::new_ambisonic(1);
         convolver.reset();
 
-        // Left signal: Y channel positive
-        let w_input = [1.0f32; 256];
-        let y_input = [1.0f32; 256]; // Positive Y = left
-        let zero_input = [0.0f32; 256];
+        // Left-biased ambisonic signal: W for omnidirectional, Y for lateral
+        // Use a longer buffer to capture full HRIR response
+        const LEN: usize = 512;
+        let w_input = [0.5f32; LEN];
+        let y_input = [1.0f32; LEN]; // Positive Y = left (stronger than W for clear bias)
+        let zero_input = [0.0f32; LEN];
         let inputs: [&[f32]; 4] = [&w_input, &y_input, &zero_input, &zero_input];
-        let mut left = [0.0f32; 256];
-        let mut right = [0.0f32; 256];
+        let mut left = [0.0f32; LEN];
+        let mut right = [0.0f32; LEN];
 
         convolver.process(&inputs, &mut left, &mut right, 4);
 
-        // Skip first few samples (convolution startup)
-        let left_energy: f32 = left[64..].iter().map(|x| x * x).sum();
-        let right_energy: f32 = right[64..].iter().map(|x| x * x).sum();
+        // Skip HRIR length to get steady-state response
+        let left_energy: f32 = left[256..].iter().map(|x| x * x).sum();
+        let right_energy: f32 = right[256..].iter().map(|x| x * x).sum();
 
         assert!(
             left_energy > right_energy,

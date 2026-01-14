@@ -45,7 +45,7 @@ impl VirtualSpeaker {
         left_hrir: &'static [f32],
         right_hrir: &'static [f32],
     ) -> Self {
-        let sh_weights = compute_sh_coefficients(azimuth_deg, elevation_deg, ambisonic_order);
+        let sh_weights = compute_sh_coefficients_max_re(azimuth_deg, elevation_deg, ambisonic_order);
         Self {
             sh_weights,
             left_hrir,
@@ -112,22 +112,70 @@ fn compute_sh_coefficients(azimuth_deg: f64, elevation_deg: f64, order: usize) -
     coeffs
 }
 
+/// Compute max-rE weights for the given ambisonic order.
+///
+/// max-rE weighting improves perceived localization by concentrating
+/// energy toward the intended source direction. This is particularly
+/// important when decoding to a finite number of virtual speakers.
+fn compute_max_re_weights(order: usize) -> [f64; 4] {
+    // max-rE angle: 137.9 degrees in radians
+    const ALPHA: f64 = 2.406184877014388;
+
+    let mut weights = [1.0; 4];
+    let divisor = 2.0 * (order + 1) as f64;
+
+    for (l, weight) in weights.iter_mut().enumerate().take(order.min(3) + 1).skip(1) {
+        *weight = (ALPHA / divisor).cos().powi(l as i32);
+    }
+
+    weights
+}
+
+/// Compute spherical harmonic coefficients with max-rE weighting.
+///
+/// This variant applies max-rE weights to improve perceived localization
+/// when decoding ambisonics to a finite speaker array.
+fn compute_sh_coefficients_max_re(azimuth_deg: f64, elevation_deg: f64, order: usize) -> [f64; MAX_BLOCK_INPUTS] {
+    let mut coeffs = compute_sh_coefficients(azimuth_deg, elevation_deg, order);
+    let weights = compute_max_re_weights(order);
+
+    // Apply weights by order (ACN ordering: order l occupies indices l² to (l+1)²-1)
+    for (l, &weight) in weights.iter().enumerate().take(order.min(3) + 1) {
+        let start = l * l;
+        let end = (l + 1) * (l + 1);
+        for coeff in coeffs.iter_mut().take(end).skip(start) {
+            *coeff *= weight;
+        }
+    }
+
+    coeffs
+}
+
 /// Standard speaker layouts for binaural decoding.
 pub mod layouts {
     /// FOA (First Order Ambisonics) speaker layout.
     ///
-    /// 4 virtual speakers at:
+    /// 8 virtual speakers at all available HRIR positions for optimal
+    /// spatial coverage:
+    /// - Front: 0° azimuth
     /// - Front-Left: 45° azimuth
-    /// - Front-Right: -45° azimuth
+    /// - Left: 90° azimuth
     /// - Rear-Left: 135° azimuth
+    /// - Rear: 180° azimuth
     /// - Rear-Right: -135° azimuth
+    /// - Right: -90° azimuth
+    /// - Front-Right: -45° azimuth
     ///
     /// All at 0° elevation.
-    pub const FOA_POSITIONS: [(f64, f64); 4] = [
+    pub const FOA_POSITIONS: [(f64, f64); 8] = [
+        (0.0, 0.0),    // Front
         (45.0, 0.0),   // Front-Left
-        (-45.0, 0.0),  // Front-Right
+        (90.0, 0.0),   // Left
         (135.0, 0.0),  // Rear-Left
+        (180.0, 0.0),  // Rear
         (-135.0, 0.0), // Rear-Right
+        (-90.0, 0.0),  // Right
+        (-45.0, 0.0),  // Front-Right
     ];
 
     /// 5.1 surround speaker positions.
@@ -207,11 +255,41 @@ mod tests {
 
     #[test]
     fn test_foa_layout_positions() {
-        assert_eq!(layouts::FOA_POSITIONS.len(), 4);
-        // Front-left should be at positive azimuth
-        assert!(layouts::FOA_POSITIONS[0].0 > 0.0);
-        // Front-right should be at negative azimuth
-        assert!(layouts::FOA_POSITIONS[1].0 < 0.0);
+        assert_eq!(layouts::FOA_POSITIONS.len(), 8);
+        // First position should be front (0 degrees)
+        assert!((layouts::FOA_POSITIONS[0].0).abs() < 1e-10);
+        // Should have positions at cardinal and diagonal directions
+        let azimuths: Vec<f64> = layouts::FOA_POSITIONS.iter().map(|(az, _)| *az).collect();
+        assert!(azimuths.contains(&0.0));
+        assert!(azimuths.contains(&90.0));
+        assert!(azimuths.contains(&180.0));
+        assert!(azimuths.contains(&-90.0));
+    }
+
+    #[test]
+    fn test_max_re_weights_foa() {
+        let weights = super::compute_max_re_weights(1);
+        // Order 0 weight should be 1.0
+        assert!((weights[0] - 1.0).abs() < 1e-10);
+        // Order 1 weight: cos(137.9°/4) ≈ 0.824
+        assert!((weights[1] - 0.824).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_sh_coefficients_max_re_reduces_order1() {
+        // max-rE should reduce order 1 coefficients relative to basic SH
+        let basic = super::compute_sh_coefficients(45.0, 0.0, 1);
+        let max_re = super::compute_sh_coefficients_max_re(45.0, 0.0, 1);
+
+        // Order 0 (W) should be unchanged
+        assert!((basic[0] - max_re[0]).abs() < 1e-10);
+
+        // Order 1 coefficients should be scaled down
+        for i in 1..4 {
+            if basic[i].abs() > 1e-10 {
+                assert!(max_re[i].abs() < basic[i].abs());
+            }
+        }
     }
 
     #[test]
