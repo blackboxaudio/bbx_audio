@@ -471,6 +471,12 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
     fn channel_config(&self) -> ChannelConfig {
         ChannelConfig::Explicit
     }
+
+    fn set_smoothing(&mut self, sample_rate: f64, ramp_time_ms: f64) {
+        self.position_smoother.reset(sample_rate, ramp_time_ms);
+        self.azimuth_smoother.reset(sample_rate, ramp_time_ms);
+        self.elevation_smoother.reset(sample_rate, ramp_time_ms);
+    }
 }
 
 #[cfg(test)]
