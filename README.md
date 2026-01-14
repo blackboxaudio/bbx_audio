@@ -51,7 +51,7 @@ builder.connect(osc, 0, drive, 0);
 let graph = builder.build();
 ```
 
-See [`bbx_sandbox/examples/`](./bbx_sandbox/examples/) for working examples, or the [Quick Start Guide](https://blackboxaudio.github.io/bbx_audio/getting-started/quick-start.html) for a complete walkthrough.
+See [`bbx_sandbox/examples/`](./bbx_sandbox/examples/) for working examples, or the [Quick Start Guide](https://docs.bbx-audio.com/getting-started/quick-start.html) for a complete walkthrough.
 
 ### Linux Dependencies
 
@@ -61,12 +61,12 @@ sudo apt install alsa libasound2-dev libssl-dev pkg-config
 
 ## Documentation
 
-Full documentation is available at **[blackboxaudio.github.io/bbx_audio](https://blackboxaudio.github.io/bbx_audio/)**:
+Full documentation is available at **[docs.bbx-audio.com](https://docs.bbx-audio.com/)**:
 
-- [Getting Started](https://blackboxaudio.github.io/bbx_audio/getting-started/installation.html) - Installation and first steps
-- [Tutorials](https://blackboxaudio.github.io/bbx_audio/tutorials/first-graph.html) - Graphs, oscillators, effects, modulation
-- [JUCE Integration](https://blackboxaudio.github.io/bbx_audio/juce/overview.html) - Complete guide for C++ plugin integration
-- [API Reference](https://blackboxaudio.github.io/bbx_audio/api/) - Rust crate documentation
+- [Getting Started](https://docs.bbx-audio.com/getting-started/installation.html) - Installation and first steps
+- [Tutorials](https://docs.bbx-audio.com/tutorials/first-graph.html) - Graphs, oscillators, effects, modulation
+- [JUCE Integration](https://docs.bbx-audio.com/juce/overview.html) - Complete guide for C++ plugin integration
+- [API Reference](https://docs.bbx-audio.com/api/) - Rust crate documentation
 
 ## Contributing
 
@@ -88,7 +88,7 @@ cargo +nightly clippy
 cargo +nightly fmt
 ```
 
-See the [Contributing Guide](https://blackboxaudio.github.io/bbx_audio/contributing/development-setup.html) for more details.
+See the [Contributing Guide](https://docs.bbx-audio.com/contributing/development-setup.html) for more details.
 
 ## License
 
