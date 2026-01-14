@@ -11,7 +11,7 @@ A modular, real-time safe audio toolkit in Rust.
 
 ## Overview
 
-`bbx_audio` provides a real-time safe DSP graph system for building synthesizers, effects, and spatial audio in Rust. The audio thread is lock-free and allocation-free by design—no mutex, no heap, no surprises.
+`bbx_audio` provides a real-time safe DSP graph system for building synthesizers, effects, and spatial audio in Rust. The audio components are lock-free and allocation-free by design.
 
 Connect blocks for oscillators, filters, modulators, and routing into processing graphs. The workspace supports mono through ambisonic layouts, MIDI input, OSC/WebSocket control, audio file I/O, and visualization. For plugin developers, `bbx_plugin` provides C FFI bindings to integrate with JUCE or any C/C++ host.
 
@@ -76,11 +76,11 @@ sudo apt install alsa libasound2-dev libssl-dev pkg-config
 The [`bbx_sandbox`](./bbx_sandbox/examples/) crate includes examples covering the major features:
 
 ```bash
-cargo run --example 01_sine_wave -p bbx_sandbox       # Basic oscillator
-cargo run --example 06_lfo_modulation -p bbx_sandbox  # Modulation
+cargo run --example 01_sine_wave -p bbx_sandbox        # Basic oscillator
+cargo run --example 06_lfo_modulation -p bbx_sandbox   # Modulation
 cargo run --example 08_ambisonic_panner -p bbx_sandbox # Spatial audio
-cargo run --example 14_osc_synth -p bbx_sandbox       # OSC control
-cargo run --example 15_ws_synth -p bbx_sandbox        # WebSocket control
+cargo run --example 14_osc_synth -p bbx_sandbox        # OSC control
+cargo run --example 15_ws_synth -p bbx_sandbox         # WebSocket control
 ```
 
 ## Documentation
