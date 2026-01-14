@@ -54,4 +54,4 @@ pub use address::{AddressPath, NodeId};
 pub use buffer::{MAX_NET_EVENTS_PER_BUFFER, NetBufferConsumer, NetBufferProducer, net_buffer};
 pub use clock::{ClockSync, SyncedTimestamp};
 pub use error::{NetError, Result};
-pub use message::{NetEvent, NetMessage, NetMessageType, hash_param_name};
+pub use message::{NetEvent, NetMessage, NetMessageType, NetPayload, hash_param_name};
