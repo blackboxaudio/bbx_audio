@@ -236,7 +236,7 @@ jobs:
         run: yarn publish --access public --non-interactive
         working-directory: bbx_net/client
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   github-release:
     name: Create GitHub Release
