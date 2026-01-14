@@ -5,27 +5,39 @@
 [![Version: v0.4.1](https://img.shields.io/badge/Version-v0.4.1-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](https://github.com/blackboxaudio/bbx_audio/blob/develop/LICENSE)
 
-A Rust workspace for audio DSP with C FFI bindings for JUCE plugin integration.
+A modular, real-time safe audio toolkit in Rust.
 
 > **Note:** These crates are still in early development. Expect breaking changes in some releases.
 
 ## Overview
 
-`bbx_audio` provides a modular DSP graph system for building audio effects and synthesizers in Rust. The workspace includes blocks for oscillators, effects, and modulators that can be connected into processing graphs. For plugin developers, `bbx_plugin` provides C FFI bindings to integrate Rust DSP into JUCE audio plugins.
+`bbx_audio` provides a real-time safe DSP graph system for building synthesizers, effects, and spatial audio in Rust. The audio thread is lock-free and allocation-free by design—no mutex, no heap, no surprises.
+
+Connect blocks for oscillators, filters, modulators, and routing into processing graphs. The workspace supports mono through ambisonic layouts, MIDI input, OSC/WebSocket control, audio file I/O, and visualization. For plugin developers, `bbx_plugin` provides C FFI bindings to integrate with JUCE or any C/C++ host.
 
 Optional SIMD optimizations are available via the `simd` feature flag (requires nightly Rust).
+
+## Features
+
+- **Real-Time Safe**: Lock-free, allocation-free audio thread with pre-allocated buffers
+- **Block-Graph DSP**: Connect oscillators, filters, effects, and modulators into processing graphs
+- **Spatial Audio**: Mono through ambisonics (FOA/SOA/TOA), surround (5.1/7.1), and binaural rendering
+- **Network Control**: OSC and WebSocket for TouchOSC, Max/MSP, and web/mobile apps
+- **MIDI Support**: Message parsing and real-time streaming with sample-accurate timing
+- **Visualization**: Waveforms, spectrum analyzers, and graph topology viewers (nannou)
+- **Plugin Ready**: C FFI bindings for JUCE or any C/C++ host
 
 ## Crates
 
 | Crate | Description |
 |-------|-------------|
-| [`bbx_core`](./bbx_core) | Error types and foundational utilities |
-| [`bbx_draw`](./bbx_draw) | Audio visualization primitives for `nannou` |
-| [`bbx_dsp`](./bbx_dsp) | DSP graph system, blocks, and `PluginDsp` trait |
+| [`bbx_core`](./bbx_core) | `Sample` trait, `StackVec`, lock-free ring buffers, error types |
+| [`bbx_dsp`](./bbx_dsp) | Block-graph engine with oscillators, filters, panners, mixers, ambisonics |
+| [`bbx_draw`](./bbx_draw) | Waveforms, spectrum analyzers, graph topology viewers (nannou) |
 | [`bbx_file`](./bbx_file) | Audio file I/O (WAV/MP3) |
-| [`bbx_midi`](./bbx_midi) | MIDI messages, events, and streaming |
-| [`bbx_net`](./bbx_net) | Network audio control (OSC/WebSocket) |
-| [`bbx_plugin`](./bbx_plugin) | C FFI bindings for JUCE integration |
+| [`bbx_midi`](./bbx_midi) | MIDI parsing, events, and real-time streaming |
+| [`bbx_net`](./bbx_net) | OSC + WebSocket for TouchOSC, Max/MSP, web/mobile control |
+| [`bbx_plugin`](./bbx_plugin) | C FFI bindings for JUCE or any C/C++ host |
 | [`bbx_sandbox`](./bbx_sandbox) | Examples and testing playground |
 
 ## Quick Start
@@ -57,6 +69,18 @@ See [`bbx_sandbox/examples/`](./bbx_sandbox/examples/) for working examples, or 
 
 ```bash
 sudo apt install alsa libasound2-dev libssl-dev pkg-config
+```
+
+## Examples
+
+The [`bbx_sandbox`](./bbx_sandbox/examples/) crate includes examples covering the major features:
+
+```bash
+cargo run --example 01_sine_wave -p bbx_sandbox       # Basic oscillator
+cargo run --example 06_lfo_modulation -p bbx_sandbox  # Modulation
+cargo run --example 08_ambisonic_panner -p bbx_sandbox # Spatial audio
+cargo run --example 14_osc_synth -p bbx_sandbox       # OSC control
+cargo run --example 15_ws_synth -p bbx_sandbox        # WebSocket control
 ```
 
 ## Documentation
