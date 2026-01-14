@@ -202,11 +202,29 @@ let od = builder.add(OverdriveBlock::new(2.0, 0.8, 0.3, 44100.0));  // Low tone 
 builder.connect(osc, 0, od, 0);
 ```
 
+## Configuring Smoothing
+
+By default, `drive` and `level` parameter changes are smoothed over 50ms to prevent clicks. You can customize the smoothing time using `set_smoothing()`:
+
+```rust
+use bbx_dsp::{blocks::OverdriveBlock, graph::GraphBuilder};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+let od_id = builder.add(OverdriveBlock::new(3.0, 0.7, 0.5, 44100.0));
+
+let mut graph = builder.build();
+if let Some(block) = graph.get_block_mut(od_id) {
+    block.set_smoothing(44100.0, 100.0); // 100ms ramp time
+}
+```
+
+**Note:** `set_smoothing()` applies the same ramp time to both `drive` and `level` parameters. If you need different smoothing times per parameter, create and configure the block before passing it to `GraphBuilder::add()`.
+
 ## Implementation Notes
 
 - Asymmetric soft clipping using scaled tanh
 - One-pole low-pass filter for tone control
-- Click-free parameter changes via smoothing
+- Click-free parameter changes via smoothing (default 50ms ramp)
 - Denormal flushing in filter state
 - Multi-channel with independent filter states
 

@@ -23,6 +23,40 @@ pub enum NetMessageType {
     Pong = 5,
 }
 
+/// Payload data for network messages.
+///
+/// Type-safe discriminated union that can carry different data types
+/// while maintaining `Copy` semantics for lock-free buffers.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub enum NetPayload {
+    /// No payload data.
+    #[default]
+    None,
+    /// Single float value (for parameter changes).
+    Value(f32),
+    /// 2D coordinates (for spatial triggers).
+    Coordinates { x: f32, y: f32 },
+}
+
+impl NetPayload {
+    /// Extract coordinates if this payload contains them.
+    pub fn coordinates(&self) -> Option<(f32, f32)> {
+        match self {
+            NetPayload::Coordinates { x, y } => Some((*x, *y)),
+            _ => None,
+        }
+    }
+
+    /// Extract single value if this payload contains one.
+    pub fn value(&self) -> Option<f32> {
+        match self {
+            NetPayload::Value(v) => Some(*v),
+            _ => None,
+        }
+    }
+}
+
 /// A network message for audio control.
 ///
 /// Uses `#[repr(C)]` for FFI compatibility.
@@ -33,8 +67,8 @@ pub struct NetMessage {
     pub message_type: NetMessageType,
     /// Target parameter name hash (FNV-1a for fast lookup).
     pub param_hash: u32,
-    /// Parameter value (0.0-1.0 normalized, or raw for some types).
-    pub value: f32,
+    /// Message payload data.
+    pub payload: NetPayload,
     /// Source node identifier.
     pub node_id: NodeId,
     /// Scheduled timestamp (synced clock).
@@ -47,7 +81,7 @@ impl NetMessage {
         Self {
             message_type: NetMessageType::ParameterChange,
             param_hash: hash_param_name(param_name),
-            value,
+            payload: NetPayload::Value(value),
             node_id,
             timestamp: SyncedTimestamp::default(),
         }
@@ -58,7 +92,18 @@ impl NetMessage {
         Self {
             message_type: NetMessageType::Trigger,
             param_hash: hash_param_name(trigger_name),
-            value: 1.0,
+            payload: NetPayload::None,
+            node_id,
+            timestamp: SyncedTimestamp::default(),
+        }
+    }
+
+    /// Create a trigger with 2D coordinates.
+    pub fn trigger_with_coordinates(trigger_name: &str, x: f32, y: f32, node_id: NodeId) -> Self {
+        Self {
+            message_type: NetMessageType::Trigger,
+            param_hash: hash_param_name(trigger_name),
+            payload: NetPayload::Coordinates { x, y },
             node_id,
             timestamp: SyncedTimestamp::default(),
         }
@@ -69,7 +114,7 @@ impl NetMessage {
         Self {
             message_type: NetMessageType::Ping,
             param_hash: 0,
-            value: 0.0,
+            payload: NetPayload::None,
             node_id,
             timestamp,
         }
@@ -80,7 +125,7 @@ impl NetMessage {
         Self {
             message_type: NetMessageType::Pong,
             param_hash: 0,
-            value: 0.0,
+            payload: NetPayload::None,
             node_id,
             timestamp,
         }
@@ -170,7 +215,7 @@ mod tests {
 
         assert_eq!(msg.message_type, NetMessageType::ParameterChange);
         assert_eq!(msg.param_hash, hash_param_name("gain"));
-        assert!((msg.value - 0.5).abs() < f32::EPSILON);
+        assert!((msg.payload.value().unwrap() - 0.5).abs() < f32::EPSILON);
         assert_eq!(msg.node_id, node_id);
     }
 
@@ -181,7 +226,19 @@ mod tests {
 
         assert_eq!(msg.message_type, NetMessageType::Trigger);
         assert_eq!(msg.param_hash, hash_param_name("start"));
-        assert!((msg.value - 1.0).abs() < f32::EPSILON);
+        assert!(matches!(msg.payload, NetPayload::None));
+    }
+
+    #[test]
+    fn test_net_message_trigger_with_coordinates() {
+        let node_id = NodeId::from_parts(5, 6);
+        let msg = NetMessage::trigger_with_coordinates("droplet", 0.25, 0.75, node_id);
+
+        assert_eq!(msg.message_type, NetMessageType::Trigger);
+        assert_eq!(msg.param_hash, hash_param_name("droplet"));
+        let (x, y) = msg.payload.coordinates().unwrap();
+        assert!((x - 0.25).abs() < f32::EPSILON);
+        assert!((y - 0.75).abs() < f32::EPSILON);
     }
 
     #[test]

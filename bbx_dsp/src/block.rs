@@ -93,6 +93,15 @@ pub trait Block<S: Sample> {
     fn channel_config(&self) -> ChannelConfig {
         ChannelConfig::Parallel
     }
+
+    /// Configure smoothing time for parameter changes.
+    ///
+    /// # Arguments
+    /// * `sample_rate` - Audio sample rate in Hz
+    /// * `ramp_time_ms` - Smoothing ramp time in milliseconds
+    ///
+    /// Default implementation is a no-op for blocks without smoothing.
+    fn set_smoothing(&mut self, _sample_rate: f64, _ramp_time_ms: f64) {}
 }
 
 /// Type-erased container for all block implementations.
@@ -316,6 +325,19 @@ impl<S: Sample> BlockType<S> {
             // MODULATORS
             BlockType::Envelope(block) => block.channel_config(),
             BlockType::Lfo(block) => block.channel_config(),
+        }
+    }
+
+    /// Configure smoothing time for parameter changes.
+    ///
+    /// Only affects blocks that have internal parameter smoothing.
+    /// Blocks without smoothing will ignore this call.
+    pub fn set_smoothing(&mut self, sample_rate: f64, ramp_time_ms: f64) {
+        match self {
+            BlockType::Panner(block) => block.set_smoothing(sample_rate, ramp_time_ms),
+            BlockType::Gain(block) => block.set_smoothing(sample_rate, ramp_time_ms),
+            BlockType::Overdrive(block) => block.set_smoothing(sample_rate, ramp_time_ms),
+            _ => {} // Blocks without smoothing use default no-op
         }
     }
 

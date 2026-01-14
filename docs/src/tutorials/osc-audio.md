@@ -82,7 +82,9 @@ fn main() {
     loop {
         let messages = consumer.drain_into_stack();
         for msg in messages {
-            println!("Received: hash={}, value={}", msg.param_hash, msg.value);
+            if let Some(value) = msg.payload.value() {
+                println!("Received: hash={}, value={}", msg.param_hash, value);
+            }
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }

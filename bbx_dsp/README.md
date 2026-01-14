@@ -8,6 +8,7 @@ A block-based audio DSP system for building signal processing graphs.
 - **Generic sample type**: Works with f32 or f64 precision
 - **Realtime-safe processing**: Stack-allocated buffers, no allocations in audio thread
 - **Parameter modulation**: LFOs and envelopes can modulate block parameters
+- **Parameter smoothing**: Click-free parameter changes with configurable ramp times via `set_smoothing()`
 - **Topological sorting**: Automatic execution order based on connections
 
 ## Block Types

@@ -158,7 +158,7 @@ mod tests {
         assert!(producer.try_send(msg));
 
         let received = consumer.try_pop().expect("should have message");
-        assert!((received.value - 0.75).abs() < f32::EPSILON);
+        assert!((received.payload.value().unwrap() - 0.75).abs() < f32::EPSILON);
         assert!(consumer.try_pop().is_none());
     }
 
@@ -187,9 +187,9 @@ mod tests {
         let stack = consumer.drain_into_stack();
 
         assert_eq!(stack.len(), 3);
-        assert!((stack[0].value - 0.1).abs() < f32::EPSILON);
-        assert!((stack[1].value - 0.2).abs() < f32::EPSILON);
-        assert!((stack[2].value - 0.3).abs() < f32::EPSILON);
+        assert!((stack[0].payload.value().unwrap() - 0.1).abs() < f32::EPSILON);
+        assert!((stack[1].payload.value().unwrap() - 0.2).abs() < f32::EPSILON);
+        assert!((stack[2].payload.value().unwrap() - 0.3).abs() < f32::EPSILON);
         assert!(consumer.is_empty());
     }
 

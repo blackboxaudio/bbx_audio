@@ -12,7 +12,7 @@ use crate::{
     buffer::NetBufferProducer,
     clock::ClockSync,
     error::{NetError, Result},
-    message::{NetMessage, NetMessageType, hash_param_name},
+    message::NetMessage,
     websocket::{
         connection::ConnectionState,
         protocol::{ClientMessage, ParamState, ServerMessage},
@@ -250,25 +250,19 @@ impl WsServer {
                                         }
                                         ClientMessage::Parameter { param, value, at: _ } => {
                                             if let Some(nid) = node_id {
-                                                let msg = NetMessage {
-                                                    message_type: NetMessageType::ParameterChange,
-                                                    param_hash: hash_param_name(&param),
-                                                    value,
-                                                    node_id: nid,
-                                                    timestamp: clock_sync.now(),
-                                                };
+                                                let msg = NetMessage::param_change(&param, value, nid)
+                                                    .with_timestamp(clock_sync.now());
                                                 let _ = message_tx.send(msg).await;
                                             }
                                         }
                                         ClientMessage::Trigger { name, at: _ } => {
                                             if let Some(nid) = node_id {
-                                                let msg = NetMessage {
-                                                    message_type: NetMessageType::Trigger,
-                                                    param_hash: hash_param_name(&name),
-                                                    value: 1.0,
-                                                    node_id: nid,
-                                                    timestamp: clock_sync.now(),
+                                                let msg = if let Some((x, y)) = parse_trigger_coordinates(&name) {
+                                                    NetMessage::trigger_with_coordinates(&name, x, y, nid)
+                                                } else {
+                                                    NetMessage::trigger(&name, nid)
                                                 };
+                                                let msg = msg.with_timestamp(clock_sync.now());
                                                 let _ = message_tx.send(msg).await;
                                             }
                                         }
@@ -319,6 +313,15 @@ impl WsServer {
             }
         });
     }
+}
+
+/// Parse coordinates from trigger names in "prefix:x,y" format.
+fn parse_trigger_coordinates(name: &str) -> Option<(f32, f32)> {
+    let coords = name.split(':').nth(1)?;
+    let mut parts = coords.split(',');
+    let x: f32 = parts.next()?.parse().ok()?;
+    let y: f32 = parts.next()?.parse().ok()?;
+    Some((x, y))
 }
 
 /// Create a parameter state list for state synchronization.

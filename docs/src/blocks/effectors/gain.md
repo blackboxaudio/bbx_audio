@@ -192,10 +192,28 @@ let gain = builder.add(GainBlock::new(0.0, Some(0.5)));
 // Effective: 0 dB * 0.5 = -6.02 dB
 ```
 
+## Configuring Smoothing
+
+By default, parameter changes are smoothed over 50ms to prevent clicks. You can customize the smoothing time using `set_smoothing()`:
+
+```rust
+use bbx_dsp::{blocks::GainBlock, graph::GraphBuilder};
+
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+let gain_id = builder.add(GainBlock::new(-6.0, None));
+
+let mut graph = builder.build();
+if let Some(block) = graph.get_block_mut(gain_id) {
+    block.set_smoothing(44100.0, 100.0); // 100ms ramp time
+}
+```
+
+**Note:** `set_smoothing()` applies the same ramp time to all smoothed parameters in the block. If you need different smoothing times per parameter, create and configure the block before passing it to `GraphBuilder::add()`.
+
 ## Implementation Notes
 
 - dB range: -80 dB to +30 dB (clamped)
-- Click-free transitions via linear smoothing
+- Click-free transitions via linear smoothing (default 50ms ramp)
 - Multi-channel support (applies same gain to all channels)
 - SIMD-optimized when not smoothing
 - Base gain multiplied with dB-derived gain
