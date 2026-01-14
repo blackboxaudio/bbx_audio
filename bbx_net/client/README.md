@@ -68,6 +68,7 @@ new BbxClient(config: IBbxClientConfig)
 | `reconnectDelay` | `number` | `1000` | Base delay between reconnects (ms) |
 | `maxReconnectAttempts` | `number` | `5` | Max reconnection attempts |
 | `pingInterval` | `number` | `5000` | Ping interval for latency measurement (ms) |
+| `connectionTimeout` | `number` | `10000` | Timeout for initial connection (ms) |
 
 #### Properties
 
@@ -77,6 +78,8 @@ new BbxClient(config: IBbxClientConfig)
 | `nodeId` | `string \| null` | Assigned node ID (after connect) |
 | `latency` | `number` | Last measured latency (ms) |
 | `clockOffset` | `number` | Server clock offset (ms) |
+| `isConnected` | `boolean` | True if currently connected |
+| `isReconnecting` | `boolean` | True if reconnecting |
 
 #### Methods
 
@@ -84,11 +87,14 @@ new BbxClient(config: IBbxClientConfig)
 |--------|-------------|
 | `connect(): Promise<void>` | Connect to the server |
 | `disconnect(): void` | Disconnect from the server |
+| `reconnect(): Promise<void>` | Reconnect after disconnect |
 | `setParam(param, value, at?): void` | Send parameter change |
 | `trigger(name, at?): void` | Send trigger event |
 | `requestSync(): void` | Request current parameter state |
 | `on(event, handler): void` | Subscribe to events |
 | `off(event, handler): void` | Unsubscribe from events |
+| `once(event, handler): void` | Subscribe for a single event |
+| `removeAllListeners(event?): void` | Remove all listeners |
 | `toServerTime(localTimeMs): number` | Convert local time to server time (µs) |
 | `toLocalTime(serverTimeUs): number` | Convert server time to local time (ms) |
 
@@ -98,6 +104,7 @@ new BbxClient(config: IBbxClientConfig)
 |-------|-------------------|-------------|
 | `connected` | `(welcome: IWelcomeMessage) => void` | Connection established |
 | `disconnected` | `(reason?: string) => void` | Disconnected from server |
+| `reconnecting` | `(attempt: number, maxAttempts: number, delayMs: number) => void` | Reconnection attempt starting |
 | `state` | `(state: IStateMessage) => void` | Received parameter state |
 | `update` | `(update: IUpdateMessage) => void` | Parameter value updated |
 | `error` | `(error: IErrorMessage) => void` | Error from server |
@@ -129,6 +136,9 @@ try {
             case 'CONNECTION_FAILED':
                 console.error('Failed to connect')
                 break
+            case 'TIMEOUT':
+                console.error('Connection timed out')
+                break
         }
     }
 }
@@ -154,6 +164,37 @@ client.on('state', (state) => {
 })
 
 client.requestSync()
+```
+
+### One-Time Event Listeners
+
+Use `once()` to listen for a single occurrence of an event:
+
+```typescript
+client.once('state', (state) => {
+    console.log('Initial state received:', state.params.length, 'params')
+})
+
+await client.connect()
+client.requestSync()
+```
+
+### Reconnection Handling
+
+Monitor reconnection attempts:
+
+```typescript
+client.on('reconnecting', (attempt, maxAttempts, delayMs) => {
+    console.log(`Reconnecting (${attempt}/${maxAttempts}) in ${delayMs}ms...`)
+})
+
+client.on('connected', () => {
+    console.log('Connected!')
+})
+
+client.on('disconnected', (reason) => {
+    console.log('Disconnected:', reason)
+})
 ```
 
 ## Message Types

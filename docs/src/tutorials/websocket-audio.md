@@ -259,6 +259,69 @@ client.on('latency', (latencyMs) => {
 console.log('Clock offset:', client.clockOffset, 'ms')
 ```
 
+## Connection Handling
+
+### Configuration Options
+
+The client supports several connection-related options:
+
+```typescript
+const client = new BbxClient({
+    url: 'ws://192.168.1.100:8080',
+    roomCode: '123456',
+    clientName: 'My Controller',
+    reconnect: true,              // Auto-reconnect on disconnect (default: true)
+    reconnectDelay: 1000,         // Base delay between reconnects in ms (default: 1000)
+    maxReconnectAttempts: 5,      // Max reconnection attempts (default: 5)
+    connectionTimeout: 10000,     // Timeout for initial connection in ms (default: 10000)
+})
+```
+
+### Monitoring Connection State
+
+```typescript
+// Check connection state
+if (client.isConnected) {
+    client.setParam('freq', 0.5)
+}
+
+// Monitor reconnection attempts
+client.on('reconnecting', (attempt, maxAttempts, delayMs) => {
+    console.log(`Reconnecting (${attempt}/${maxAttempts}) in ${delayMs}ms...`)
+})
+
+client.on('disconnected', (reason) => {
+    console.log('Disconnected:', reason)
+})
+```
+
+### One-Time Event Listeners
+
+Use `once()` to listen for a single occurrence of an event:
+
+```typescript
+// Wait for initial state sync
+client.once('state', (state) => {
+    console.log('Initial state received:', state.params.length, 'params')
+    initializeUI(state.params)
+})
+
+await client.connect()
+client.requestSync()
+```
+
+### Cleanup
+
+Remove event listeners when cleaning up:
+
+```typescript
+// Remove all listeners for a specific event
+client.removeAllListeners('update')
+
+// Remove all listeners
+client.removeAllListeners()
+```
+
 ## Framework Examples
 
 ### React
@@ -270,6 +333,7 @@ import { BbxClient, type IParamState } from '@bbx-audio/net'
 function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
     const [client] = useState(() => new BbxClient({ url, roomCode, clientName: 'React Controller' }))
     const [connected, setConnected] = useState(false)
+    const [reconnecting, setReconnecting] = useState<string | null>(null)
     const [params, setParams] = useState<IParamState[]>([])
     const [latency, setLatency] = useState<number | null>(null)
     const [error, setError] = useState<string | null>(null)
@@ -277,9 +341,13 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
     useEffect(() => {
         client.on('connected', () => {
             setConnected(true)
+            setReconnecting(null)
             setError(null)
         })
         client.on('disconnected', () => setConnected(false))
+        client.on('reconnecting', (attempt, max, delay) => {
+            setReconnecting(`Reconnecting (${attempt}/${max}) in ${delay}ms...`)
+        })
         client.on('state', (state) => setParams(state.params))
         client.on('update', (update) => {
             setParams((prev) =>
@@ -290,7 +358,10 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
         client.on('error', (err) => setError(`${err.code}: ${err.message}`))
 
         client.connect()
-        return () => client.disconnect()
+        return () => {
+            client.removeAllListeners()
+            client.disconnect()
+        }
     }, [client])
 
     const handleChange = useCallback(
@@ -298,6 +369,7 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
         [client]
     )
 
+    if (reconnecting) return <div>{reconnecting}</div>
     if (!connected) return <div>Connecting...</div>
 
     return (
@@ -333,6 +405,7 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
 
     let client: BbxClient | null = $state(null)
     let connected = $state(false)
+    let reconnectingMsg = $state<string | null>(null)
     let params = $state<IParamState[]>([])
     let latency = $state<number | null>(null)
     let error = $state<string | null>(null)
@@ -343,9 +416,13 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
 
         bbxClient.on('connected', () => {
             connected = true
+            reconnectingMsg = null
             error = null
         })
         bbxClient.on('disconnected', () => (connected = false))
+        bbxClient.on('reconnecting', (attempt, max, delay) => {
+            reconnectingMsg = `Reconnecting (${attempt}/${max}) in ${delay}ms...`
+        })
         bbxClient.on('state', (state) => (params = state.params))
         bbxClient.on('update', (update) => {
             params = params.map((p) =>
@@ -357,7 +434,10 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
 
         bbxClient.connect()
 
-        return () => bbxClient.disconnect()
+        return () => {
+            bbxClient.removeAllListeners()
+            bbxClient.disconnect()
+        }
     })
 
     function handleChange(param: string, value: number) {
@@ -369,7 +449,9 @@ function AudioController({ url, roomCode }: { url: string; roomCode: string }) {
     }
 </script>
 
-{#if !connected}
+{#if reconnectingMsg}
+    <div>{reconnectingMsg}</div>
+{:else if !connected}
     <div>Connecting...</div>
 {:else}
     <div>
@@ -412,6 +494,7 @@ const client = new BbxClient({
     clientName: 'Vue Controller',
 })
 const connected = ref(false)
+const reconnectingMsg = ref<string | null>(null)
 const params = ref<IParamState[]>([])
 const latency = ref<number | null>(null)
 const error = ref<string | null>(null)
@@ -419,9 +502,13 @@ const error = ref<string | null>(null)
 onMounted(() => {
     client.on('connected', () => {
         connected.value = true
+        reconnectingMsg.value = null
         error.value = null
     })
     client.on('disconnected', () => (connected.value = false))
+    client.on('reconnecting', (attempt, max, delay) => {
+        reconnectingMsg.value = `Reconnecting (${attempt}/${max}) in ${delay}ms...`
+    })
     client.on('state', (state) => (params.value = state.params))
     client.on('update', (update) => {
         const param = params.value.find((p) => p.name === update.param)
@@ -433,7 +520,10 @@ onMounted(() => {
     client.connect()
 })
 
-onUnmounted(() => client.disconnect())
+onUnmounted(() => {
+    client.removeAllListeners()
+    client.disconnect()
+})
 
 function handleChange(param: string, value: number) {
     client.setParam(param, value)
@@ -445,7 +535,8 @@ function handleTrigger() {
 </script>
 
 <template>
-    <div v-if="!connected">Connecting...</div>
+    <div v-if="reconnectingMsg">{{ reconnectingMsg }}</div>
+    <div v-else-if="!connected">Connecting...</div>
     <div v-else>
         <div v-if="error" class="error">{{ error }}</div>
         <div v-if="latency !== null" class="latency">Latency: {{ latency.toFixed(0) }}ms</div>
@@ -619,7 +710,8 @@ Then send JSON messages:
 |------|-------------|
 | `INVALID_ROOM` | Room code doesn't exist |
 | `ROOM_FULL` | Room is at capacity (default: 100 clients) |
-| `NOT_IN_ROOM` | Tried to send parameter without joining |
+| `CONNECTION_FAILED` | WebSocket connection error |
+| `TIMEOUT` | Connection timed out |
 
 ## Next Steps
 
