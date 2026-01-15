@@ -1,12 +1,18 @@
 use std::fmt;
 
+/// A specialized [`Result`] type for audio player operations.
 pub type Result<T> = std::result::Result<T, PlayerError>;
 
+/// Errors that can occur during audio playback operations.
 #[derive(Debug)]
 pub enum PlayerError {
+    /// No audio output device is available on the system.
     NoOutputDevice,
+    /// Failed to initialize the audio output device.
     DeviceInitFailed(String),
+    /// An error occurred during audio playback.
     PlaybackFailed(String),
+    /// An error from the underlying audio backend (rodio or cpal).
     BackendError(String),
 }
 
