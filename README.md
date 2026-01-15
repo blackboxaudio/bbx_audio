@@ -84,6 +84,18 @@ cargo run --example 14_osc_synth -p bbx_sandbox        # OSC control
 cargo run --example 15_ws_synth -p bbx_sandbox         # WebSocket control
 ```
 
+## Examples
+
+The [`bbx_sandbox`](./bbx_sandbox/examples/) crate includes examples covering the major features:
+
+```bash
+cargo run --example 01_sine_wave -p bbx_sandbox        # Basic oscillator
+cargo run --example 06_lfo_modulation -p bbx_sandbox   # Modulation
+cargo run --example 08_ambisonic_panner -p bbx_sandbox # Spatial audio
+cargo run --example 14_osc_synth -p bbx_sandbox        # OSC control
+cargo run --example 15_ws_synth -p bbx_sandbox         # WebSocket control
+```
+
 ## Documentation
 
 Full documentation is available at **[docs.bbx-audio.com](https://docs.bbx-audio.com/)**:
