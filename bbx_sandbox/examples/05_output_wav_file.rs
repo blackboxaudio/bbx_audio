@@ -1,23 +1,22 @@
-//! Generative quartal harmony ambient piece.
+//! Generative quartal harmony ambient piece with offline rendering.
 //!
 //! Creates a unique Polygonia-style drone each run using randomized quartal
 //! voicings (stacks of perfect 4ths). Each voice passes through a low-pass
 //! filter with slow LFO modulation, then through a stereo panner with its
-//! own spatial movement. Output is written to WAV.
+//! own spatial movement. Output is rendered offline to WAV at maximum speed.
 //!
 //! Signal chain per voice:
-//!   Oscillator → LowPassFilter → Gain → Panner → Mixer → FileOutput
+//!   Oscillator → LowPassFilter → Gain → Panner → Mixer → Output
 //!                      ↑                   ↑
 //!                  FilterLFO            PanLFO
 
 use bbx_dsp::{
-    blocks::{FileOutputBlock, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock, PannerBlock},
+    blocks::{GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock, PannerBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
 };
-use bbx_file::writers::wav::WavFileWriter;
-use bbx_sandbox::player::Player;
+use bbx_file::{OfflineRenderer, RenderDuration, writers::wav::WavFileWriter};
 use rand::prelude::*;
 
 const ROOTS: [f64; 6] = [
@@ -87,15 +86,6 @@ fn create_graph(rng: &mut impl Rng) -> (Graph<f32>, usize) {
 
     let mixer = builder.add(MixerBlock::stereo(num_voices));
 
-    let mut file_path = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
-    file_path.push_str("/bbx_sandbox/examples/05_output_wav_file.wav");
-
-    let writer = WavFileWriter::new(file_path.as_str(), DEFAULT_SAMPLE_RATE, 2).unwrap();
-    let file_output = builder.add(FileOutputBlock::new(Box::new(writer)));
-
-    builder.connect(mixer, 0, file_output, 0);
-    builder.connect(mixer, 1, file_output, 1);
-
     for voice_idx in 0..num_voices {
         let freq = quartal_frequency(root_hz, voice_idx);
         let waveform = random_waveform(rng);
@@ -157,9 +147,17 @@ fn main() {
 
     let (graph, duration) = create_graph(&mut seeded_rng);
 
-    println!("Rendering to 05_output_wav_file.wav...");
-    let player = Player::from_graph(graph);
-    player.play(Some(duration));
+    let mut file_path = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
+    file_path.push_str("/bbx_sandbox/examples/05_output_wav_file.wav");
 
-    println!("Done! Generated {duration} seconds of quartal harmony.");
+    let writer = WavFileWriter::new(file_path.as_str(), DEFAULT_SAMPLE_RATE, 2).unwrap();
+    let mut renderer = OfflineRenderer::new(graph, Box::new(writer));
+
+    println!("Rendering to 05_output_wav_file.wav...");
+    let stats = renderer.render(RenderDuration::Duration(duration)).unwrap();
+
+    println!(
+        "Done! Rendered {:.1}s of audio in {:.2}s ({:.1}x realtime)",
+        stats.duration_seconds, stats.render_time_seconds, stats.speedup
+    );
 }
