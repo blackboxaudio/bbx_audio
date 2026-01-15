@@ -50,30 +50,6 @@ std::thread::sleep(Duration::from_secs(5));
 handle.stop();
 ```
 
-## Architecture
-
-```
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│                  │     │                  │     │                  │
-│   Graph<S>       │────▶│   Player<S>      │────▶│   Backend        │
-│   (DSP)          │     │   (Coordinator)  │     │   (Output)       │
-│                  │     │                  │     │                  │
-└──────────────────┘     └────────┬─────────┘     └────────┬─────────┘
-                                  │                        │
-                                  ▼                        ▼
-                         ┌──────────────────┐     ┌──────────────────┐
-                         │                  │     │                  │
-                         │   Signal         │────▶│   Audio Device   │
-                         │   (Iterator)     │     │   (System)       │
-                         │                  │     │                  │
-                         └──────────────────┘     └──────────────────┘
-```
-
-1. **Graph**: Your DSP processing graph (oscillators, filters, effects)
-2. **Player**: Wraps the graph and manages the backend
-3. **Signal**: Converts graph output to an interleaved sample iterator
-4. **Backend**: Sends samples to the system audio device
-
 ## API Reference
 
 | Component | Description |
