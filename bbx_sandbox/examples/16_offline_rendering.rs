@@ -22,7 +22,7 @@ use bbx_dsp::{
     graph::GraphBuilder,
     waveform::Waveform,
 };
-use bbx_file::{writers::wav::WavFileWriter, OfflineRenderer, RenderDuration};
+use bbx_file::{OfflineRenderer, RenderDuration, writers::wav::WavFileWriter};
 use rand::prelude::*;
 
 const ROOTS: [f64; 6] = [
@@ -121,9 +121,7 @@ fn main() {
         let gain_db = voice_gain_db(voice_idx, NUM_VOICES, UNISON_COUNT);
         let pan_position = distribute_pan_position(&mut rng, voice_idx, NUM_VOICES);
 
-        println!(
-            "Voice {voice_idx}: {base_freq:.1}Hz, {waveform:?}, {gain_db:.1}dB, pan={pan_position:.0}"
-        );
+        println!("Voice {voice_idx}: {base_freq:.1}Hz, {waveform:?}, {gain_db:.1}dB, pan={pan_position:.0}");
 
         let voice_mixer = builder.add(MixerBlock::new(UNISON_COUNT, 1));
 

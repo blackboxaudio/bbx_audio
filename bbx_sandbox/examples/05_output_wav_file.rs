@@ -11,10 +11,7 @@
 //!                  FilterLFO            PanLFO
 
 use bbx_dsp::{
-    blocks::{
-        FileOutputBlock, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock,
-        PannerBlock,
-    },
+    blocks::{FileOutputBlock, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock, PannerBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::GraphBuilder,
     waveform::Waveform,
