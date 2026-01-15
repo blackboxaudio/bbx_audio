@@ -197,6 +197,9 @@ jobs:
       - name: Publish bbx_file
         run: cargo publish -p bbx_file --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+      - name: Publish bbx_player
+        run: cargo publish -p bbx_player --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
       - name: Publish bbx_plugin
         run: cargo publish -p bbx_plugin --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 

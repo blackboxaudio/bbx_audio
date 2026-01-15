@@ -24,7 +24,7 @@ bbx_core.workspace = true
 bbx_midi = { workspace = true, default-features = false }
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.5.1", features = ["html_reports"] }
 
 [[bench]]
 name = "simd_blocks"

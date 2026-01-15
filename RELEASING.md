@@ -33,6 +33,8 @@ bbx_core = { version = "0.2.0", path = "bbx_core" }  # Update all internal deps
 bbx_dsp = { version = "0.2.0", path = "bbx_dsp" }
 bbx_file = { version = "0.2.0", path = "bbx_file" }
 bbx_midi = { version = "0.2.0", path = "bbx_midi" }
+bbx_net = { version = "0.2.0", path = "bbx_net" }
+bbx_player = { version = "0.2.0", path = "bbx_player" }
 bbx_plugin = { version = "0.2.0", path = "bbx_plugin" }
 ```
 
@@ -62,7 +64,7 @@ Or manually add entries to `CHANGELOG.md`.
 
 ```bash
 # Run dry-run for all crates
-for crate in bbx_core bbx_midi bbx_dsp bbx_file bbx_plugin; do
+for crate in bbx_core bbx_midi bbx_net bbx_dsp bbx_file bbx_player bbx_plugin bbx_draw; do
     cargo publish --dry-run -p $crate
 done
 ```

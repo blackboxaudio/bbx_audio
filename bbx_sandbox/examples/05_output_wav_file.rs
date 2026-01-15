@@ -10,6 +10,8 @@
 //!                      ↑                   ↑
 //!                  FilterLFO            PanLFO
 
+use std::time::Duration;
+
 use bbx_dsp::{
     blocks::{FileOutputBlock, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock, PannerBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
@@ -17,7 +19,7 @@ use bbx_dsp::{
     waveform::Waveform,
 };
 use bbx_file::writers::wav::WavFileWriter;
-use bbx_sandbox::player::Player;
+use bbx_player::Player;
 use rand::prelude::*;
 
 const ROOTS: [f64; 6] = [
@@ -87,7 +89,7 @@ fn main() {
 
     println!("Generating: {num_voices} voices, root={root_hz:.1}Hz, duration={DURATION_SECS}s");
 
-    let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
+    let mut builder = GraphBuilder::<f32>::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
     let mixer = builder.add(MixerBlock::stereo(num_voices));
 
@@ -152,8 +154,11 @@ fn main() {
     let graph = builder.build();
 
     println!("Rendering to 05_output_wav_file.wav...");
-    let player = Player::from_graph(graph);
-    player.play(Some(DURATION_SECS));
+    let player = Player::new(graph).unwrap();
+    let handle = player.play().unwrap();
+
+    std::thread::sleep(Duration::from_secs(DURATION_SECS as u64));
+    handle.stop();
 
     println!("Done! Generated {DURATION_SECS} seconds of quartal harmony.");
 }

@@ -40,9 +40,12 @@ Crates must be published in dependency order:
 
 1. `bbx_core` (no dependencies)
 2. `bbx_midi` (no internal dependencies)
-3. `bbx_dsp` (depends on bbx_core)
-4. `bbx_file` (depends on bbx_dsp)
-5. `bbx_plugin` (depends on bbx_dsp)
+3. `bbx_net` (no internal dependencies)
+4. `bbx_dsp` (depends on bbx_core)
+5. `bbx_file` (depends on bbx_dsp)
+6. `bbx_player` (depends on bbx_core, bbx_dsp)
+7. `bbx_plugin` (depends on bbx_dsp)
+8. `bbx_draw` (depends on bbx_dsp)
 
 ## Manual Publishing
 
@@ -52,9 +55,12 @@ If needed:
 cargo publish -p bbx_core
 # Wait for crates.io index update (~1 minute)
 cargo publish -p bbx_midi
+cargo publish -p bbx_net
 cargo publish -p bbx_dsp
 cargo publish -p bbx_file
+cargo publish -p bbx_player
 cargo publish -p bbx_plugin
+cargo publish -p bbx_draw
 ```
 
 ## Troubleshooting

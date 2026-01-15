@@ -37,6 +37,7 @@ Optional SIMD optimizations are available via the `simd` feature flag (requires 
 | [`bbx_file`](./bbx_file) | Audio file I/O (WAV/MP3) |
 | [`bbx_midi`](./bbx_midi) | MIDI parsing, events, and real-time streaming |
 | [`bbx_net`](./bbx_net) | OSC + WebSocket for TouchOSC, Max/MSP, web/mobile control; includes [`@bbx-audio/net`](https://www.npmjs.com/package/@bbx-audio/net) TypeScript client |
+| [`bbx_player`](./bbx_player) | Audio playback with rodio (default) or cpal backends |
 | [`bbx_plugin`](./bbx_plugin) | C FFI bindings for JUCE or any C/C++ host |
 | [`bbx_sandbox`](./bbx_sandbox) | Examples and testing playground |
 
