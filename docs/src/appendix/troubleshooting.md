@@ -6,10 +6,10 @@ Common issues and solutions.
 
 ### "toolchain not found"
 
-Install the nightly toolchain:
+This workspace requires Rust nightly. The version is pinned in `rust-toolchain.toml` (`nightly-2025-06-08`), so `rustup` should automatically select it when you enter the project directory. If you don't have it installed:
 
 ```bash
-rustup toolchain install nightly
+rustup toolchain install nightly-2025-06-08
 ```
 
 ### Linux Audio Errors
@@ -17,7 +17,7 @@ rustup toolchain install nightly
 Install ALSA development packages:
 
 ```bash
-sudo apt install alsa libasound2-dev
+sudo apt install libasound2-dev
 ```
 
 ### Slow Compilation

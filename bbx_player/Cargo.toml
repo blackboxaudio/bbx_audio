@@ -1,0 +1,21 @@
+[package]
+name = "bbx_player"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Audio playback abstractions for bbx_audio"
+
+[features]
+default = ["rodio"]
+rodio = ["dep:rodio"]
+cpal = ["dep:cpal"]
+
+[dependencies]
+bbx_core.workspace = true
+bbx_dsp.workspace = true
+
+cpal = { workspace = true, optional = true }
+rodio = { workspace = true, optional = true }

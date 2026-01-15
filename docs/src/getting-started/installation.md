@@ -1,34 +1,39 @@
 # Installation
 
+> **Nightly Toolchain Required:** This workspace uses Rust nightly (`nightly-2025-06-08` pinned in `rust-toolchain.toml`). When you clone the repository, `rustup` will automatically select the correct toolchain. If you don't have it installed, run:
+> ```bash
+> rustup toolchain install nightly-2025-06-08
+> ```
+
 ## Adding bbx_audio to Your Project
 
 Add the crates you need to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bbx_dsp = "0.4.2"
-bbx_core = "0.4.2"
+bbx_dsp = "0.4.3"
+bbx_core = "0.4.3"
 ```
 
 For JUCE plugin integration, you'll only need:
 
 ```toml
 [dependencies]
-bbx_plugin = "0.4.2"
+bbx_plugin = "0.4.3"
 ```
 
 For audio file I/O:
 
 ```toml
 [dependencies]
-bbx_file = "0.4.2"
+bbx_file = "0.4.3"
 ```
 
 For MIDI support:
 
 ```toml
 [dependencies]
-bbx_midi = "0.4.2"
+bbx_midi = "0.4.3"
 ```
 
 ## Using Git Dependencies
@@ -48,7 +53,7 @@ bbx_plugin = { git = "https://github.com/blackboxaudio/bbx_audio" }
 Install required packages for audio I/O:
 
 ```bash
-sudo apt install alsa libasound2-dev libssl-dev pkg-config
+sudo apt install libasound2-dev libssl-dev pkg-config
 ```
 
 ### macOS

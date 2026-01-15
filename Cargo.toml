@@ -7,12 +7,13 @@ members = [
     "bbx_file",
     "bbx_midi",
     "bbx_net",
+    "bbx_player",
     "bbx_plugin",
     "bbx_sandbox",
 ]
 
 [workspace.package]
-version = "0.4.2"
+version = "0.4.3"
 authors = ["Black Box Audio, LLC"]
 edition = "2024"
 license = "MIT"
@@ -21,20 +22,22 @@ rust-version = "1.89.0"
 
 [workspace.dependencies]
 # Internal crates (version + path for publishing)
-bbx_core = { version = "0.4.2", path = "bbx_core" }
-bbx_dsp = { version = "0.4.2", path = "bbx_dsp" }
-bbx_file = { version = "0.4.2", path = "bbx_file" }
-bbx_midi = { version = "0.4.2", path = "bbx_midi", default-features = false }
-bbx_net = { version = "0.4.2", path = "bbx_net", default-features = false }
-bbx_plugin = { version = "0.4.2", path = "bbx_plugin" }
+bbx_core = { version = "0.4.3", path = "bbx_core" }
+bbx_dsp = { version = "0.4.3", path = "bbx_dsp" }
+bbx_file = { version = "0.4.3", path = "bbx_file" }
+bbx_midi = { version = "0.4.3", path = "bbx_midi", default-features = false }
+bbx_net = { version = "0.4.3", path = "bbx_net", default-features = false }
+bbx_player = { version = "0.4.3", path = "bbx_player", default-features = false }
+bbx_plugin = { version = "0.4.3", path = "bbx_plugin" }
 
 # External dependencies
+cpal = "0.15.3"
 hound = "3.5.1"
-loom = "0.7"
+loom = "0.7.2"
 midir = "0.10.0"
 rand = "0.8.5"
 rodio = "0.20.1"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tempfile = "3.15"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+tempfile = "3.24.0"
 wavers = "1.5.1"

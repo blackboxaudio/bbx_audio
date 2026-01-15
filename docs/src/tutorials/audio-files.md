@@ -78,11 +78,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 use bbx_file::writers::wav::WavFileWriter;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let writer = WavFileWriter::new(
+    let writer = WavFileWriter::<f32>::new(
         "output.wav",
-        44100,  // Sample rate
-        2,      // Channels
-        16,     // Bits per sample
+        44100.0,  // Sample rate
+        2,        // Channels
     )?;
 
     Ok(())
@@ -108,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
     // Create writer
-    let writer = WavFileWriter::new("output.wav", 44100, 2, 16)?;
+    let writer = WavFileWriter::<f32>::new("output.wav", 44100.0, 2)?;
 
     // Add file output block
     let file_output = builder.add(FileOutputBlock::new(Box::new(writer)));
@@ -170,7 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     builder.connect(gain, 0, pan, 0);
 
     // File output
-    let writer = WavFileWriter::new("output.wav", sample_rate as u32, num_channels, 16)?;
+    let writer = WavFileWriter::new("output.wav", sample_rate, num_channels)?;
     let file_out = builder.add(FileOutputBlock::new(Box::new(writer)));
 
     builder.connect(pan, 0, file_out, 0);
@@ -196,6 +195,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+## Offline Rendering
+
+For batch exporting or rendering audio faster than realtime, use `OfflineRenderer` instead of manually processing buffers:
+
+```rust
+use bbx_dsp::{
+    blocks::{GainBlock, OscillatorBlock},
+    graph::GraphBuilder,
+    waveform::Waveform,
+};
+use bbx_file::{OfflineRenderer, RenderDuration, writers::wav::WavFileWriter};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Build graph
+    let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+    let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+    let gain = builder.add(GainBlock::new(-6.0, None));
+    builder.connect(osc, 0, gain, 0);
+    let graph = builder.build();
+
+    // Create renderer with WAV writer
+    let writer = WavFileWriter::new("output.wav", 44100.0, 2)?;
+    let mut renderer = OfflineRenderer::new(graph, Box::new(writer));
+
+    // Render 30 seconds of audio
+    let stats = renderer.render(RenderDuration::Duration(30))?;
+
+    println!("Rendered {:.1}s in {:.2}s ({:.1}x realtime)",
+        stats.duration_seconds,
+        stats.render_time_seconds,
+        stats.speedup);
+
+    Ok(())
+}
+```
+
+The `OfflineRenderer` handles:
+- Processing the graph at maximum CPU speed
+- Writing output to the file
+- Finalizing the file when complete
+- Reporting performance statistics
+
+For complex DSP chains, the speedup can be significant. See example `16_offline_rendering` for a demonstration with 35+ oscillators and filters.
 
 ## Error Handling
 
@@ -225,7 +268,7 @@ fn main() {
 3. **Memory**: Large files are streamed, not loaded entirely into memory
 4. **Finalization**: Always call `finalize()` to flush buffers and close files
 
-See the `13_file_processing` example for a complete offline processing pipeline.
+See the `05_output_wav_file` example for basic file output, or `16_offline_rendering` for a complex offline rendering demonstration.
 
 ## Next Steps
 

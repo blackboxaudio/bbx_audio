@@ -2,7 +2,7 @@
 
 [![Test](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.test.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.test.yml)
 [![Clippy](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml)
-[![Version: v0.4.2](https://img.shields.io/badge/Version-v0.4.2-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
+[![Version: v0.4.3](https://img.shields.io/badge/Version-v0.4.3-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](https://github.com/blackboxaudio/bbx_audio/blob/develop/LICENSE)
 
 A modular, real-time safe audio toolkit in Rust.
@@ -37,6 +37,7 @@ Optional SIMD optimizations are available via the `simd` feature flag (requires 
 | [`bbx_file`](./bbx_file) | Audio file I/O (WAV/MP3) |
 | [`bbx_midi`](./bbx_midi) | MIDI parsing, events, and real-time streaming |
 | [`bbx_net`](./bbx_net) | OSC + WebSocket for TouchOSC, Max/MSP, web/mobile control; includes [`@bbx-audio/net`](https://www.npmjs.com/package/@bbx-audio/net) TypeScript client |
+| [`bbx_player`](./bbx_player) | Audio playback with rodio (default) or cpal backends |
 | [`bbx_plugin`](./bbx_plugin) | C FFI bindings for JUCE or any C/C++ host |
 | [`bbx_sandbox`](./bbx_sandbox) | Examples and testing playground |
 
@@ -68,7 +69,19 @@ See [`bbx_sandbox/examples/`](./bbx_sandbox/examples/) for working examples, or 
 ### Linux Dependencies
 
 ```bash
-sudo apt install alsa libasound2-dev libssl-dev pkg-config
+sudo apt install libasound2-dev libssl-dev pkg-config
+```
+
+## Examples
+
+The [`bbx_sandbox`](./bbx_sandbox/examples/) crate includes examples covering the major features:
+
+```bash
+cargo run --example 01_sine_wave -p bbx_sandbox        # Basic oscillator
+cargo run --example 06_lfo_modulation -p bbx_sandbox   # Modulation
+cargo run --example 08_ambisonic_panner -p bbx_sandbox # Spatial audio
+cargo run --example 14_osc_synth -p bbx_sandbox        # OSC control
+cargo run --example 15_ws_synth -p bbx_sandbox         # WebSocket control
 ```
 
 ## Examples
@@ -94,10 +107,15 @@ Full documentation is available at **[docs.bbx-audio.com](https://docs.bbx-audio
 
 ## Contributing
 
+> **Nightly Required:** This workspace uses Rust nightly (`nightly-2025-06-08` pinned in `rust-toolchain.toml`). After cloning, `rustup` will automatically select the correct toolchain.
+
 ```bash
 # Clone the repository
 git clone https://github.com/blackboxaudio/bbx_audio.git
 cd bbx_audio
+
+# Install the pinned nightly toolchain (if not already installed)
+rustup toolchain install nightly-2025-06-08
 
 # Build all crates
 cargo build --workspace
@@ -105,11 +123,11 @@ cargo build --workspace
 # Run tests
 cargo test --workspace --release
 
-# Run linting (requires nightly)
-cargo +nightly clippy
+# Run linting
+cargo clippy
 
-# Format code (requires nightly)
-cargo +nightly fmt
+# Format code
+cargo fmt
 ```
 
 See the [Contributing Guide](https://docs.bbx-audio.com/contributing/development-setup.html) for more details.

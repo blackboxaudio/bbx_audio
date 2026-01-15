@@ -6,6 +6,8 @@
 //! LFO patterns, creating complex Lissajous-like spatial movement that never
 //! quite repeats. Best experienced with headphones.
 
+use std::time::Duration;
+
 use bbx_dsp::{
     blocks::{BinauralDecoderBlock, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock, PannerBlock},
     channel::ChannelLayout,
@@ -13,7 +15,7 @@ use bbx_dsp::{
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
 };
-use bbx_sandbox::player::Player;
+use bbx_player::Player;
 
 const AMBISONIC_ORDER: usize = 1;
 const NUM_SOURCES: usize = 4;
@@ -102,7 +104,10 @@ fn create_graph() -> Graph<f32> {
 }
 
 fn main() {
-    println!("Dm9(no3) spatial drone - Polygonia style - best with headphones!");
-    let player = Player::from_graph(create_graph());
-    player.play(Some(90));
+    println!("Dm9(no3) spatial drone");
+    let player = Player::new(create_graph()).unwrap();
+    let handle = player.play().unwrap();
+
+    std::thread::sleep(Duration::from_secs(90));
+    handle.stop();
 }

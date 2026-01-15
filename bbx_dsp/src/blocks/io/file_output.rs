@@ -102,7 +102,7 @@ impl<S: Sample + Send + 'static> FileOutputBlock<S> {
                 }
             }
 
-            if stop_signal.load(Ordering::Relaxed) {
+            if stop_signal.load(Ordering::Acquire) {
                 for (ch, buffer) in channel_buffers.iter().enumerate() {
                     if !buffer.is_empty() && writer.write_channel(ch, buffer).is_err() {
                         error_flag.store(true, Ordering::Relaxed);
@@ -134,7 +134,7 @@ impl<S: Sample + Send + 'static> FileOutputBlock<S> {
     pub fn stop_recording(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.is_recording = false;
 
-        self.stop_signal.store(true, Ordering::Relaxed);
+        self.stop_signal.store(true, Ordering::Release);
 
         if let Some(handle) = self.writer_thread.take() {
             handle.join().map_err(|_| "Writer thread panicked")?;
@@ -174,13 +174,12 @@ impl<S: Sample + Send + 'static> Block<S> for FileOutputBlock<S> {
             None => return,
         };
 
-        let active_channels = inputs.len().min(self.num_channels);
         let buffer_len = inputs[0].len();
 
         for sample_idx in 0..buffer_len {
-            for input in inputs.iter().take(active_channels) {
-                // Non-blocking push - drops sample if buffer full
-                let _ = producer.try_push(input[sample_idx]);
+            for ch in 0..self.num_channels {
+                let sample = inputs.get(ch).map_or(S::ZERO, |input| input[sample_idx]);
+                let _ = producer.try_push(sample);
             }
         }
     }
@@ -203,7 +202,7 @@ impl<S: Sample + Send + 'static> Block<S> for FileOutputBlock<S> {
 
 impl<S: Sample + Send + 'static> Drop for FileOutputBlock<S> {
     fn drop(&mut self) {
-        self.stop_signal.store(true, Ordering::Relaxed);
+        self.stop_signal.store(true, Ordering::Release);
 
         // Ignore errors in drop
         if let Some(handle) = self.writer_thread.take() {
@@ -344,5 +343,69 @@ mod tests {
 
         block.stop_recording().unwrap();
         assert!(!block.error_occurred());
+    }
+
+    #[test]
+    fn test_file_output_block_mono_input_to_stereo_file() {
+        let writer = MockWriter::<f32>::new(44100.0, 2);
+        let channels = writer.get_channels();
+
+        let mut block = FileOutputBlock::new(Box::new(writer));
+
+        let context = test_context(4);
+        let mono_input: Vec<f32> = vec![0.1, 0.2, 0.3, 0.4];
+        let inputs: [&[f32]; 1] = [&mono_input];
+        let mut outputs: [&mut [f32]; 0] = [];
+
+        block.process(&inputs, &mut outputs, &[], &context);
+        block.stop_recording().unwrap();
+
+        let written = channels.lock().unwrap();
+        assert_eq!(written[0], vec![0.1, 0.2, 0.3, 0.4]);
+        assert_eq!(written[1], vec![0.0, 0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_file_output_block_interleaving_order() {
+        let writer = MockWriter::<f32>::new(44100.0, 2);
+        let channels = writer.get_channels();
+
+        let mut block = FileOutputBlock::new(Box::new(writer));
+
+        let context = test_context(3);
+        let left: Vec<f32> = vec![1.0, 2.0, 3.0];
+        let right: Vec<f32> = vec![0.1, 0.2, 0.3];
+        let inputs: [&[f32]; 2] = [&left, &right];
+        let mut outputs: [&mut [f32]; 0] = [];
+
+        block.process(&inputs, &mut outputs, &[], &context);
+        block.stop_recording().unwrap();
+
+        let written = channels.lock().unwrap();
+        assert_eq!(written[0], vec![1.0, 2.0, 3.0]);
+        assert_eq!(written[1], vec![0.1, 0.2, 0.3]);
+    }
+
+    #[test]
+    fn test_file_output_block_excess_inputs_ignored() {
+        let writer = MockWriter::<f32>::new(44100.0, 2);
+        let channels = writer.get_channels();
+
+        let mut block = FileOutputBlock::new(Box::new(writer));
+
+        let context = test_context(2);
+        let ch0: Vec<f32> = vec![1.0, 2.0];
+        let ch1: Vec<f32> = vec![0.1, 0.2];
+        let ch2: Vec<f32> = vec![9.9, 9.9];
+        let inputs: [&[f32]; 3] = [&ch0, &ch1, &ch2];
+        let mut outputs: [&mut [f32]; 0] = [];
+
+        block.process(&inputs, &mut outputs, &[], &context);
+        block.stop_recording().unwrap();
+
+        let written = channels.lock().unwrap();
+        assert_eq!(written[0], vec![1.0, 2.0]);
+        assert_eq!(written[1], vec![0.1, 0.2]);
+        assert_eq!(written.len(), 2);
     }
 }

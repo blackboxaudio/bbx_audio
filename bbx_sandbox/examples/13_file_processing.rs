@@ -5,13 +5,15 @@
 //!
 //! Signal chain: FileInput -> LowPassFilter -> Overdrive -> DcBlocker -> FileOutput
 
+use std::time::Duration;
+
 use bbx_dsp::{
     blocks::{DcBlockerBlock, FileInputBlock, FileOutputBlock, LowPassFilterBlock, OverdriveBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
 };
 use bbx_file::{readers::wav::WavFileReader, writers::wav::WavFileWriter};
-use bbx_sandbox::player::Player;
+use bbx_player::Player;
 
 fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
@@ -46,8 +48,11 @@ fn main() {
     println!("Processing: 04_input_wav_file.wav -> 13_processed_output.wav");
     println!("Effects: LowPassFilter -> Overdrive -> DC Blocker");
 
-    let player = Player::from_graph(create_graph());
-    player.play(Some(10));
+    let player = Player::new(create_graph()).unwrap();
+    let handle = player.play().unwrap();
+
+    std::thread::sleep(Duration::from_secs(10));
+    handle.stop();
 
     println!("Processing complete!");
 }

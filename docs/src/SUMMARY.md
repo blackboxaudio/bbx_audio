@@ -68,12 +68,16 @@
 - [bbx_file](crates/bbx-file.md)
     - [WAV Reader](crates/file/wav-reader.md)
     - [WAV Writer](crates/file/wav-writer.md)
+    - [Offline Renderer](crates/file/offline-renderer.md)
 - [bbx_midi](crates/bbx-midi.md)
     - [MIDI Messages](crates/midi/messages.md)
     - [Message Buffer](crates/midi/buffer.md)
 - [bbx_net](crates/bbx-net.md)
     - [OSC Server](crates/net/osc.md)
     - [WebSocket Server](crates/net/websocket.md)
+- [bbx_player](crates/bbx-player.md)
+    - [Player API](crates/player/player.md)
+    - [Backend Trait](crates/player/backend.md)
 
 # Blocks Reference
 

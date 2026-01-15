@@ -30,6 +30,7 @@ bbx_dsp = "0.1"
 |---------|-------------|
 | [WAV Reader](file/wav-reader.md) | Load WAV files |
 | [WAV Writer](file/wav-writer.md) | Create WAV files |
+| [Offline Renderer](file/offline-renderer.md) | Render graphs faster than realtime |
 
 ## Quick Example
 
@@ -75,4 +76,22 @@ let gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(file_in, 0, gain, 0);
 
 let graph = builder.build();
+```
+
+### Offline Rendering
+
+```rust
+use bbx_dsp::graph::GraphBuilder;
+use bbx_file::{OfflineRenderer, RenderDuration, writers::wav::WavFileWriter};
+
+let graph = GraphBuilder::<f32>::new(44100.0, 512, 2)
+    // ... add blocks and connections
+    .build();
+
+let writer = WavFileWriter::new("output.wav", 44100.0, 2)?;
+let mut renderer = OfflineRenderer::new(graph, Box::new(writer));
+
+let stats = renderer.render(RenderDuration::Duration(30))?;
+println!("Rendered {}s in {:.2}s ({:.1}x realtime)",
+    stats.duration_seconds, stats.render_time_seconds, stats.speedup);
 ```

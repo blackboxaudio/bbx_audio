@@ -198,14 +198,14 @@ dependencies = [
 
 [[package]]
 name = "bbx_core"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "loom",
 ]
 
 [[package]]
 name = "bbx_draw"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "bbx_core",
  "bbx_dsp",
@@ -220,7 +220,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_dsp"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "bbx_core",
  "bbx_midi",
@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_file"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "bbx_dsp",
  "hound",
@@ -239,7 +239,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_midi"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "bbx_core",
  "midir",
@@ -247,7 +247,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_net"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "bbx_core",
  "futures-util",
@@ -259,8 +259,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bbx_player"
+version = "0.4.3"
+dependencies = [
+ "bbx_core",
+ "bbx_dsp",
+ "cpal",
+ "rodio",
+]
+
+[[package]]
 name = "bbx_plugin"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "bbx_core",
  "bbx_dsp",
@@ -271,12 +281,13 @@ dependencies = [
 
 [[package]]
 name = "bbx_sandbox"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "bbx_dsp",
  "bbx_file",
  "bbx_midi",
  "bbx_net",
+ "bbx_player",
  "ctrlc",
  "midir",
  "rand 0.8.5",
