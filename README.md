@@ -94,10 +94,15 @@ Full documentation is available at **[docs.bbx-audio.com](https://docs.bbx-audio
 
 ## Contributing
 
+> **Nightly Required:** This workspace uses Rust nightly (`nightly-2025-06-08` pinned in `rust-toolchain.toml`). After cloning, `rustup` will automatically select the correct toolchain.
+
 ```bash
 # Clone the repository
 git clone https://github.com/blackboxaudio/bbx_audio.git
 cd bbx_audio
+
+# Install the pinned nightly toolchain (if not already installed)
+rustup toolchain install nightly-2025-06-08
 
 # Build all crates
 cargo build --workspace
@@ -105,11 +110,11 @@ cargo build --workspace
 # Run tests
 cargo test --workspace --release
 
-# Run linting (requires nightly)
-cargo +nightly clippy
+# Run linting
+cargo clippy
 
-# Format code (requires nightly)
-cargo +nightly fmt
+# Format code
+cargo fmt
 ```
 
 See the [Contributing Guide](https://docs.bbx-audio.com/contributing/development-setup.html) for more details.

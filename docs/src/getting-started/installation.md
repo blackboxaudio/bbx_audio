@@ -1,5 +1,10 @@
 # Installation
 
+> **Nightly Toolchain Required:** This workspace uses Rust nightly (`nightly-2025-06-08` pinned in `rust-toolchain.toml`). When you clone the repository, `rustup` will automatically select the correct toolchain. If you don't have it installed, run:
+> ```bash
+> rustup toolchain install nightly-2025-06-08
+> ```
+
 ## Adding bbx_audio to Your Project
 
 Add the crates you need to your `Cargo.toml`:

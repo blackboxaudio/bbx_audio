@@ -6,12 +6,14 @@ Set up your environment for contributing to bbx_audio.
 
 ### Rust Toolchain
 
+> **Nightly Required:** This workspace uses Rust nightly (`nightly-2025-06-08`). The version is pinned in `rust-toolchain.toml`, so `rustup` will automatically select the correct toolchain when you enter the project directory.
+
 ```bash
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Add nightly toolchain (required for fmt and clippy)
-rustup toolchain install nightly
+# Install the pinned nightly toolchain
+rustup toolchain install nightly-2025-06-08
 ```
 
 ### Platform Dependencies
@@ -64,10 +66,10 @@ Settings (`.vscode/settings.json`):
 
 ```bash
 # Format code
-cargo +nightly fmt
+cargo fmt
 
 # Run lints
-cargo +nightly clippy
+cargo clippy
 
 # Run tests
 cargo test --workspace --release

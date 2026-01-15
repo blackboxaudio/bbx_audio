@@ -6,14 +6,14 @@ This guide covers building bbx_audio from source for development or contribution
 
 ### Rust Toolchain
 
-bbx_audio requires Rust with the nightly toolchain for some development features:
+> **Nightly Required:** This workspace uses Rust nightly. The specific version (`nightly-2025-06-08`) is pinned in `rust-toolchain.toml`, so `rustup` will automatically select it when you enter the project directory.
 
 ```bash
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Add nightly toolchain
-rustup toolchain install nightly
+# Install the pinned nightly toolchain
+rustup toolchain install nightly-2025-06-08
 
 # Verify installation
 rustc --version
@@ -57,18 +57,14 @@ cargo test --workspace --release
 
 ### Formatting
 
-bbx_audio uses the nightly formatter:
-
 ```bash
-cargo +nightly fmt
+cargo fmt
 ```
 
 ### Linting
 
-Clippy is used for linting:
-
 ```bash
-cargo +nightly clippy
+cargo clippy
 ```
 
 ## Running Examples
@@ -126,10 +122,10 @@ members = [
 
 ### "toolchain not found" Error
 
-Install the nightly toolchain:
+Install the pinned nightly toolchain:
 
 ```bash
-rustup toolchain install nightly
+rustup toolchain install nightly-2025-06-08
 ```
 
 ### Audio Device Errors on Linux
