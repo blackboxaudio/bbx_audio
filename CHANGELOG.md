@@ -2,6 +2,17 @@
 
 All notable changes to bbx_audio will be documented in this file.
 
+## [0.4.3] - 2026-01-15
+
+### Bug Fixes
+
+- Improve file output (#82) ([#82](https://github.com/blackboxaudio/bbx_audio/pull/82))
+
+### Features
+
+- Add offline rendering (#83) ([#83](https://github.com/blackboxaudio/bbx_audio/pull/83))
+- Add `bbx_player` crate for playback abstractions (#84) ([#84](https://github.com/blackboxaudio/bbx_audio/pull/84))
+
 ## [0.4.2] - 2026-01-14
 
 ### Features
