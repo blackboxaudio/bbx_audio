@@ -75,6 +75,9 @@
 - [bbx_net](crates/bbx-net.md)
     - [OSC Server](crates/net/osc.md)
     - [WebSocket Server](crates/net/websocket.md)
+- [bbx_player](crates/bbx-player.md)
+    - [Player API](crates/player/player.md)
+    - [Backend Trait](crates/player/backend.md)
 
 # Blocks Reference
 
