@@ -1,9 +1,9 @@
-//! Generative quartal harmony ambient piece.
+//! Generative quartal harmony ambient piece with realtime file output.
 //!
-//! Creates a unique Polygonia-style drone each run using randomized quartal
-//! voicings (stacks of perfect 4ths). Each voice passes through a low-pass
-//! filter with slow LFO modulation, then through a stereo panner with its
-//! own spatial movement. Output is written to WAV.
+//! Creates a unique Polygonia-style drone using randomized quartal voicings
+//! (stacks of perfect 4ths). Each voice passes through a low-pass filter with
+//! LFO modulation, then through a stereo panner with spatial movement.
+//! Audio plays in realtime while simultaneously writing to a WAV file.
 //!
 //! Signal chain per voice:
 //!   Oscillator → LowPassFilter → Gain → Panner → Mixer → FileOutput
@@ -13,7 +13,7 @@
 use bbx_dsp::{
     blocks::{FileOutputBlock, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock, PannerBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
-    graph::{Graph, GraphBuilder},
+    graph::GraphBuilder,
     waveform::Waveform,
 };
 use bbx_file::writers::wav::WavFileWriter;
@@ -33,13 +33,12 @@ const PERFECT_FOURTH: f64 = 1.334839854; // 2^(5/12)
 
 const MIN_VOICES: usize = 4;
 const MAX_VOICES: usize = 6;
-const MIN_DURATION_SECS: usize = 30;
-const MAX_DURATION_SECS: usize = 90;
+const DURATION_SECS: usize = 5;
 
-const FILTER_LFO_RATE_MIN: f64 = 0.01;
-const FILTER_LFO_RATE_MAX: f64 = 0.05;
-const PAN_LFO_RATE_MIN: f64 = 0.005;
-const PAN_LFO_RATE_MAX: f64 = 0.02;
+const FILTER_LFO_RATE_MIN: f64 = 0.1;
+const FILTER_LFO_RATE_MAX: f64 = 0.3;
+const PAN_LFO_RATE_MIN: f64 = 0.05;
+const PAN_LFO_RATE_MAX: f64 = 0.15;
 
 const FILTER_LFO_DEPTH_MIN: f64 = 200.0;
 const FILTER_LFO_DEPTH_MAX: f64 = 600.0;
@@ -76,12 +75,17 @@ fn distribute_pan_position(rng: &mut impl Rng, position: usize, num_voices: usiz
     (base + rng.gen_range(-20.0..20.0)).clamp(-100.0, 100.0)
 }
 
-fn create_graph(rng: &mut impl Rng) -> (Graph<f32>, usize) {
+fn main() {
+    let mut rng = rand::thread_rng();
+    let seed: u64 = rng.r#gen();
+    println!("Quartal Harmony Generator - Seed: {seed}");
+
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+
     let root_hz = ROOTS[rng.gen_range(0..ROOTS.len())];
     let num_voices = rng.gen_range(MIN_VOICES..=MAX_VOICES);
-    let duration = rng.gen_range(MIN_DURATION_SECS..=MAX_DURATION_SECS);
 
-    println!("Generating: {num_voices} voices, root={root_hz:.1}Hz, duration={duration}s");
+    println!("Generating: {num_voices} voices, root={root_hz:.1}Hz, duration={DURATION_SECS}s");
 
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
@@ -98,9 +102,9 @@ fn create_graph(rng: &mut impl Rng) -> (Graph<f32>, usize) {
 
     for voice_idx in 0..num_voices {
         let freq = quartal_frequency(root_hz, voice_idx);
-        let waveform = random_waveform(rng);
+        let waveform = random_waveform(&mut rng);
         let gain_db = voice_gain_db(voice_idx, num_voices);
-        let pan_position = distribute_pan_position(rng, voice_idx, num_voices);
+        let pan_position = distribute_pan_position(&mut rng, voice_idx, num_voices);
 
         println!("  Voice {voice_idx}: {freq:.1}Hz, {waveform:?}, {gain_db:.1}dB, pan={pan_position:.0}");
 
@@ -145,21 +149,11 @@ fn create_graph(rng: &mut impl Rng) -> (Graph<f32>, usize) {
         builder.connect(panner, 1, mixer, mixer_input_r);
     }
 
-    (builder.build(), duration)
-}
-
-fn main() {
-    let mut rng = rand::thread_rng();
-    let seed: u64 = rng.r#gen();
-    println!("Quartal Harmony Generator - Seed: {seed}");
-
-    let mut seeded_rng = rand::rngs::StdRng::seed_from_u64(seed);
-
-    let (graph, duration) = create_graph(&mut seeded_rng);
+    let graph = builder.build();
 
     println!("Rendering to 05_output_wav_file.wav...");
     let player = Player::from_graph(graph);
-    player.play(Some(duration));
+    player.play(Some(DURATION_SECS));
 
-    println!("Done! Generated {duration} seconds of quartal harmony.");
+    println!("Done! Generated {DURATION_SECS} seconds of quartal harmony.");
 }

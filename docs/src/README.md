@@ -13,12 +13,12 @@ bbx_audio is a collection of Rust crates designed for real-time audio digital si
 | Crate | Description |
 |-------|-------------|
 | [`bbx_core`](crates/bbx-core.md) | Error types and foundational utilities |
+| [`bbx_draw`](crates/bbx-draw.md) | Audio visualization primitives for nannou |
 | [`bbx_dsp`](crates/bbx-dsp.md) | DSP graph system, blocks, and `PluginDsp` trait |
-| [`bbx_plugin`](crates/bbx-plugin.md) | C FFI bindings for JUCE integration |
 | [`bbx_file`](crates/bbx-file.md) | Audio file I/O (WAV) |
 | [`bbx_midi`](crates/bbx-midi.md) | MIDI message parsing and streaming |
 | [`bbx_net`](crates/bbx-net.md) | OSC and WebSocket for network audio control |
-| [`bbx_draw`](crates/bbx-draw.md) | Audio visualization primitives for nannou |
+| [`bbx_plugin`](crates/bbx-plugin.md) | C FFI bindings for JUCE integration |
 | `bbx_sandbox` | Examples and testing playground |
 
 ## Architecture Overview
