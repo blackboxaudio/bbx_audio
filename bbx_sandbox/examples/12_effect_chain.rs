@@ -13,9 +13,13 @@
 //!   LFO1(0.25Hz) -> Filter cutoff
 //!   LFO2(0.1Hz)  -> Panner position
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use bbx_dsp::{
     blocks::{DcBlockerBlock, GainBlock, LfoBlock, LowPassFilterBlock, OscillatorBlock, OverdriveBlock, PannerBlock},

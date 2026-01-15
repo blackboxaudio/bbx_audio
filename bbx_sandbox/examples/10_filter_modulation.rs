@@ -7,9 +7,13 @@
 //! Signal chain: Oscillator(110Hz, Saw) -> LowPassFilter(Q:4) -> Gain -> Output
 //! Modulation: LFO(0.5Hz, depth:4000) modulates filter cutoff
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use bbx_dsp::{
     blocks::{GainBlock, LfoBlock, LowPassFilterBlock, OscillatorBlock},

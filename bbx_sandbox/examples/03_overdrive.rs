@@ -3,9 +3,13 @@
 //! Signal chain: Oscillator(220Hz, Saw) -> Overdrive -> DcBlocker -> Gain -> Output
 //! Modulation: LFO(0.5Hz) modulates overdrive drive parameter
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use bbx_dsp::{
     blocks::{DcBlockerBlock, GainBlock, LfoBlock, OscillatorBlock, OverdriveBlock},

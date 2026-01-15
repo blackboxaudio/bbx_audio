@@ -2,9 +2,13 @@
 //!
 //! Signal chain: Oscillator(440Hz, Sine) -> Gain(-6dB) -> Output
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use bbx_dsp::{
     blocks::{GainBlock, OscillatorBlock},

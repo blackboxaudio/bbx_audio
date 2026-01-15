@@ -1,11 +1,11 @@
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
 };
 
 use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
     SampleFormat,
+    traits::{DeviceTrait, HostTrait, StreamTrait},
 };
 
 use crate::{backend::Backend, error::Result};
