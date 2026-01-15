@@ -81,9 +81,7 @@ fn create_graph(rng: &mut impl Rng) -> (Graph<f32>, usize) {
     let num_voices = rng.gen_range(MIN_VOICES..=MAX_VOICES);
     let duration = rng.gen_range(MIN_DURATION_SECS..=MAX_DURATION_SECS);
 
-    println!(
-        "Generating: {num_voices} voices, root={root_hz:.1}Hz, duration={duration}s"
-    );
+    println!("Generating: {num_voices} voices, root={root_hz:.1}Hz, duration={duration}s");
 
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
 
@@ -104,9 +102,7 @@ fn create_graph(rng: &mut impl Rng) -> (Graph<f32>, usize) {
         let gain_db = voice_gain_db(voice_idx, num_voices);
         let pan_position = distribute_pan_position(rng, voice_idx, num_voices);
 
-        println!(
-            "  Voice {voice_idx}: {freq:.1}Hz, {waveform:?}, {gain_db:.1}dB, pan={pan_position:.0}"
-        );
+        println!("  Voice {voice_idx}: {freq:.1}Hz, {waveform:?}, {gain_db:.1}dB, pan={pan_position:.0}");
 
         let osc = builder.add(OscillatorBlock::new(freq, waveform, Some(rng.next_u64())));
 
