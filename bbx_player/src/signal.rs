@@ -74,6 +74,21 @@ impl<S: Sample> Signal<S> {
             self.graph.process_buffers(output_refs.as_mut_slice());
         }
 
+        // SAFETY: Bounds guaranteed by construction:
+        // - channel_index: starts at 0, reset to 0 when >= num_channels (line 80)
+        // - sample_index: wraps via modulo % buffer_size (line 83)
+        debug_assert!(
+            self.channel_index < self.num_channels,
+            "channel_index {} exceeds num_channels {}",
+            self.channel_index,
+            self.num_channels
+        );
+        debug_assert!(
+            self.sample_index < self.buffer_size,
+            "sample_index {} exceeds buffer_size {}",
+            self.sample_index,
+            self.buffer_size
+        );
         let sample = self.output_buffers[self.channel_index][self.sample_index];
 
         self.channel_index += 1;
