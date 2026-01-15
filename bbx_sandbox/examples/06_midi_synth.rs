@@ -29,8 +29,8 @@ use bbx_dsp::{
     waveform::Waveform,
 };
 use bbx_midi::{MidiBufferConsumer, MidiBufferProducer, MidiMessage, MidiMessageStatus, midi_buffer};
+use bbx_player::{Source, play_source};
 use midir::{Ignore, MidiInput, MidiInputConnection};
-use rodio::{OutputStream, Source};
 
 const MIDI_BUFFER_CAPACITY: usize = 256;
 
@@ -194,21 +194,13 @@ impl Iterator for MidiSynth {
     }
 }
 
-impl Source for MidiSynth {
-    fn current_frame_len(&self) -> Option<usize> {
-        None
-    }
-
+impl Source<f32> for MidiSynth {
     fn channels(&self) -> u16 {
         self.num_channels as u16
     }
 
     fn sample_rate(&self) -> u32 {
         self.sample_rate
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        None
     }
 }
 
@@ -293,18 +285,13 @@ fn main() {
 
     let synth = MidiSynth::new(consumer);
 
-    let (_stream, stream_handle) = match OutputStream::try_default() {
-        Ok(result) => result,
+    let _handle = match play_source(synth) {
+        Ok(h) => h,
         Err(e) => {
-            println!("Failed to open audio output: {e}");
+            println!("Failed to start audio playback: {e}");
             return;
         }
     };
-
-    if let Err(e) = stream_handle.play_raw(synth.convert_samples()) {
-        println!("Failed to start audio playback: {e}");
-        return;
-    }
 
     while running.load(Ordering::SeqCst) {
         std::thread::sleep(Duration::from_millis(100));

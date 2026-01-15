@@ -12,19 +12,15 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
 
-use crate::{backend::Backend, error::Result};
+use crate::{Source, backend::Backend, error::Result};
 
-fn producer_thread_fn(
-    mut signal: Box<dyn Iterator<Item = f32> + Send>,
-    mut producer: Producer<f32>,
-    stop_flag: Arc<AtomicBool>,
-) {
+fn producer_thread_fn(mut source: Box<dyn Source<f32>>, mut producer: Producer<f32>, stop_flag: Arc<AtomicBool>) {
     while !stop_flag.load(Ordering::Relaxed) {
         while !producer.is_full() {
             if stop_flag.load(Ordering::Relaxed) {
                 return;
             }
-            match signal.next() {
+            match source.next() {
                 Some(sample) => {
                     let _ = producer.try_push(sample);
                 }
@@ -55,13 +51,9 @@ impl CpalBackend {
 }
 
 impl Backend for CpalBackend {
-    fn play(
-        self: Box<Self>,
-        signal: Box<dyn Iterator<Item = f32> + Send>,
-        sample_rate: u32,
-        num_channels: u16,
-        stop_flag: Arc<AtomicBool>,
-    ) -> Result<()> {
+    fn play(self: Box<Self>, source: Box<dyn Source<f32>>, stop_flag: Arc<AtomicBool>) -> Result<()> {
+        let sample_rate = source.sample_rate();
+        let num_channels = source.channels();
         let buffer_capacity = (sample_rate as usize / 10) * num_channels as usize;
         let (producer, mut consumer) = SpscRingBuffer::new::<f32>(buffer_capacity);
 
@@ -93,7 +85,7 @@ impl Backend for CpalBackend {
 
             let stop_flag_producer = Arc::clone(&stop_flag);
             let producer_handle = thread::spawn(move || {
-                producer_thread_fn(signal, producer, stop_flag_producer);
+                producer_thread_fn(source, producer, stop_flag_producer);
             });
 
             let stop_flag_callback = Arc::clone(&stop_flag);

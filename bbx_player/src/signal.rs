@@ -112,3 +112,42 @@ impl<S: Sample> Iterator for Signal<S> {
         Some(self.process())
     }
 }
+
+impl<S: Sample> crate::Source<S> for Signal<S> {
+    fn channels(&self) -> u16 {
+        self.num_channels as u16
+    }
+
+    fn sample_rate(&self) -> u32 {
+        self.sample_rate
+    }
+}
+
+/// Wrapper that converts a `Signal<S>` to `Source<f32>`.
+pub(crate) struct SignalF32<S: Sample> {
+    signal: Signal<S>,
+}
+
+impl<S: Sample> SignalF32<S> {
+    pub fn new(signal: Signal<S>) -> Self {
+        Self { signal }
+    }
+}
+
+impl<S: Sample> Iterator for SignalF32<S> {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.signal.next().map(|s| s.to_f64() as f32)
+    }
+}
+
+impl<S: Sample> crate::Source<f32> for SignalF32<S> {
+    fn channels(&self) -> u16 {
+        self.signal.num_channels as u16
+    }
+
+    fn sample_rate(&self) -> u32 {
+        self.signal.sample_rate
+    }
+}
