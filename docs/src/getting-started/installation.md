@@ -48,7 +48,7 @@ bbx_plugin = { git = "https://github.com/blackboxaudio/bbx_audio" }
 Install required packages for audio I/O:
 
 ```bash
-sudo apt install alsa libasound2-dev libssl-dev pkg-config
+sudo apt install libasound2-dev libssl-dev pkg-config
 ```
 
 ### macOS

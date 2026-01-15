@@ -25,7 +25,7 @@ cargo --version
 #### Linux
 
 ```bash
-sudo apt install alsa libasound2-dev libssl-dev pkg-config
+sudo apt install libasound2-dev libssl-dev pkg-config
 ```
 
 #### macOS / Windows
@@ -137,7 +137,7 @@ rustup toolchain install nightly
 Ensure ALSA development packages are installed:
 
 ```bash
-sudo apt install alsa libasound2-dev
+sudo apt install libasound2-dev
 ```
 
 ### Slow Builds

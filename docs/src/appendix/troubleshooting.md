@@ -17,7 +17,7 @@ rustup toolchain install nightly
 Install ALSA development packages:
 
 ```bash
-sudo apt install alsa libasound2-dev
+sudo apt install libasound2-dev
 ```
 
 ### Slow Compilation

@@ -80,7 +80,7 @@ rustup default stable-msvc
 Install required development packages:
 
 ```bash
-sudo apt install alsa libasound2-dev
+sudo apt install libasound2-dev
 ```
 
 ## Build Commands

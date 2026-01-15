@@ -18,7 +18,7 @@ rustup toolchain install nightly
 
 **Linux:**
 ```bash
-sudo apt install alsa libasound2-dev libssl-dev pkg-config
+sudo apt install libasound2-dev libssl-dev pkg-config
 ```
 
 **macOS/Windows:** No additional dependencies.

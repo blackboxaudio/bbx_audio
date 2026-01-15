@@ -68,7 +68,7 @@ See [`bbx_sandbox/examples/`](./bbx_sandbox/examples/) for working examples, or 
 ### Linux Dependencies
 
 ```bash
-sudo apt install alsa libasound2-dev libssl-dev pkg-config
+sudo apt install libasound2-dev libssl-dev pkg-config
 ```
 
 ## Examples
