@@ -5,13 +5,15 @@
 //! for modal darkness. Prime-number-based LFO rates create polyrhythmic pan
 //! movement that never quite repeats - evolving and hypnotic.
 
+use std::time::Duration;
+
 use bbx_dsp::{
     blocks::{GainBlock, LfoBlock, LowPassFilterBlock, OscillatorBlock, PannerBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
 };
-use bbx_sandbox::player::Player;
+use bbx_player::Player;
 
 fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
@@ -85,6 +87,9 @@ fn create_graph() -> Graph<f32> {
 
 fn main() {
     println!("Dark Am9 pad with Phrygian color - Polygonia style");
-    let player = Player::from_graph(create_graph());
-    player.play(Some(90));
+    let player = Player::new(create_graph()).unwrap();
+    let handle = player.play().unwrap();
+
+    std::thread::sleep(Duration::from_secs(90));
+    handle.stop();
 }

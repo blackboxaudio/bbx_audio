@@ -13,13 +13,17 @@
 //!   LFO1(0.25Hz) -> Filter cutoff
 //!   LFO2(0.1Hz)  -> Panner position
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+
 use bbx_dsp::{
     blocks::{DcBlockerBlock, GainBlock, LfoBlock, LowPassFilterBlock, OscillatorBlock, OverdriveBlock, PannerBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
 };
-use bbx_sandbox::player::Player;
+use bbx_player::Player;
 
 fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
@@ -64,6 +68,16 @@ fn create_graph() -> Graph<f32> {
 fn main() {
     println!("Multi-Stage Effect Chain Demo");
     println!("Overdrive -> DC Blocker -> Modulated Filter -> Modulated Panner");
-    let player = Player::from_graph(create_graph());
-    player.play(None);
+    println!("Press Ctrl+C to stop.");
+
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+    ctrlc::set_handler(move || r.store(false, Ordering::SeqCst)).unwrap();
+
+    let player = Player::new(create_graph()).unwrap();
+    let _handle = player.play().unwrap();
+
+    while running.load(Ordering::SeqCst) {
+        std::thread::sleep(Duration::from_millis(100));
+    }
 }

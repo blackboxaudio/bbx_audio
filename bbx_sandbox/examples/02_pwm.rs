@@ -1,10 +1,14 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+
 use bbx_dsp::{
     blocks::{LfoBlock, OscillatorBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
 };
-use bbx_sandbox::player::Player;
+use bbx_player::Player;
 use rand::prelude::*;
 
 fn create_graph() -> Graph<f32> {
@@ -26,6 +30,16 @@ fn create_graph() -> Graph<f32> {
 
 fn main() {
     println!("PWM Modulation Demo - Sawtooth with cascading LFO modulation");
-    let player = Player::from_graph(create_graph());
-    player.play(None);
+    println!("Press Ctrl+C to stop.");
+
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+    ctrlc::set_handler(move || r.store(false, Ordering::SeqCst)).unwrap();
+
+    let player = Player::new(create_graph()).unwrap();
+    let _handle = player.play().unwrap();
+
+    while running.load(Ordering::SeqCst) {
+        std::thread::sleep(Duration::from_millis(100));
+    }
 }

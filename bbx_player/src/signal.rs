@@ -1,13 +1,19 @@
-use std::time::Duration;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
+use bbx_core::StackVec;
 use bbx_dsp::{
     buffer::{AudioBuffer, Buffer},
-    graph::Graph,
+    graph::{Graph, MAX_BLOCK_OUTPUTS},
     sample::Sample,
 };
-use rodio::Source;
 
-/// Used for wrapping a DSP graph with an iterable structure.
+/// Wraps a DSP graph as an iterator of interleaved samples.
+///
+/// The iterator yields samples in interleaved format (L, R, L, R, ...)
+/// which is the format expected by audio backends.
 pub struct Signal<S: Sample> {
     graph: Graph<S>,
     output_buffers: Vec<AudioBuffer<S>>,
@@ -16,11 +22,12 @@ pub struct Signal<S: Sample> {
     buffer_size: usize,
     channel_index: usize,
     sample_index: usize,
+    stop_flag: Arc<AtomicBool>,
 }
 
 impl<S: Sample> Signal<S> {
     /// Create a `Signal` from a DSP `Graph`.
-    pub fn new(graph: Graph<S>) -> Self {
+    pub fn new(graph: Graph<S>, stop_flag: Arc<AtomicBool>) -> Self {
         let channels = graph.context().num_channels;
         let buffer_size = graph.context().buffer_size;
         let sample_rate = graph.context().sample_rate as u32;
@@ -38,22 +45,37 @@ impl<S: Sample> Signal<S> {
             num_channels: channels,
             buffer_size,
             sample_rate,
+            stop_flag,
         }
     }
 
-    /// Execute the calculations within the `Signal`'s DSP graph.
+    /// Get the sample rate of the signal.
+    pub fn sample_rate(&self) -> u32 {
+        self.sample_rate
+    }
+
+    /// Get the number of channels.
+    pub fn num_channels(&self) -> usize {
+        self.num_channels
+    }
+
     fn process(&mut self) -> S {
         if self.channel_index == 0 && self.sample_index == 0 {
-            let mut output_refs: Vec<&mut [S]> = self.output_buffers.iter_mut().map(|b| b.as_mut_slice()).collect();
-            self.graph.process_buffers(&mut output_refs);
+            debug_assert!(
+                self.num_channels <= MAX_BLOCK_OUTPUTS,
+                "Channel count {} exceeds MAX_BLOCK_OUTPUTS {}",
+                self.num_channels,
+                MAX_BLOCK_OUTPUTS
+            );
+            let mut output_refs: StackVec<&mut [S], MAX_BLOCK_OUTPUTS> = StackVec::new();
+            for buf in self.output_buffers.iter_mut() {
+                let _ = output_refs.push(buf.as_mut_slice());
+            }
+            self.graph.process_buffers(output_refs.as_mut_slice());
         }
 
         let sample = self.output_buffers[self.channel_index][self.sample_index];
 
-        // TODO: Change to `hound` and remove the `rodio` dependency
-        // `rodio` expects interleaved samples, so we have to increment the
-        // channel index every time and only increment the sample index when the
-        // channel index has to be wrapped around.
         self.channel_index += 1;
         if self.channel_index >= self.num_channels {
             self.channel_index = 0;
@@ -69,29 +91,9 @@ impl<S: Sample> Iterator for Signal<S> {
     type Item = S;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.stop_flag.load(Ordering::SeqCst) {
+            return None;
+        }
         Some(self.process())
-    }
-}
-
-impl Source for Signal<f32> {
-    /// Get the length of the current frame.
-    fn current_frame_len(&self) -> Option<usize> {
-        None
-    }
-
-    /// Get the number of channels in the `Signal`
-    fn channels(&self) -> u16 {
-        self.num_channels as u16
-    }
-
-    /// Get the sample rate of the `Signal`.
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate
-    }
-
-    /// Get the total duration (seconds) that the `Signal`
-    /// will play for.
-    fn total_duration(&self) -> Option<Duration> {
-        None
     }
 }

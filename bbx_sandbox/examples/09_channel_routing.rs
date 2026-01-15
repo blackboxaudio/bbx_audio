@@ -11,13 +11,15 @@
 //!                                   +-> ChannelRouter(Swap) -> Output
 //!   Oscillator(660Hz) -> Panner(R) -+
 
+use std::time::Duration;
+
 use bbx_dsp::{
     blocks::{ChannelMode, ChannelRouterBlock, GainBlock, OscillatorBlock, PannerBlock},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
 };
-use bbx_sandbox::player::Player;
+use bbx_player::Player;
 
 fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::new(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, 2);
@@ -57,6 +59,9 @@ fn main() {
     println!("Channel Routing Demo");
     println!("440Hz was panned left, 660Hz was panned right");
     println!("After channel swap: 440Hz is now in right ear, 660Hz is now in left ear");
-    let player = Player::from_graph(create_graph());
-    player.play(Some(10));
+    let player = Player::new(create_graph()).unwrap();
+    let handle = player.play().unwrap();
+
+    std::thread::sleep(Duration::from_secs(10));
+    handle.stop();
 }
