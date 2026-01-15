@@ -1,8 +1,10 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread,
 };
-use std::thread;
 
 use bbx_core::{Producer, SpscRingBuffer};
 use cpal::{
