@@ -1,14 +1,39 @@
 use std::sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicBool, Ordering},
 };
+use std::thread;
 
+use bbx_core::{Producer, SpscRingBuffer};
 use cpal::{
     SampleFormat,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
 
 use crate::{backend::Backend, error::Result};
+
+fn producer_thread_fn(
+    mut signal: Box<dyn Iterator<Item = f32> + Send>,
+    mut producer: Producer<f32>,
+    stop_flag: Arc<AtomicBool>,
+) {
+    while !stop_flag.load(Ordering::Relaxed) {
+        while !producer.is_full() {
+            if stop_flag.load(Ordering::Relaxed) {
+                return;
+            }
+            match signal.next() {
+                Some(sample) => {
+                    let _ = producer.try_push(sample);
+                }
+                None => {
+                    return;
+                }
+            }
+        }
+        thread::sleep(std::time::Duration::from_micros(500));
+    }
+}
 
 /// Low-level audio backend using cpal directly.
 ///
@@ -31,11 +56,12 @@ impl Backend for CpalBackend {
     fn play(
         self: Box<Self>,
         signal: Box<dyn Iterator<Item = f32> + Send>,
-        _sample_rate: u32,
-        _num_channels: u16,
+        sample_rate: u32,
+        num_channels: u16,
         stop_flag: Arc<AtomicBool>,
     ) -> Result<()> {
-        let signal = Arc::new(Mutex::new(signal));
+        let buffer_capacity = (sample_rate as usize / 10) * num_channels as usize;
+        let (producer, mut consumer) = SpscRingBuffer::new::<f32>(buffer_capacity);
 
         std::thread::spawn(move || {
             let host = cpal::default_host();
@@ -62,18 +88,22 @@ impl Backend for CpalBackend {
             }
 
             let config = supported_config.into();
-            let signal_clone = Arc::clone(&signal);
-            let stop_flag_clone = Arc::clone(&stop_flag);
+
+            let stop_flag_producer = Arc::clone(&stop_flag);
+            let producer_handle = thread::spawn(move || {
+                producer_thread_fn(signal, producer, stop_flag_producer);
+            });
+
+            let stop_flag_callback = Arc::clone(&stop_flag);
 
             let stream = match device.build_output_stream(
                 &config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    let mut signal = signal_clone.lock().unwrap();
                     for sample in data.iter_mut() {
-                        if stop_flag_clone.load(Ordering::SeqCst) {
+                        if stop_flag_callback.load(Ordering::Relaxed) {
                             *sample = 0.0;
                         } else {
-                            *sample = signal.next().unwrap_or(0.0);
+                            *sample = consumer.try_pop().unwrap_or(0.0);
                         }
                     }
                 },
@@ -94,10 +124,11 @@ impl Backend for CpalBackend {
                 return;
             }
 
-            while !stop_flag.load(Ordering::SeqCst) {
+            while !stop_flag.load(Ordering::Relaxed) {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
+            producer_handle.join().ok();
             drop(stream);
         });
 

@@ -104,7 +104,7 @@ fn create_graph() -> Graph<f32> {
 }
 
 fn main() {
-    println!("Dm9(no3) spatial drone - Polygonia style - best with headphones!");
+    println!("Dm9(no3) spatial drone");
     let player = Player::new(create_graph()).unwrap();
     let handle = player.play().unwrap();
 

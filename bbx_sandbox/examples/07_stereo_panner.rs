@@ -86,7 +86,7 @@ fn create_graph() -> Graph<f32> {
 }
 
 fn main() {
-    println!("Dark Am9 pad with Phrygian color - Polygonia style");
+    println!("Dark Am9 pad with Phrygian color");
     let player = Player::new(create_graph()).unwrap();
     let handle = player.play().unwrap();
 
