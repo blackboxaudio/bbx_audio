@@ -5,12 +5,10 @@ The `Backend` trait defines how audio samples are sent to the output device.
 ## Backend Trait
 
 ```rust
-pub trait Backend: Send + 'static {
+pub trait Backend<S: Sample>: Send + 'static {
     fn play(
         self: Box<Self>,
-        signal: Box<dyn Iterator<Item = f32> + Send>,
-        sample_rate: u32,
-        num_channels: u16,
+        source: Box<dyn Source<S>>,
         stop_flag: Arc<AtomicBool>,
     ) -> Result<()>;
 }
@@ -20,16 +18,27 @@ pub trait Backend: Send + 'static {
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `signal` | `Box<dyn Iterator<Item = f32> + Send>` | Interleaved f32 samples |
-| `sample_rate` | `u32` | Sample rate in Hz |
-| `num_channels` | `u16` | Number of output channels |
+| `source` | `Box<dyn Source<S>>` | Audio source providing interleaved samples and metadata |
 | `stop_flag` | `Arc<AtomicBool>` | Shared flag to signal stop |
+
+### The Source Trait
+
+The `Source<S>` trait combines an iterator of samples with audio metadata:
+
+```rust
+pub trait Source<S: Sample>: Iterator<Item = S> + Send + 'static {
+    fn channels(&self) -> u16;
+    fn sample_rate(&self) -> u32;
+}
+```
+
+Backends obtain channel count and sample rate from the source rather than as separate parameters.
 
 ### Implementation Notes
 
+- The trait is generic over `S: Sample`, allowing backends to work with any sample type
 - The `self: Box<Self>` signature allows backends to move ownership into a background thread
 - Backends should check `stop_flag` periodically and terminate when it's `true`
-- All samples are converted to `f32` before reaching the backend
 
 ## Built-in Backends
 
@@ -94,24 +103,26 @@ let player = Player::with_backend(graph, backend);
 You can implement the `Backend` trait for custom audio output:
 
 ```rust
-use bbx_player::{Backend, Result};
+use bbx_dsp::sample::Sample;
+use bbx_player::{Backend, Result, Source};
 use std::sync::{Arc, atomic::AtomicBool};
 
 struct MyBackend {
     // Custom state
 }
 
-impl Backend for MyBackend {
+impl<S: Sample> Backend<S> for MyBackend {
     fn play(
         self: Box<Self>,
-        signal: Box<dyn Iterator<Item = f32> + Send>,
-        sample_rate: u32,
-        num_channels: u16,
+        source: Box<dyn Source<S>>,
         stop_flag: Arc<AtomicBool>,
     ) -> Result<()> {
+        let channels = source.channels();
+        let sample_rate = source.sample_rate();
+
         // Spawn background thread
         std::thread::spawn(move || {
-            // Process samples from signal iterator
+            // Process samples from source iterator
             // Check stop_flag periodically
             // Send to your audio output
         });

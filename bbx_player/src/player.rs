@@ -7,7 +7,7 @@ use crate::backends::RodioBackend;
 use crate::{
     backend::{Backend, PlayHandle},
     error::Result,
-    signal::{Signal, SignalF32},
+    signal::Signal,
 };
 
 /// Audio player that plays a DSP graph through a configurable backend.
@@ -40,7 +40,7 @@ use crate::{
 /// ```
 pub struct Player<S: Sample> {
     graph: Graph<S>,
-    backend: Box<dyn Backend>,
+    backend: Box<dyn Backend<S>>,
 }
 
 #[cfg(feature = "rodio")]
@@ -57,7 +57,7 @@ impl<S: Sample> Player<S> {
 
 impl<S: Sample> Player<S> {
     /// Create a new player with a custom backend.
-    pub fn with_backend<B: Backend>(graph: Graph<S>, backend: B) -> Self {
+    pub fn with_backend<B: Backend<S>>(graph: Graph<S>, backend: B) -> Self {
         Self {
             graph,
             backend: Box::new(backend),
@@ -73,9 +73,8 @@ impl<S: Sample> Player<S> {
         let handle = PlayHandle::new(Arc::clone(&stop_flag));
 
         let signal = Signal::new(self.graph, Arc::clone(&stop_flag));
-        let source = SignalF32::new(signal);
 
-        self.backend.play(Box::new(source), stop_flag)?;
+        self.backend.play(Box::new(signal), stop_flag)?;
 
         Ok(handle)
     }

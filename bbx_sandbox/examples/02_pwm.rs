@@ -1,10 +1,4 @@
-use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    time::Duration,
-};
+use std::time::Duration;
 
 use bbx_dsp::{
     blocks::{LfoBlock, OscillatorBlock},
@@ -34,16 +28,10 @@ fn create_graph() -> Graph<f32> {
 
 fn main() {
     println!("PWM Modulation Demo - Sawtooth with cascading LFO modulation");
-    println!("Press Ctrl+C to stop.");
-
-    let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
-    ctrlc::set_handler(move || r.store(false, Ordering::SeqCst)).unwrap();
 
     let player = Player::new(create_graph()).unwrap();
-    let _handle = player.play().unwrap();
+    let handle = player.play().unwrap();
 
-    while running.load(Ordering::SeqCst) {
-        std::thread::sleep(Duration::from_millis(100));
-    }
+    std::thread::sleep(Duration::from_secs(30));
+    handle.stop();
 }

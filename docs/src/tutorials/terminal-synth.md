@@ -252,7 +252,7 @@ bbx_dsp = "0.4.3"
 bbx_midi = "0.1.0"
 rodio = "0.20.1"
 midir = "0.11"
-ctrlc = "3.4"
+ctrlc = "3.4"  # Only needed for interactive apps that require graceful shutdown
 ```
 
 ### Voice State

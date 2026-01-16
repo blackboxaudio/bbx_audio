@@ -7,20 +7,26 @@ use std::{
 };
 
 use bbx_core::{Producer, SpscRingBuffer};
+use bbx_dsp::sample::Sample;
 use cpal::{
     SampleFormat,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
 
+use super::SourceAdapter;
 use crate::{Source, backend::Backend, error::Result};
 
-fn producer_thread_fn(mut source: Box<dyn Source<f32>>, mut producer: Producer<f32>, stop_flag: Arc<AtomicBool>) {
+fn producer_thread_fn<S: Sample>(
+    mut adapter: SourceAdapter<S>,
+    mut producer: Producer<f32>,
+    stop_flag: Arc<AtomicBool>,
+) {
     while !stop_flag.load(Ordering::Relaxed) {
         while !producer.is_full() {
             if stop_flag.load(Ordering::Relaxed) {
                 return;
             }
-            match source.next() {
+            match adapter.next() {
                 Some(sample) => {
                     let _ = producer.try_push(sample);
                 }
@@ -50,10 +56,11 @@ impl CpalBackend {
     }
 }
 
-impl Backend for CpalBackend {
-    fn play(self: Box<Self>, source: Box<dyn Source<f32>>, stop_flag: Arc<AtomicBool>) -> Result<()> {
-        let sample_rate = source.sample_rate();
-        let num_channels = source.channels();
+impl<S: Sample> Backend<S> for CpalBackend {
+    fn play(self: Box<Self>, source: Box<dyn Source<S>>, stop_flag: Arc<AtomicBool>) -> Result<()> {
+        let adapter = SourceAdapter::new(source);
+        let sample_rate = adapter.sample_rate();
+        let num_channels = adapter.channels();
         let buffer_capacity = (sample_rate as usize / 10) * num_channels as usize;
         let (producer, mut consumer) = SpscRingBuffer::new::<f32>(buffer_capacity);
 
@@ -85,7 +92,7 @@ impl Backend for CpalBackend {
 
             let stop_flag_producer = Arc::clone(&stop_flag);
             let producer_handle = thread::spawn(move || {
-                producer_thread_fn(source, producer, stop_flag_producer);
+                producer_thread_fn(adapter, producer, stop_flag_producer);
             });
 
             let stop_flag_callback = Arc::clone(&stop_flag);

@@ -9,7 +9,10 @@
 use std::time::Duration;
 
 use bbx_dsp::{
-    blocks::{BinauralDecoderBlock, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock, PannerBlock},
+    blocks::{
+        BinauralDecoderBlock, BinauralStrategy, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock,
+        PannerBlock,
+    },
     channel::ChannelLayout,
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
@@ -26,7 +29,10 @@ fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::with_layout(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, ChannelLayout::Stereo);
 
     let mixer_id = builder.add(MixerBlock::new(NUM_SOURCES, num_ambi_channels));
-    let decoder = builder.add(BinauralDecoderBlock::new(AMBISONIC_ORDER));
+    let decoder = builder.add(BinauralDecoderBlock::with_strategy(
+        AMBISONIC_ORDER,
+        BinauralStrategy::Matrix,
+    ));
 
     for ch in 0..num_ambi_channels {
         builder.connect(mixer_id, ch, decoder, ch);

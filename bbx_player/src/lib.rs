@@ -50,12 +50,13 @@ use std::sync::{Arc, atomic::AtomicBool};
 pub use backend::{Backend, PlayHandle};
 #[cfg(feature = "rodio")]
 use backends::RodioBackend;
+use bbx_dsp::sample::Sample;
 pub use error::{PlayerError, Result};
 pub use player::Player;
 pub use signal::Signal;
 pub use source::Source;
 
-/// Play any [`Source<f32>`] through the default audio backend.
+/// Play any [`Source<S>`] through the default audio backend.
 ///
 /// This is a convenience function for playing custom audio sources without
 /// needing to create a [`Player`] or manage backends directly.
@@ -84,7 +85,7 @@ pub use source::Source;
 /// handle.stop();
 /// ```
 #[cfg(feature = "rodio")]
-pub fn play_source<T: Source<f32>>(source: T) -> Result<PlayHandle> {
+pub fn play_source<S: Sample, T: Source<S>>(source: T) -> Result<PlayHandle> {
     let stop_flag = Arc::new(AtomicBool::new(false));
     let handle = PlayHandle::new(Arc::clone(&stop_flag));
 
