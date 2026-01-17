@@ -162,6 +162,17 @@ impl<S: Sample> Block<S> for EnvelopeBlock<S> {
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         Self::MODULATION_OUTPUTS
     }
+
+    fn prepare(&mut self, _context: &DspContext) {
+        self.reset();
+    }
+
+    fn reset(&mut self) {
+        self.stage = EnvelopeStage::Idle;
+        self.level = 0.0;
+        self.stage_time = 0.0;
+        self.release_level = 0.0;
+    }
 }
 
 #[cfg(test)]
@@ -294,6 +305,18 @@ mod tests {
 
         assert!(output[0] < output[output.len() - 1], "Attack should rise over time");
         assert!(output[0] < 0.5, "Attack should start low");
+
+        // Verify attack is monotonically increasing (no unexpected dips)
+        for i in 1..output.len() {
+            assert!(
+                output[i] >= output[i - 1] - 1e-6,
+                "Attack should be monotonically increasing: sample[{}]={} < sample[{}]={}",
+                i,
+                output[i],
+                i - 1,
+                output[i - 1]
+            );
+        }
     }
 
     #[test]
@@ -309,6 +332,18 @@ mod tests {
 
         assert!(output[0] < output[output.len() - 1], "Attack should rise over time");
         assert!(output[0] < 0.5, "Attack should start low");
+
+        // Verify attack is monotonically increasing
+        for i in 1..output.len() {
+            assert!(
+                output[i] >= output[i - 1] - 1e-12,
+                "Attack should be monotonically increasing: sample[{}]={} < sample[{}]={}",
+                i,
+                output[i],
+                i - 1,
+                output[i - 1]
+            );
+        }
     }
 
     #[test]
@@ -581,6 +616,105 @@ mod tests {
                     sample >= 0.0 && sample <= 1.0,
                     "Very short times should still work: {}",
                     sample
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_envelope_attack_timing_f64() {
+        let attack_time = 0.01;
+        let sample_rate = 44100.0;
+        let buffer_size = 512;
+        let mut env = EnvelopeBlock::<f64>::new(attack_time, 0.5, 0.5, 0.5);
+        let context = test_context(buffer_size, sample_rate);
+
+        env.note_on();
+
+        let samples_for_attack = (attack_time * sample_rate) as usize;
+        let buffers_needed = (samples_for_attack / buffer_size) + 2;
+        let mut all_samples = Vec::new();
+
+        for _ in 0..buffers_needed {
+            let output = process_envelope(&mut env, &context);
+            all_samples.extend(output.iter().cloned());
+        }
+
+        // Verify envelope reaches 1.0 within attack time (with some margin)
+        let peak_reached = all_samples
+            .iter()
+            .take(samples_for_attack + buffer_size)
+            .any(|&s| s >= 0.99);
+        assert!(
+            peak_reached,
+            "Envelope should reach peak (~1.0) within attack time ({:.3}s = {} samples)",
+            attack_time, samples_for_attack
+        );
+    }
+
+    #[test]
+    fn test_envelope_decay_monotonically_decreasing_f64() {
+        let mut env = EnvelopeBlock::<f64>::new(0.001, 0.05, 0.5, 0.5);
+        let sample_rate = 44100.0;
+        let context = test_context(512, sample_rate);
+
+        env.note_on();
+
+        // Process through attack to reach peak
+        for _ in 0..5 {
+            let _ = process_envelope(&mut env, &context);
+        }
+
+        // Now we should be in decay phase - collect decay samples
+        let decay_buffer = process_envelope(&mut env, &context);
+
+        // Find where decay starts (first sample that's less than ~1.0)
+        let decay_start = decay_buffer.iter().position(|&s| s < 0.99).unwrap_or(0);
+        let decay_end = decay_buffer.iter().position(|&s| s <= 0.51);
+
+        if let Some(end) = decay_end {
+            // Verify monotonic decrease during decay
+            for i in (decay_start + 1)..end {
+                assert!(
+                    decay_buffer[i] <= decay_buffer[i - 1] + 1e-10,
+                    "Decay should be monotonically decreasing: sample[{}]={} > sample[{}]={}",
+                    i,
+                    decay_buffer[i],
+                    i - 1,
+                    decay_buffer[i - 1]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_envelope_release_monotonically_decreasing_f64() {
+        let mut env = EnvelopeBlock::<f64>::new(0.001, 0.001, 0.7, 0.05);
+        let sample_rate = 44100.0;
+        let context = test_context(512, sample_rate);
+
+        env.note_on();
+
+        // Process to reach sustain
+        for _ in 0..10 {
+            let _ = process_envelope(&mut env, &context);
+        }
+
+        env.note_off();
+
+        // Collect release samples
+        let release_buffer = process_envelope(&mut env, &context);
+
+        // Verify monotonic decrease during release (allowing for floating-point tolerance)
+        for i in 1..release_buffer.len() {
+            if release_buffer[i - 1] > 1e-6 {
+                assert!(
+                    release_buffer[i] <= release_buffer[i - 1] + 1e-10,
+                    "Release should be monotonically decreasing: sample[{}]={} > sample[{}]={}",
+                    i,
+                    release_buffer[i],
+                    i - 1,
+                    release_buffer[i - 1]
                 );
             }
         }

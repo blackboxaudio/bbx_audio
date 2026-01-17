@@ -139,6 +139,17 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
         self.drive_smoother.reset(sample_rate, ramp_time_ms);
         self.level_smoother.reset(sample_rate, ramp_time_ms);
     }
+
+    fn prepare(&mut self, context: &DspContext) {
+        self.update_filter(context.sample_rate);
+        self.drive_smoother.reset(context.sample_rate, 10.0);
+        self.level_smoother.reset(context.sample_rate, 10.0);
+        self.reset();
+    }
+
+    fn reset(&mut self) {
+        self.filter_state = [0.0; MAX_BLOCK_OUTPUTS];
+    }
 }
 
 #[cfg(test)]

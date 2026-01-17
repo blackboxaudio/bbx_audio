@@ -27,7 +27,6 @@ pub struct LowPassFilterBlock<S: Sample> {
 
     ic1eq: [f64; MAX_BLOCK_OUTPUTS],
     ic2eq: [f64; MAX_BLOCK_OUTPUTS],
-    sample_rate: f64,
 }
 
 impl<S: Sample> LowPassFilterBlock<S> {
@@ -43,19 +42,7 @@ impl<S: Sample> LowPassFilterBlock<S> {
             resonance: Parameter::Constant(S::from_f64(resonance)),
             ic1eq: [0.0; MAX_BLOCK_OUTPUTS],
             ic2eq: [0.0; MAX_BLOCK_OUTPUTS],
-            sample_rate: 44100.0,
         }
-    }
-
-    /// Set the sample rate for coefficient calculation.
-    pub fn set_sample_rate(&mut self, sample_rate: f64) {
-        self.sample_rate = sample_rate;
-    }
-
-    /// Reset filter state (clear delay lines).
-    pub fn reset(&mut self) {
-        self.ic1eq = [0.0; MAX_BLOCK_OUTPUTS];
-        self.ic2eq = [0.0; MAX_BLOCK_OUTPUTS];
     }
 }
 
@@ -137,6 +124,15 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
     #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
+    }
+
+    fn prepare(&mut self, _context: &DspContext) {
+        self.reset();
+    }
+
+    fn reset(&mut self) {
+        self.ic1eq = [0.0; MAX_BLOCK_OUTPUTS];
+        self.ic2eq = [0.0; MAX_BLOCK_OUTPUTS];
     }
 }
 
@@ -254,9 +250,40 @@ mod tests {
     }
 
     #[test]
-    fn test_low_pass_filter_set_sample_rate() {
+    fn test_low_pass_filter_prepare_resets_state() {
         let mut filter = LowPassFilterBlock::<f32>::new(1000.0, 0.707);
-        filter.set_sample_rate(48000.0);
-        assert_eq!(filter.sample_rate, 48000.0);
+        let context = test_context(64);
+
+        let input: [f32; 64] = [1.0; 64];
+        let mut output: [f32; 64] = [0.0; 64];
+
+        let inputs: [&[f32]; 1] = [&input];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+
+        filter.process(&inputs, &mut outputs, &[], &context);
+
+        let new_context = DspContext {
+            sample_rate: 48000.0,
+            num_channels: 6,
+            buffer_size: 64,
+            current_sample: 0,
+            channel_layout: ChannelLayout::Surround51,
+        };
+        filter.prepare(&new_context);
+
+        let mut fresh_filter = LowPassFilterBlock::<f32>::new(1000.0, 0.707);
+        let mut output_used: [f32; 64] = [0.0; 64];
+        let mut output_fresh: [f32; 64] = [0.0; 64];
+
+        let mut outputs_used: [&mut [f32]; 1] = [&mut output_used];
+        let mut outputs_fresh: [&mut [f32]; 1] = [&mut output_fresh];
+
+        filter.process(&inputs, &mut outputs_used, &[], &new_context);
+        fresh_filter.process(&inputs, &mut outputs_fresh, &[], &new_context);
+
+        assert!(
+            (output_used[0] - output_fresh[0]).abs() < 1e-6,
+            "After prepare(), filter should behave like a fresh filter"
+        );
     }
 }

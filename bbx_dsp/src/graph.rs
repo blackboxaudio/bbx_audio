@@ -166,6 +166,38 @@ impl<S: Sample> Graph<S> {
         self.blocks.get_mut(id.0)
     }
 
+    /// Prepare the graph for processing with new audio context parameters.
+    ///
+    /// Call this when the sample rate, buffer size, or channel count changes.
+    /// Propagates to all blocks, allowing them to recalculate coefficients
+    /// and reset state that would cause glitches at the new settings.
+    ///
+    /// # Arguments
+    /// * `sample_rate` - New sample rate in Hz
+    /// * `buffer_size` - New buffer size in samples
+    /// * `num_channels` - New number of audio channels
+    pub fn prepare(&mut self, sample_rate: f64, buffer_size: usize, num_channels: usize) {
+        self.context.sample_rate = sample_rate;
+        self.context.buffer_size = buffer_size;
+        self.context.num_channels = num_channels;
+        self.buffer_size = buffer_size;
+
+        for block in &mut self.blocks {
+            block.prepare(&self.context);
+        }
+    }
+
+    /// Reset all blocks in the graph to their initial state.
+    ///
+    /// Clears delay lines, filter states, phase accumulators, etc.
+    /// Useful when starting fresh playback or when the audio stream
+    /// is discontinuous.
+    pub fn reset(&mut self) {
+        for block in &mut self.blocks {
+            block.reset();
+        }
+    }
+
     /// Add an arbitrary block to the `Graph`.
     pub fn add_block(&mut self, block: BlockType<S>) -> BlockId {
         let block_id = BlockId(self.blocks.len());

@@ -155,6 +155,27 @@ graph.prepare_for_playback();
 
 Note: `GraphBuilder::build()` calls this automatically.
 
+### Handling Audio Context Changes
+
+Call `prepare()` when sample rate, buffer size, or channel count changes:
+
+```rust
+// Sample rate changed to 48kHz, buffer size to 256
+graph.prepare(48000.0, 256, 2);
+```
+
+This propagates to all blocks, allowing them to recalculate sample-rate-dependent coefficients and reset any state that would cause glitches.
+
+### Resetting State
+
+Call `reset()` to clear all block state without changing configuration:
+
+```rust
+graph.reset();
+```
+
+This clears delay lines, filter states, phase accumulators, etc. Useful when starting fresh playback or when the audio stream is discontinuous.
+
 ### Finalization
 
 For file output, call `finalize()` to flush buffers:

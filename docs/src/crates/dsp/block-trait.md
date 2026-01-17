@@ -6,9 +6,6 @@ The `Block` trait defines the interface for DSP processing blocks.
 
 ```rust
 pub trait Block<S: Sample> {
-    /// Prepare for playback with given context
-    fn prepare(&mut self, _context: &DspContext) {}
-
     /// Process audio through the block
     fn process(
         &mut self,
@@ -31,6 +28,15 @@ pub trait Block<S: Sample> {
     fn channel_config(&self) -> ChannelConfig {
         ChannelConfig::Parallel
     }
+
+    /// Configure smoothing time for parameter changes
+    fn set_smoothing(&mut self, _sample_rate: f64, _ramp_time_ms: f64) {}
+
+    /// Prepare for playback with given context
+    fn prepare(&mut self, _context: &DspContext) {}
+
+    /// Reset internal state to initial values
+    fn reset(&mut self) {}
 }
 ```
 
@@ -164,12 +170,39 @@ fn modulation_outputs(&self) -> &[ModulationOutput] { &[] }
 
 ### prepare
 
-Called when audio specs change:
+Called when audio context changes (sample rate, buffer size, channel count). Blocks should recalculate sample-rate-dependent coefficients and reset any state that would cause glitches:
 
 ```rust
 fn prepare(&mut self, context: &DspContext) {
     // Recalculate filter coefficients for new sample rate
     self.coefficient = calculate_coefficient(context.sample_rate);
+
+    // Reset internal state to prevent glitches
+    self.filter_state = S::ZERO;
+}
+```
+
+### reset
+
+Called to reset internal state to initial values without changing configuration. Useful for clearing delay lines, filter states, and phase accumulators when starting fresh playback:
+
+```rust
+fn reset(&mut self) {
+    // Clear filter state
+    self.filter_state = S::ZERO;
+
+    // Reset phase accumulator
+    self.phase = S::ZERO;
+}
+```
+
+### set_smoothing
+
+Called to configure smoothing time for parameter changes. Blocks with parameter smoothing should update their internal smoothers:
+
+```rust
+fn set_smoothing(&mut self, sample_rate: f64, ramp_time_ms: f64) {
+    self.gain_smoother.reset(sample_rate, ramp_time_ms);
 }
 ```
 

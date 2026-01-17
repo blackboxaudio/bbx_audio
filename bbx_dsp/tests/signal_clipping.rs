@@ -1,7 +1,18 @@
-//! Diagnostic tests for signal level and clipping issues.
+//! Signal level and clipping tests.
 //!
 //! These tests systematically isolate each component of the synth signal chain
-//! to identify where clipping (samples > ±1.0) may occur.
+//! to verify amplitude bounds at each processing stage.
+//!
+//! # Tolerance Constants
+//!
+//! - POLYBLEP_TOLERANCE (1.05): PolyBLEP/PolyBLAMP anti-aliasing can overshoot by ~5% near waveform discontinuities.
+//!   This is expected behavior for band-limited synthesis.
+//!
+//! - TRIANGLE_TOLERANCE (1.15): Triangle waves have additional overshoot at high frequencies due to PolyBLAMP's 8x
+//!   scaling factor for the BLAMP correction.
+//!
+//! - HIGH_Q_FILTER_TOLERANCE (2.05): Resonant filters with Q > 1 can boost frequencies near cutoff. With 2/Q
+//!   compensation, peak gain is limited to ~2x.
 
 use bbx_dsp::{
     block::{Block, BlockType},
@@ -11,6 +22,10 @@ use bbx_dsp::{
     graph::GraphBuilder,
     waveform::Waveform,
 };
+
+const POLYBLEP_TOLERANCE: f64 = 1.05;
+const TRIANGLE_TOLERANCE: f64 = 1.15;
+const HIGH_Q_FILTER_TOLERANCE: f64 = 2.05;
 
 fn make_context(sample_rate: f64, buffer_size: usize) -> DspContext {
     DspContext {
@@ -58,12 +73,10 @@ fn test_oscillator_peak_amplitude_by_waveform() {
                 }
             }
 
-            // Triangle wave has overshoot at high frequencies due to PolyBLAMP scaling (8x factor)
-            // This is a known limitation that increases with frequency - investigate separately
             let tolerance = if matches!(waveform, Waveform::Triangle) {
-                1.15
+                TRIANGLE_TOLERANCE
             } else {
-                1.05
+                POLYBLEP_TOLERANCE
             };
             assert!(
                 max_amplitude <= tolerance,
@@ -130,7 +143,6 @@ fn test_filter_resonance_gain() {
 
     for q in q_values {
         let mut filter = LowPassFilterBlock::<f64>::new(cutoff, q);
-        filter.set_sample_rate(sample_rate);
 
         let context = make_context(sample_rate, buffer_size);
         let test_freq = cutoff;
@@ -156,13 +168,11 @@ fn test_filter_resonance_gain() {
             }
         }
 
-        let gain_db = 20.0 * max_output.log10();
-        eprintln!("Filter Q={:.3}: peak = {:.4} ({:.2}dB)", q, max_output, gain_db);
-
         assert!(
-            max_output <= 2.05,
-            "Q={} should not exceed 2.05, got {:.4}",
+            max_output <= HIGH_Q_FILTER_TOLERANCE,
+            "Q={} should not exceed {:.2}, got {:.4}",
             q,
+            HIGH_Q_FILTER_TOLERANCE,
             max_output
         );
     }
@@ -196,11 +206,16 @@ fn test_chain_oscillator_only() {
             }
         }
 
-        eprintln!("Oscillator only ({:?}): max = {:.6}", waveform, max_amplitude);
+        let tolerance = if matches!(waveform, Waveform::Triangle) {
+            TRIANGLE_TOLERANCE
+        } else {
+            POLYBLEP_TOLERANCE
+        };
         assert!(
-            max_amplitude <= 1.05,
-            "Oscillator {:?} exceeds bounds: {:.6}",
+            max_amplitude <= tolerance,
+            "Oscillator {:?} exceeds bounds ({}): {:.6}",
             waveform,
+            tolerance,
             max_amplitude
         );
     }
@@ -222,7 +237,6 @@ fn test_chain_oscillator_plus_vca() {
 
     let mut graph = builder.build();
 
-    // Trigger envelope
     if let Some(BlockType::Envelope(envelope)) = graph.get_block_mut(env) {
         envelope.note_on();
     }
@@ -240,12 +254,16 @@ fn test_chain_oscillator_plus_vca() {
         }
     }
 
-    eprintln!("Osc + VCA: max = {:.6}", max_amplitude);
-    assert!(max_amplitude <= 1.05, "Osc+VCA exceeds bounds: {:.6}", max_amplitude);
+    assert!(
+        max_amplitude <= POLYBLEP_TOLERANCE,
+        "Osc+VCA exceeds bounds ({}): {:.6}",
+        POLYBLEP_TOLERANCE,
+        max_amplitude
+    );
 }
 
 /// Test oscillator + VCA + filter at various Q values.
-/// This demonstrates that high Q causes clipping.
+/// With 2/Q compensation, even high Q filters should stay within bounds.
 #[test]
 fn test_chain_oscillator_vca_filter() {
     let sample_rate = 44100.0;
@@ -281,15 +299,18 @@ fn test_chain_oscillator_vca_filter() {
             }
         }
 
-        eprintln!("Osc + VCA + Filter (Q={}): max = {:.6}", q, max_amplitude);
-
-        if q > 1.0 && max_amplitude > 1.0 {
-            eprintln!("  -> CLIPPING DETECTED at Q={}", q);
-        }
+        assert!(
+            max_amplitude <= HIGH_Q_FILTER_TOLERANCE,
+            "Osc+VCA+Filter (Q={}) exceeds bounds ({}): {:.6}",
+            q,
+            HIGH_Q_FILTER_TOLERANCE,
+            max_amplitude
+        );
     }
 }
 
 /// Test full synth chain with gain stage.
+/// With 2/Q compensation, even high Q (5.0) should stay within bounds.
 #[test]
 fn test_full_synth_chain() {
     let sample_rate = 44100.0;
@@ -299,8 +320,8 @@ fn test_full_synth_chain() {
     let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sawtooth, Some(42)));
     let env = builder.add(EnvelopeBlock::new(0.01, 0.1, 0.8, 0.2));
     let vca = builder.add(VcaBlock::new());
-    let filter = builder.add(LowPassFilterBlock::new(1000.0, 5.0)); // High resonance
-    let gain = builder.add(GainBlock::new(0.0, None)); // 0 dB = unity
+    let filter = builder.add(LowPassFilterBlock::new(1000.0, 5.0));
+    let gain = builder.add(GainBlock::new(0.0, None));
 
     builder.connect(osc, 0, vca, 0);
     builder.connect(env, 0, vca, 1);
@@ -325,12 +346,12 @@ fn test_full_synth_chain() {
         }
     }
 
-    eprintln!("Full chain (Q=5.0): max = {:.6}", max_amplitude);
-
-    // Document that high Q causes clipping in the full chain
-    if max_amplitude > 1.0 {
-        eprintln!("  -> Full chain clips at high resonance");
-    }
+    assert!(
+        max_amplitude <= HIGH_Q_FILTER_TOLERANCE,
+        "Full synth chain (Q=5.0) exceeds bounds ({}): {:.6}",
+        HIGH_Q_FILTER_TOLERANCE,
+        max_amplitude
+    );
 }
 
 /// Test filter at high cutoff (20kHz) with low Q values.
@@ -344,7 +365,6 @@ fn test_filter_high_cutoff_low_q() {
 
     for q in q_values {
         let mut filter = LowPassFilterBlock::<f64>::new(cutoff, q);
-        filter.set_sample_rate(sample_rate);
 
         let context = make_context(sample_rate, buffer_size);
         let test_freq = 18000.0;
@@ -370,16 +390,11 @@ fn test_filter_high_cutoff_low_q() {
             }
         }
 
-        let gain_db = 20.0 * max_output.log10();
-        eprintln!(
-            "High cutoff (20kHz), Q={:.3}: peak = {:.4} ({:.2}dB)",
-            q, max_output, gain_db
-        );
-
         assert!(
-            max_output <= 1.05,
-            "High cutoff Q={} should not exceed 1.05, got {:.4}",
+            max_output <= POLYBLEP_TOLERANCE,
+            "High cutoff (20kHz) Q={} should not exceed {}, got {:.4}",
             q,
+            POLYBLEP_TOLERANCE,
             max_output
         );
     }

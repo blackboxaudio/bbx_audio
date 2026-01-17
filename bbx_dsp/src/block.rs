@@ -102,6 +102,24 @@ pub trait Block<S: Sample> {
     ///
     /// Default implementation is a no-op for blocks without smoothing.
     fn set_smoothing(&mut self, _sample_rate: f64, _ramp_time_ms: f64) {}
+
+    /// Prepare the block for processing with the given audio context.
+    ///
+    /// Called when audio context changes (sample rate, buffer size, channel count).
+    /// Blocks should recalculate sample-rate-dependent coefficients and reset
+    /// any state that would cause glitches at the new settings.
+    ///
+    /// Default implementation is a no-op for stateless blocks.
+    fn prepare(&mut self, _context: &DspContext) {}
+
+    /// Reset the block's internal state to initial values.
+    ///
+    /// Called to clear delay lines, filter states, phase accumulators, etc.
+    /// without changing configuration. Useful for starting fresh playback
+    /// or when the audio stream is discontinuous.
+    ///
+    /// Default implementation is a no-op for stateless blocks.
+    fn reset(&mut self) {}
 }
 
 /// Type-erased container for all block implementations.
@@ -338,6 +356,76 @@ impl<S: Sample> BlockType<S> {
             BlockType::Gain(block) => block.set_smoothing(sample_rate, ramp_time_ms),
             BlockType::Overdrive(block) => block.set_smoothing(sample_rate, ramp_time_ms),
             _ => {} // Blocks without smoothing use default no-op
+        }
+    }
+
+    /// Prepare the block for processing with the given audio context.
+    ///
+    /// Propagates to the underlying block implementation. Stateful blocks
+    /// will recalculate coefficients and reset internal state.
+    pub fn prepare(&mut self, context: &DspContext) {
+        match self {
+            // I/O
+            BlockType::FileInput(block) => block.prepare(context),
+            BlockType::FileOutput(block) => block.prepare(context),
+            BlockType::Output(block) => block.prepare(context),
+
+            // GENERATORS
+            BlockType::Oscillator(block) => block.prepare(context),
+
+            // EFFECTORS
+            BlockType::AmbisonicDecoder(block) => block.prepare(context),
+            BlockType::BinauralDecoder(block) => block.prepare(context),
+            BlockType::ChannelMerger(block) => block.prepare(context),
+            BlockType::ChannelRouter(block) => block.prepare(context),
+            BlockType::ChannelSplitter(block) => block.prepare(context),
+            BlockType::DcBlocker(block) => block.prepare(context),
+            BlockType::Gain(block) => block.prepare(context),
+            BlockType::LowPassFilter(block) => block.prepare(context),
+            BlockType::MatrixMixer(block) => block.prepare(context),
+            BlockType::Mixer(block) => block.prepare(context),
+            BlockType::Overdrive(block) => block.prepare(context),
+            BlockType::Panner(block) => block.prepare(context),
+            BlockType::Vca(block) => block.prepare(context),
+
+            // MODULATORS
+            BlockType::Envelope(block) => block.prepare(context),
+            BlockType::Lfo(block) => block.prepare(context),
+        }
+    }
+
+    /// Reset the block's internal state to initial values.
+    ///
+    /// Propagates to the underlying block implementation. Clears delay lines,
+    /// filter states, phase accumulators, etc.
+    pub fn reset(&mut self) {
+        match self {
+            // I/O
+            BlockType::FileInput(block) => block.reset(),
+            BlockType::FileOutput(block) => block.reset(),
+            BlockType::Output(block) => block.reset(),
+
+            // GENERATORS
+            BlockType::Oscillator(block) => block.reset(),
+
+            // EFFECTORS
+            BlockType::AmbisonicDecoder(block) => block.reset(),
+            BlockType::BinauralDecoder(block) => block.reset(),
+            BlockType::ChannelMerger(block) => block.reset(),
+            BlockType::ChannelRouter(block) => block.reset(),
+            BlockType::ChannelSplitter(block) => block.reset(),
+            BlockType::DcBlocker(block) => block.reset(),
+            BlockType::Gain(block) => block.reset(),
+            BlockType::LowPassFilter(block) => block.reset(),
+            BlockType::MatrixMixer(block) => block.reset(),
+            BlockType::Mixer(block) => block.reset(),
+            BlockType::Overdrive(block) => block.reset(),
+            BlockType::Panner(block) => block.reset(),
+            BlockType::Vca(block) => block.reset(),
+
+            // MODULATORS
+            BlockType::Envelope(block) => block.reset(),
+            BlockType::Lfo(block) => block.reset(),
         }
     }
 
