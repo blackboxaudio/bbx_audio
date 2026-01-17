@@ -10,8 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - mdBook documentation with comprehensive guides
 - Denormal handling support for Apple Silicon (AArch64)
 - `ftz-daz` feature flag for flush-to-zero / denormals-are-zero mode
-- `Block::prepare()` method for handling sample rate and context changes
-- `Block::reset()` method for clearing internal state without reconfiguration
+- `Block::prepare()` and `Graph::prepare()` methods for handling sample rate and context changes
+- `Block::reset()` and `Graph::reset()` methods for clearing internal state without reconfiguration
 
 ### Changed
 - Improved parameter initialization with dynamic approach
