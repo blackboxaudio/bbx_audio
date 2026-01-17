@@ -96,3 +96,253 @@ fn normalize_matrix(matrix: &mut [[f64; MAX_BLOCK_INPUTS]; 2], order: usize) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EPSILON: f64 = 1e-10;
+    const ENERGY_SCALE: f64 = 0.7071067811865476; // 1/sqrt(2)
+
+    // ==================== FOA (order 1) tests ====================
+
+    #[test]
+    fn foa_returns_4_channels() {
+        let matrix = compute_matrix(1);
+        let num_channels = 4;
+
+        for ch in 0..num_channels {
+            assert!(
+                matrix[0][ch].abs() > EPSILON || matrix[1][ch].abs() > EPSILON,
+                "Channel {ch} should have non-zero coefficients"
+            );
+        }
+
+        for ch in num_channels..MAX_BLOCK_INPUTS {
+            assert!(
+                matrix[0][ch].abs() < EPSILON && matrix[1][ch].abs() < EPSILON,
+                "Channel {ch} should be zero for FOA"
+            );
+        }
+    }
+
+    #[test]
+    fn foa_w_channel_is_symmetric() {
+        let matrix = compute_matrix(1);
+
+        assert!((matrix[0][0] - matrix[1][0]).abs() < EPSILON);
+    }
+
+    #[test]
+    fn foa_y_channel_is_negated() {
+        let matrix = compute_matrix(1);
+
+        assert!((matrix[0][1] + matrix[1][1]).abs() < EPSILON);
+        assert!(matrix[0][1] > 0.0);
+        assert!(matrix[1][1] < 0.0);
+    }
+
+    #[test]
+    fn foa_z_channel_is_symmetric() {
+        let matrix = compute_matrix(1);
+
+        assert!((matrix[0][2] - matrix[1][2]).abs() < EPSILON);
+    }
+
+    #[test]
+    fn foa_x_channel_is_symmetric() {
+        let matrix = compute_matrix(1);
+
+        assert!((matrix[0][3] - matrix[1][3]).abs() < EPSILON);
+    }
+
+    #[test]
+    fn foa_is_normalized() {
+        let matrix = compute_matrix(1);
+
+        let expected_w = 0.5 * ENERGY_SCALE;
+        assert!((matrix[0][0] - expected_w).abs() < EPSILON);
+    }
+
+    // ==================== SOA (order 2) tests ====================
+
+    #[test]
+    fn soa_returns_9_channels() {
+        let matrix = compute_matrix(2);
+        let num_channels = 9;
+
+        for ch in 0..num_channels {
+            assert!(
+                matrix[0][ch].abs() > EPSILON || matrix[1][ch].abs() > EPSILON,
+                "Channel {ch} should have non-zero coefficients"
+            );
+        }
+
+        for ch in num_channels..MAX_BLOCK_INPUTS {
+            assert!(
+                matrix[0][ch].abs() < EPSILON && matrix[1][ch].abs() < EPSILON,
+                "Channel {ch} should be zero for SOA"
+            );
+        }
+    }
+
+    #[test]
+    fn soa_y_channel_is_negated() {
+        let matrix = compute_matrix(2);
+
+        assert!((matrix[0][1] + matrix[1][1]).abs() < EPSILON);
+    }
+
+    #[test]
+    fn soa_v_channel_is_negated() {
+        let matrix = compute_matrix(2);
+
+        assert!((matrix[0][4] + matrix[1][4]).abs() < EPSILON);
+    }
+
+    #[test]
+    fn soa_is_normalized() {
+        let matrix = compute_matrix(2);
+
+        let expected_w = 0.45 * ENERGY_SCALE;
+        assert!((matrix[0][0] - expected_w).abs() < EPSILON);
+    }
+
+    // ==================== TOA (order 3) tests ====================
+
+    #[test]
+    fn toa_returns_16_channels() {
+        let matrix = compute_matrix(3);
+
+        for ch in 0..16 {
+            assert!(
+                matrix[0][ch].abs() > EPSILON || matrix[1][ch].abs() > EPSILON,
+                "Channel {ch} should have non-zero coefficients"
+            );
+        }
+    }
+
+    #[test]
+    fn toa_y_channel_is_negated() {
+        let matrix = compute_matrix(3);
+
+        assert!((matrix[0][1] + matrix[1][1]).abs() < EPSILON);
+    }
+
+    #[test]
+    fn toa_w_channel_is_symmetric() {
+        let matrix = compute_matrix(3);
+
+        assert!((matrix[0][0] - matrix[1][0]).abs() < EPSILON);
+    }
+
+    #[test]
+    fn toa_is_normalized() {
+        let matrix = compute_matrix(3);
+
+        let expected_w = 0.42 * ENERGY_SCALE;
+        assert!((matrix[0][0] - expected_w).abs() < EPSILON);
+    }
+
+    // ==================== invalid order tests ====================
+
+    #[test]
+    #[should_panic(expected = "Ambisonic order must be 1, 2, or 3")]
+    fn order_0_panics() {
+        compute_matrix(0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Ambisonic order must be 1, 2, or 3")]
+    fn order_4_panics() {
+        compute_matrix(4);
+    }
+
+    // ==================== matrix dimension tests ====================
+
+    #[test]
+    fn matrix_has_two_rows() {
+        let matrix = compute_matrix(1);
+        assert_eq!(matrix.len(), 2);
+    }
+
+    #[test]
+    fn matrix_has_max_block_inputs_columns() {
+        let matrix = compute_matrix(1);
+        assert_eq!(matrix[0].len(), MAX_BLOCK_INPUTS);
+        assert_eq!(matrix[1].len(), MAX_BLOCK_INPUTS);
+    }
+
+    // ==================== normalization tests ====================
+
+    #[test]
+    fn normalization_applies_energy_scale() {
+        let mut matrix = [[0.0; MAX_BLOCK_INPUTS]; 2];
+        matrix[0][0] = 1.0;
+        matrix[1][0] = 1.0;
+
+        normalize_matrix(&mut matrix, 1);
+
+        assert!((matrix[0][0] - ENERGY_SCALE).abs() < EPSILON);
+        assert!((matrix[1][0] - ENERGY_SCALE).abs() < EPSILON);
+    }
+
+    #[test]
+    fn normalization_only_affects_relevant_channels() {
+        let mut matrix = [[0.0; MAX_BLOCK_INPUTS]; 2];
+        for i in 0..MAX_BLOCK_INPUTS {
+            matrix[0][i] = 1.0;
+            matrix[1][i] = 1.0;
+        }
+
+        normalize_matrix(&mut matrix, 1);
+
+        for i in 0..4 {
+            assert!(
+                (matrix[0][i] - ENERGY_SCALE).abs() < EPSILON,
+                "Channel {i} should be normalized"
+            );
+        }
+        for i in 4..MAX_BLOCK_INPUTS {
+            assert!(
+                (matrix[0][i] - 1.0).abs() < EPSILON,
+                "Channel {i} should not be normalized"
+            );
+        }
+    }
+
+    // ==================== left/right symmetry tests ====================
+
+    #[test]
+    fn all_orders_have_symmetric_w_channel() {
+        for order in 1..=3 {
+            let matrix = compute_matrix(order);
+            assert!(
+                (matrix[0][0] - matrix[1][0]).abs() < EPSILON,
+                "Order {order} W channel should be symmetric"
+            );
+        }
+    }
+
+    #[test]
+    fn all_orders_have_negated_y_channel() {
+        for order in 1..=3 {
+            let matrix = compute_matrix(order);
+            assert!(
+                (matrix[0][1] + matrix[1][1]).abs() < EPSILON,
+                "Order {order} Y channel should be negated"
+            );
+        }
+    }
+
+    #[test]
+    fn all_orders_have_symmetric_x_channel() {
+        for order in 1..=3 {
+            let matrix = compute_matrix(order);
+            assert!(
+                (matrix[0][3] - matrix[1][3]).abs() < EPSILON,
+                "Order {order} X channel should be symmetric"
+            );
+        }
+    }
+}

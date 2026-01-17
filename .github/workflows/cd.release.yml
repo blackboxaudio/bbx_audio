@@ -255,17 +255,22 @@ jobs:
           ref: ${{ needs.validate.outputs.version }}
           fetch-depth: 0
 
-      - name: Generate Changelog
+      - name: Extract Changelog
         id: changelog
+        env:
+          VERSION: ${{ needs.validate.outputs.semver }}
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"- %s" HEAD)
-          else
-            COMMITS=$(git log --pretty=format:"- %s" ${PREV_TAG}..HEAD)
-          fi
-          echo "commits<<EOF" >> $GITHUB_OUTPUT
-          echo "$COMMITS" >> $GITHUB_OUTPUT
+          # Extract content between ## [VERSION] and the next ## [ (or EOF)
+          CONTENT=$(awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if ($0 ~ "\\[" ver "\\]") found=1
+            }
+            found && !/^## \[/ { print }
+          ' CHANGELOG.md)
+
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
@@ -274,10 +279,7 @@ jobs:
           tag_name: ${{ needs.validate.outputs.version }}
           name: ${{ needs.validate.outputs.version }}
           body: |
-            ## Changes
-
-            ${{ steps.changelog.outputs.commits }}
-
+            ${{ steps.changelog.outputs.content }}
             ## Installation
 
             ### Rust

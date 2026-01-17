@@ -119,7 +119,7 @@ pub struct Graph<S: Sample> {
     context: DspContext,
 
     // Pre-computed connection lookups: block_id -> [input buffer indices]
-    // Computed once in prepare_for_playback() for O(1) lookup during processing
+    // Computed once in prepare() for O(1) lookup during processing
     block_input_buffers: Vec<Vec<usize>>,
 }
 
@@ -166,16 +166,19 @@ impl<S: Sample> Graph<S> {
         self.blocks.get_mut(id.0)
     }
 
-    /// Prepare the graph for processing with new audio context parameters.
+    /// Prepare the graph for processing with audio context parameters.
     ///
     /// Call this when the sample rate, buffer size, or channel count changes.
     /// Propagates to all blocks, allowing them to recalculate coefficients
     /// and reset state that would cause glitches at the new settings.
     ///
+    /// This method also computes the execution order and pre-allocates buffers.
+    /// It is called automatically by [`GraphBuilder::build()`].
+    ///
     /// # Arguments
-    /// * `sample_rate` - New sample rate in Hz
-    /// * `buffer_size` - New buffer size in samples
-    /// * `num_channels` - New number of audio channels
+    /// * `sample_rate` - Sample rate in Hz
+    /// * `buffer_size` - Buffer size in samples
+    /// * `num_channels` - Number of audio channels
     pub fn prepare(&mut self, sample_rate: f64, buffer_size: usize, num_channels: usize) {
         self.context.sample_rate = sample_rate;
         self.context.buffer_size = buffer_size;
@@ -185,6 +188,20 @@ impl<S: Sample> Graph<S> {
         for block in &mut self.blocks {
             block.prepare(&self.context);
         }
+
+        // Compute execution order and pre-allocate modulation value storage
+        self.execution_order = self.topological_sort();
+        self.modulation_values.resize(self.blocks.len(), S::ZERO);
+
+        // Pre-compute input buffer indices for each block (O(1) lookup during processing)
+        self.block_input_buffers = vec![Vec::new(); self.blocks.len()];
+        for conn in &self.connections {
+            let buffer_idx = self.get_buffer_index(conn.from, conn.from_output);
+            self.block_input_buffers[conn.to.0].push(buffer_idx);
+        }
+
+        #[cfg(debug_assertions)]
+        self.validate_buffer_indices();
     }
 
     /// Reset all blocks in the graph to their initial state.
@@ -229,26 +246,6 @@ impl<S: Sample> Graph<S> {
             to,
             to_input,
         })
-    }
-
-    /// Prepares the graph for audio processing.
-    ///
-    /// Must be called after all blocks are added and connected, but before
-    /// [`process_buffers`](Self::process_buffers). Computes execution order
-    /// and pre-allocates buffers.
-    pub fn prepare_for_playback(&mut self) {
-        self.execution_order = self.topological_sort();
-        self.modulation_values.resize(self.blocks.len(), S::ZERO);
-
-        // Pre-compute input buffer indices for each block (O(1) lookup during processing)
-        self.block_input_buffers = vec![Vec::new(); self.blocks.len()];
-        for conn in &self.connections {
-            let buffer_idx = self.get_buffer_index(conn.from, conn.from_output);
-            self.block_input_buffers[conn.to.0].push(buffer_idx);
-        }
-
-        #[cfg(debug_assertions)]
-        self.validate_buffer_indices();
     }
 
     /// Validates that input and output buffer indices never overlap for any block.
@@ -571,6 +568,8 @@ impl<S: Sample> GraphBuilder<S> {
     /// Panics if any block has more inputs or outputs than the realtime-safe
     /// limits (`MAX_BLOCK_INPUTS` or `MAX_BLOCK_OUTPUTS`).
     pub fn build(mut self) -> Graph<S> {
+        let sample_rate = self.graph.context.sample_rate;
+        let buffer_size = self.graph.context.buffer_size;
         let num_channels = self.graph.context.num_channels;
 
         // Check if developer already added an output block
@@ -635,7 +634,7 @@ impl<S: Sample> GraphBuilder<S> {
             }
         }
 
-        self.graph.prepare_for_playback();
+        self.graph.prepare(sample_rate, buffer_size, num_channels);
 
         // Validate that all blocks are within realtime-safe I/O limits
         for (idx, block) in self.graph.blocks.iter().enumerate() {

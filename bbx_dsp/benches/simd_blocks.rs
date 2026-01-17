@@ -163,7 +163,7 @@ fn bench_low_pass_filter<S: Sample>(c: &mut Criterion, type_name: &str) {
         group.bench_with_input(bench_id, buffer_size, |b, &size| {
             let context = create_context(size);
             let mut block = LowPassFilterBlock::<S>::new(1000.0, 0.707);
-            block.set_sample_rate(SAMPLE_RATE);
+            block.prepare(&context);
             let inputs = create_input_buffers::<S>(size, 1);
             let mut outputs = create_output_buffers::<S>(size, 1);
             let modulation_values: Vec<S> = vec![];
