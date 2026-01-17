@@ -49,7 +49,7 @@ fn get_buffer_index(&self, block_id: BlockId, output_index: usize) -> usize {
 Input connections are pre-computed for O(1) access:
 
 ```rust
-// Pre-computed during prepare_for_playback()
+// Pre-computed during prepare()
 self.block_input_buffers = vec![Vec::new(); self.blocks.len()];
 for conn in &self.connections {
     let buffer_idx = self.get_buffer_index(conn.from, conn.from_output);

@@ -145,16 +145,6 @@ let mut outputs: [&mut [f32]; 2] = [&mut left, &mut right];
 graph.process_buffers(&mut outputs);
 ```
 
-### Preparing for Playback
-
-Call `prepare_for_playback()` before processing:
-
-```rust
-graph.prepare_for_playback();
-```
-
-Note: `GraphBuilder::build()` calls this automatically.
-
 ### Handling Audio Context Changes
 
 Call `prepare()` when sample rate, buffer size, or channel count changes:
@@ -164,7 +154,9 @@ Call `prepare()` when sample rate, buffer size, or channel count changes:
 graph.prepare(48000.0, 256, 2);
 ```
 
-This propagates to all blocks, allowing them to recalculate sample-rate-dependent coefficients and reset any state that would cause glitches.
+This computes the execution order, pre-allocates buffers, and propagates to all blocks, allowing them to recalculate sample-rate-dependent coefficients and reset any state that would cause glitches.
+
+Note: `GraphBuilder::build()` calls this automatically with the initial settings.
 
 ### Resetting State
 

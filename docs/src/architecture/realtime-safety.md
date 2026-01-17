@@ -56,7 +56,7 @@ let mut input_slices: StackVec<&[S], MAX_BLOCK_INPUTS> = StackVec::new();
 Connection indices computed during prepare:
 
 ```rust
-// Computed once in prepare_for_playback()
+// Computed once in prepare()
 self.block_input_buffers = vec![Vec::new(); self.blocks.len()];
 
 // O(1) lookup during processing

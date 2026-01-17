@@ -50,7 +50,7 @@ Storage allocated once, reused forever:
 audio_buffers: Vec<AudioBuffer<S>>,
 modulation_values: Vec<S>,
 
-// In prepare_for_playback()
+// In prepare()
 self.modulation_values.resize(self.blocks.len(), S::ZERO);
 
 // In process_buffers() - just clear, no resize

@@ -90,7 +90,7 @@ pub fn process_buffers(&mut self, output_buffers: &mut [&mut [S]]) {
 
 ### Pre-allocation
 
-All buffers are allocated during `prepare_for_playback()`:
+All buffers are allocated during `prepare()`:
 
 - No allocations during processing
 - Fixed buffer sizes
