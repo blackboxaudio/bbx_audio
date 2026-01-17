@@ -232,6 +232,16 @@ impl<S: Sample> Block<S> for BinauralDecoderBlock<S> {
     fn channel_config(&self) -> ChannelConfig {
         ChannelConfig::Explicit
     }
+
+    fn prepare(&mut self, _context: &DspContext) {
+        self.reset();
+    }
+
+    fn reset(&mut self) {
+        if let Some(ref mut convolver) = self.hrtf_convolver {
+            convolver.reset();
+        }
+    }
 }
 
 #[cfg(test)]

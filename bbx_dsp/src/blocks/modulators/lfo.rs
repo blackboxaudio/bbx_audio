@@ -155,6 +155,10 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         Self::MODULATION_OUTPUTS
     }
+
+    fn reset(&mut self) {
+        self.phase = 0.0;
+    }
 }
 
 #[cfg(test)]

@@ -249,6 +249,10 @@ pub fn sin<S: Sample>(input: &[S], output: &mut [S]) {
 mod tests {
     use super::*;
 
+    // =============================================================================
+    // Tests for typed f32/f64 SIMD functions
+    // =============================================================================
+
     #[test]
     fn test_fill_f32() {
         let mut buffer = [0.0f32; 10];
@@ -306,6 +310,270 @@ mod tests {
         for (i, &val) in output.iter().enumerate() {
             let expected = (i as f64 * 0.1).sin();
             assert!((val - expected).abs() < 1e-10);
+        }
+    }
+
+    // =============================================================================
+    // Edge case tests for non-aligned buffer sizes
+    // =============================================================================
+
+    #[test]
+    fn test_fill_f32_edge_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15] {
+            let mut buffer = vec![0.0f32; size];
+            fill_f32(&mut buffer, 3.14);
+            assert!(buffer.iter().all(|&x| x == 3.14), "Failed for size {}", size);
+        }
+    }
+
+    #[test]
+    fn test_fill_f64_edge_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15] {
+            let mut buffer = vec![0.0f64; size];
+            fill_f64(&mut buffer, 3.14);
+            assert!(buffer.iter().all(|&x| x == 3.14), "Failed for size {}", size);
+        }
+    }
+
+    #[test]
+    fn test_apply_gain_f32_edge_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15] {
+            let input: Vec<f32> = (0..size).map(|i| i as f32).collect();
+            let mut output = vec![0.0f32; size];
+            apply_gain_f32(&input, &mut output, 2.0);
+            for (i, &val) in output.iter().enumerate() {
+                assert!((val - (i as f32) * 2.0).abs() < 1e-6, "Failed for size {}", size);
+            }
+        }
+    }
+
+    #[test]
+    fn test_apply_gain_f64_edge_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15] {
+            let input: Vec<f64> = (0..size).map(|i| i as f64).collect();
+            let mut output = vec![0.0f64; size];
+            apply_gain_f64(&input, &mut output, 2.0);
+            for (i, &val) in output.iter().enumerate() {
+                assert!((val - (i as f64) * 2.0).abs() < 1e-10, "Failed for size {}", size);
+            }
+        }
+    }
+
+    #[test]
+    fn test_sin_f32_edge_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15] {
+            let input: Vec<f32> = (0..size).map(|i| i as f32 * 0.1).collect();
+            let mut output = vec![0.0f32; size];
+            sin_f32(&input, &mut output);
+            for (i, &val) in output.iter().enumerate() {
+                let expected = (i as f32 * 0.1).sin();
+                assert!((val - expected).abs() < 1e-5, "Failed for size {}", size);
+            }
+        }
+    }
+
+    #[test]
+    fn test_sin_f64_edge_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15] {
+            let input: Vec<f64> = (0..size).map(|i| i as f64 * 0.1).collect();
+            let mut output = vec![0.0f64; size];
+            sin_f64(&input, &mut output);
+            for (i, &val) in output.iter().enumerate() {
+                let expected = (i as f64 * 0.1).sin();
+                assert!((val - expected).abs() < 1e-10, "Failed for size {}", size);
+            }
+        }
+    }
+
+    #[test]
+    fn test_multiply_add_f32() {
+        let a: Vec<f32> = (0..10).map(|i| i as f32).collect();
+        let b: Vec<f32> = (0..10).map(|i| (10 - i) as f32).collect();
+        let mut output = vec![0.0f32; 10];
+        multiply_add_f32(&a, &b, &mut output);
+
+        for i in 0..10 {
+            let expected = (i as f32) * ((10 - i) as f32);
+            assert!((output[i] - expected).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_multiply_add_f64() {
+        let a: Vec<f64> = (0..10).map(|i| i as f64).collect();
+        let b: Vec<f64> = (0..10).map(|i| (10 - i) as f64).collect();
+        let mut output = vec![0.0f64; 10];
+        multiply_add_f64(&a, &b, &mut output);
+
+        for i in 0..10 {
+            let expected = (i as f64) * ((10 - i) as f64);
+            assert!((output[i] - expected).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_multiply_add_f32_edge_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15] {
+            let a: Vec<f32> = (0..size).map(|i| i as f32).collect();
+            let b: Vec<f32> = (0..size).map(|i| (i + 1) as f32).collect();
+            let mut output = vec![0.0f32; size];
+            multiply_add_f32(&a, &b, &mut output);
+            for i in 0..size {
+                let expected = (i as f32) * ((i + 1) as f32);
+                assert!((output[i] - expected).abs() < 1e-6, "Failed for size {}", size);
+            }
+        }
+    }
+
+    // =============================================================================
+    // Tests for generic Sample-based SIMD functions
+    // =============================================================================
+
+    #[test]
+    fn test_generic_fill_f32() {
+        let mut buffer = vec![0.0f32; 10];
+        fill::<f32>(&mut buffer, 1.5);
+        assert!(buffer.iter().all(|&x| x == 1.5));
+    }
+
+    #[test]
+    fn test_generic_fill_f64() {
+        let mut buffer = vec![0.0f64; 10];
+        fill::<f64>(&mut buffer, 2.5);
+        assert!(buffer.iter().all(|&x| x == 2.5));
+    }
+
+    #[test]
+    fn test_generic_fill_edge_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15] {
+            let mut buffer_f32 = vec![0.0f32; size];
+            let mut buffer_f64 = vec![0.0f64; size];
+            fill::<f32>(&mut buffer_f32, 3.14);
+            fill::<f64>(&mut buffer_f64, 3.14);
+            assert!(
+                buffer_f32.iter().all(|&x| (x - 3.14).abs() < 1e-6),
+                "f32 failed for size {}",
+                size
+            );
+            assert!(
+                buffer_f64.iter().all(|&x| (x - 3.14).abs() < 1e-10),
+                "f64 failed for size {}",
+                size
+            );
+        }
+    }
+
+    #[test]
+    fn test_generic_apply_gain_f32() {
+        let input: Vec<f32> = (0..10).map(|i| i as f32).collect();
+        let mut output = vec![0.0f32; 10];
+        apply_gain::<f32>(&input, &mut output, 0.5);
+
+        for (i, &val) in output.iter().enumerate() {
+            assert!((val - (i as f32) * 0.5).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_generic_apply_gain_f64() {
+        let input: Vec<f64> = (0..10).map(|i| i as f64).collect();
+        let mut output = vec![0.0f64; 10];
+        apply_gain::<f64>(&input, &mut output, 0.5);
+
+        for (i, &val) in output.iter().enumerate() {
+            assert!((val - (i as f64) * 0.5).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_generic_apply_gain_edge_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15] {
+            let input_f32: Vec<f32> = (0..size).map(|i| i as f32).collect();
+            let input_f64: Vec<f64> = (0..size).map(|i| i as f64).collect();
+            let mut output_f32 = vec![0.0f32; size];
+            let mut output_f64 = vec![0.0f64; size];
+            apply_gain::<f32>(&input_f32, &mut output_f32, 2.0);
+            apply_gain::<f64>(&input_f64, &mut output_f64, 2.0);
+            for (i, (&v32, &v64)) in output_f32.iter().zip(output_f64.iter()).enumerate() {
+                assert!((v32 - (i as f32) * 2.0).abs() < 1e-6, "f32 failed for size {}", size);
+                assert!((v64 - (i as f64) * 2.0).abs() < 1e-10, "f64 failed for size {}", size);
+            }
+        }
+    }
+
+    #[test]
+    fn test_generic_multiply_add_f32() {
+        let a: Vec<f32> = (0..10).map(|i| i as f32).collect();
+        let b: Vec<f32> = (0..10).map(|i| (10 - i) as f32).collect();
+        let mut output = vec![0.0f32; 10];
+        multiply_add::<f32>(&a, &b, &mut output);
+
+        for i in 0..10 {
+            let expected = (i as f32) * ((10 - i) as f32);
+            assert!((output[i] - expected).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_generic_multiply_add_f64() {
+        let a: Vec<f64> = (0..10).map(|i| i as f64).collect();
+        let b: Vec<f64> = (0..10).map(|i| (10 - i) as f64).collect();
+        let mut output = vec![0.0f64; 10];
+        multiply_add::<f64>(&a, &b, &mut output);
+
+        for i in 0..10 {
+            let expected = (i as f64) * ((10 - i) as f64);
+            assert!((output[i] - expected).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_generic_sin_f32() {
+        let input: Vec<f32> = (0..10).map(|i| i as f32 * 0.1).collect();
+        let mut output = vec![0.0f32; 10];
+        sin::<f32>(&input, &mut output);
+
+        for (i, &val) in output.iter().enumerate() {
+            let expected = (i as f32 * 0.1).sin();
+            assert!((val - expected).abs() < 1e-5);
+        }
+    }
+
+    #[test]
+    fn test_generic_sin_f64() {
+        let input: Vec<f64> = (0..10).map(|i| i as f64 * 0.1).collect();
+        let mut output = vec![0.0f64; 10];
+        sin::<f64>(&input, &mut output);
+
+        for (i, &val) in output.iter().enumerate() {
+            let expected = (i as f64 * 0.1).sin();
+            assert!((val - expected).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_generic_sin_edge_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15] {
+            let input_f32: Vec<f32> = (0..size).map(|i| i as f32 * 0.1).collect();
+            let input_f64: Vec<f64> = (0..size).map(|i| i as f64 * 0.1).collect();
+            let mut output_f32 = vec![0.0f32; size];
+            let mut output_f64 = vec![0.0f64; size];
+            sin::<f32>(&input_f32, &mut output_f32);
+            sin::<f64>(&input_f64, &mut output_f64);
+            for i in 0..size {
+                let expected_f32 = (i as f32 * 0.1).sin();
+                let expected_f64 = (i as f64 * 0.1).sin();
+                assert!(
+                    (output_f32[i] - expected_f32).abs() < 1e-5,
+                    "f32 failed for size {}",
+                    size
+                );
+                assert!(
+                    (output_f64[i] - expected_f64).abs() < 1e-10,
+                    "f64 failed for size {}",
+                    size
+                );
+            }
         }
     }
 }

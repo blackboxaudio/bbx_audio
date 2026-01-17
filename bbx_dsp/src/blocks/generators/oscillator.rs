@@ -187,12 +187,37 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
     }
+
+    fn reset(&mut self) {
+        self.phase = 0.0;
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::channel::ChannelLayout;
+
+    // =============================================================================
+    // Tolerance Constants
+    // =============================================================================
+    //
+    // PolyBLEP anti-aliasing adds small overshoots near waveform discontinuities to
+    // reduce aliasing artifacts. The tolerances below account for these overshoots:
+    //
+    // - SINE_TOLERANCE (1.05): Sine waves are mathematically bounded to [-1, 1], but floating-point precision and
+    //   interpolation can cause ~5% overshoot.
+    //
+    // - POLYBLEP_TOLERANCE (1.1): Square/sawtooth/triangle waves use PolyBLEP/PolyBLAMP which intentionally overshoots
+    //   by ~10% to smooth discontinuities and reduce aliasing.
+    //
+    // - PHASE_CONTINUITY_MULTIPLIER (3.0): When checking phase continuity across buffers, the expected maximum
+    //   sample-to-sample difference is 2.0/samples_per_cycle. We allow 3x this value to account for PolyBLEP smoothing
+    //   at discontinuities.
+
+    const SINE_TOLERANCE: f64 = 1.05;
+    const POLYBLEP_TOLERANCE: f64 = 1.1;
+    const PHASE_CONTINUITY_MULTIPLIER: f64 = 3.0;
 
     fn test_context(buffer_size: usize) -> DspContext {
         DspContext {
@@ -231,8 +256,14 @@ mod tests {
     #[test]
     fn test_sine_output_range_f32() {
         let output = test_oscillator::<f32>(Waveform::Sine, 440.0, 1024);
+        let tolerance = SINE_TOLERANCE as f32;
         for sample in output {
-            assert!(sample >= -1.05 && sample <= 1.05, "Sine sample {} out of range", sample);
+            assert!(
+                sample >= -tolerance && sample <= tolerance,
+                "Sine sample {} out of range (tolerance: {})",
+                sample,
+                tolerance
+            );
         }
     }
 
@@ -240,15 +271,26 @@ mod tests {
     fn test_sine_output_range_f64() {
         let output = test_oscillator::<f64>(Waveform::Sine, 440.0, 1024);
         for sample in output {
-            assert!(sample >= -1.05 && sample <= 1.05, "Sine sample {} out of range", sample);
+            assert!(
+                sample >= -SINE_TOLERANCE && sample <= SINE_TOLERANCE,
+                "Sine sample {} out of range (tolerance: {})",
+                sample,
+                SINE_TOLERANCE
+            );
         }
     }
 
     #[test]
     fn test_square_output_range_f32() {
         let output = test_oscillator::<f32>(Waveform::Square, 440.0, 1024);
+        let tolerance = POLYBLEP_TOLERANCE as f32;
         for sample in output {
-            assert!(sample >= -1.1 && sample <= 1.1, "Square sample {} out of range", sample);
+            assert!(
+                sample >= -tolerance && sample <= tolerance,
+                "Square sample {} out of range (tolerance: {})",
+                sample,
+                tolerance
+            );
         }
     }
 
@@ -256,18 +298,25 @@ mod tests {
     fn test_square_output_range_f64() {
         let output = test_oscillator::<f64>(Waveform::Square, 440.0, 1024);
         for sample in output {
-            assert!(sample >= -1.1 && sample <= 1.1, "Square sample {} out of range", sample);
+            assert!(
+                sample >= -POLYBLEP_TOLERANCE && sample <= POLYBLEP_TOLERANCE,
+                "Square sample {} out of range (tolerance: {})",
+                sample,
+                POLYBLEP_TOLERANCE
+            );
         }
     }
 
     #[test]
     fn test_sawtooth_output_range_f32() {
         let output = test_oscillator::<f32>(Waveform::Sawtooth, 440.0, 1024);
+        let tolerance = POLYBLEP_TOLERANCE as f32;
         for sample in output {
             assert!(
-                sample >= -1.1 && sample <= 1.1,
-                "Sawtooth sample {} out of range",
-                sample
+                sample >= -tolerance && sample <= tolerance,
+                "Sawtooth sample {} out of range (tolerance: {})",
+                sample,
+                tolerance
             );
         }
     }
@@ -277,9 +326,10 @@ mod tests {
         let output = test_oscillator::<f64>(Waveform::Sawtooth, 440.0, 1024);
         for sample in output {
             assert!(
-                sample >= -1.1 && sample <= 1.1,
-                "Sawtooth sample {} out of range",
-                sample
+                sample >= -POLYBLEP_TOLERANCE && sample <= POLYBLEP_TOLERANCE,
+                "Sawtooth sample {} out of range (tolerance: {})",
+                sample,
+                POLYBLEP_TOLERANCE
             );
         }
     }
@@ -287,11 +337,13 @@ mod tests {
     #[test]
     fn test_triangle_output_range_f32() {
         let output = test_oscillator::<f32>(Waveform::Triangle, 440.0, 1024);
+        let tolerance = POLYBLEP_TOLERANCE as f32;
         for sample in output {
             assert!(
-                sample >= -1.1 && sample <= 1.1,
-                "Triangle sample {} out of range",
-                sample
+                sample >= -tolerance && sample <= tolerance,
+                "Triangle sample {} out of range (tolerance: {})",
+                sample,
+                tolerance
             );
         }
     }
@@ -301,9 +353,10 @@ mod tests {
         let output = test_oscillator::<f64>(Waveform::Triangle, 440.0, 1024);
         for sample in output {
             assert!(
-                sample >= -1.1 && sample <= 1.1,
-                "Triangle sample {} out of range",
-                sample
+                sample >= -POLYBLEP_TOLERANCE && sample <= POLYBLEP_TOLERANCE,
+                "Triangle sample {} out of range (tolerance: {})",
+                sample,
+                POLYBLEP_TOLERANCE
             );
         }
     }
@@ -373,7 +426,7 @@ mod tests {
         let samples_per_cycle = 44100.0 / 440.0;
         let expected_diff_per_sample = 2.0 / samples_per_cycle;
         assert!(
-            diff < expected_diff_per_sample * 3.0,
+            diff < expected_diff_per_sample * PHASE_CONTINUITY_MULTIPLIER as f32,
             "Phase discontinuity detected: last={}, first={}, diff={}",
             last,
             first,
@@ -405,7 +458,7 @@ mod tests {
         let samples_per_cycle = 44100.0 / 440.0;
         let expected_diff_per_sample = 2.0 / samples_per_cycle;
         assert!(
-            diff < expected_diff_per_sample * 3.0,
+            diff < expected_diff_per_sample * PHASE_CONTINUITY_MULTIPLIER,
             "Phase discontinuity detected: last={}, first={}, diff={}",
             last,
             first,
@@ -521,10 +574,12 @@ mod tests {
     #[test]
     fn test_nyquist_frequency_f32() {
         let output = test_oscillator::<f32>(Waveform::Sine, 22000.0, 512);
+        let tolerance = POLYBLEP_TOLERANCE as f32;
         for sample in output {
             assert!(
-                sample.abs() <= 1.1,
-                "Near-Nyquist frequency should not produce artifacts above 1.0"
+                sample.abs() <= tolerance,
+                "Near-Nyquist frequency should not produce artifacts above tolerance ({})",
+                tolerance
             );
         }
     }
@@ -532,8 +587,14 @@ mod tests {
     #[test]
     fn test_pulse_output_range_f32() {
         let output = test_oscillator::<f32>(Waveform::Pulse, 440.0, 1024);
+        let tolerance = POLYBLEP_TOLERANCE as f32;
         for sample in output {
-            assert!(sample >= -1.1 && sample <= 1.1, "Pulse sample {} out of range", sample);
+            assert!(
+                sample >= -tolerance && sample <= tolerance,
+                "Pulse sample {} out of range (tolerance: {})",
+                sample,
+                tolerance
+            );
         }
     }
 
@@ -541,7 +602,12 @@ mod tests {
     fn test_pulse_output_range_f64() {
         let output = test_oscillator::<f64>(Waveform::Pulse, 440.0, 1024);
         for sample in output {
-            assert!(sample >= -1.1 && sample <= 1.1, "Pulse sample {} out of range", sample);
+            assert!(
+                sample >= -POLYBLEP_TOLERANCE && sample <= POLYBLEP_TOLERANCE,
+                "Pulse sample {} out of range (tolerance: {})",
+                sample,
+                POLYBLEP_TOLERANCE
+            );
         }
     }
 

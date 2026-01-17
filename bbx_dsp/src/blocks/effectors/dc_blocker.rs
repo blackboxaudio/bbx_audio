@@ -104,6 +104,16 @@ impl<S: Sample> Block<S> for DcBlockerBlock<S> {
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
     }
+
+    fn prepare(&mut self, context: &DspContext) {
+        self.set_sample_rate(context.sample_rate);
+        self.reset();
+    }
+
+    fn reset(&mut self) {
+        self.x_prev = [0.0; MAX_BLOCK_OUTPUTS];
+        self.y_prev = [0.0; MAX_BLOCK_OUTPUTS];
+    }
 }
 
 #[cfg(test)]

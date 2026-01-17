@@ -129,6 +129,10 @@ impl<S: Sample> Block<S> for GainBlock<S> {
     fn set_smoothing(&mut self, sample_rate: f64, ramp_time_ms: f64) {
         self.gain_smoother.reset(sample_rate, ramp_time_ms);
     }
+
+    fn prepare(&mut self, context: &DspContext) {
+        self.gain_smoother.reset(context.sample_rate, 10.0);
+    }
 }
 
 #[cfg(test)]

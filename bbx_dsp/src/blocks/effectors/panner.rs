@@ -477,6 +477,12 @@ impl<S: Sample> Block<S> for PannerBlock<S> {
         self.azimuth_smoother.reset(sample_rate, ramp_time_ms);
         self.elevation_smoother.reset(sample_rate, ramp_time_ms);
     }
+
+    fn prepare(&mut self, context: &DspContext) {
+        self.position_smoother.reset(context.sample_rate, 10.0);
+        self.azimuth_smoother.reset(context.sample_rate, 10.0);
+        self.elevation_smoother.reset(context.sample_rate, 10.0);
+    }
 }
 
 #[cfg(test)]
