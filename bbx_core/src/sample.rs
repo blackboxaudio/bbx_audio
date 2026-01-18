@@ -8,11 +8,13 @@
 #![allow(clippy::excessive_precision)]
 
 #[cfg(feature = "simd")]
-use std::simd::{StdFloat, cmp::SimdPartialOrd, f32x4, f64x4, num::SimdFloat};
-use std::{
+use core::simd::{cmp::SimdPartialOrd, f32x4, f64x4, num::SimdFloat};
+use core::{
     fmt::Debug,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
+#[cfg(feature = "simd")]
+use std::simd::StdFloat;
 
 /// Number of SIMD lanes used for vectorized operations.
 #[cfg(feature = "simd")]
@@ -109,7 +111,7 @@ pub trait Sample:
         + Sub<Output = Self::Simd>
         + Mul<Output = Self::Simd>
         + Div<Output = Self::Simd>
-        + std::ops::Rem<Output = Self::Simd>;
+        + core::ops::Rem<Output = Self::Simd>;
 
     /// Create a SIMD vector with all lanes set to the given value.
     #[cfg(feature = "simd")]

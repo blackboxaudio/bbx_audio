@@ -3,7 +3,8 @@
 //! This module provides SIMD-accelerated operations for common DSP tasks.
 //! Requires the `simd` feature and nightly Rust.
 
-use std::simd::{StdFloat, f32x4, f64x4};
+use core::simd::{f32x4, f64x4};
+use std::simd::StdFloat;
 
 use crate::sample::{SIMD_LANES, Sample};
 
@@ -178,7 +179,7 @@ pub fn fill<S: Sample>(slice: &mut [S], value: S) {
 #[inline]
 pub fn apply_gain<S: Sample>(input: &[S], output: &mut [S], gain: S)
 where
-    S::Simd: std::ops::Mul<Output = S::Simd>,
+    S::Simd: core::ops::Mul<Output = S::Simd>,
 {
     debug_assert!(input.len() <= output.len());
 
@@ -203,7 +204,7 @@ where
 #[inline]
 pub fn multiply_add<S: Sample>(a: &[S], b: &[S], output: &mut [S])
 where
-    S::Simd: std::ops::Mul<Output = S::Simd>,
+    S::Simd: core::ops::Mul<Output = S::Simd>,
 {
     debug_assert!(a.len() == b.len());
     debug_assert!(a.len() <= output.len());
