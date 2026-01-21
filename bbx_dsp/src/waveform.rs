@@ -5,13 +5,14 @@
 #[cfg(feature = "simd")]
 use std::simd::StdFloat;
 
-use bbx_core::random::XorShiftRng;
+use bbx_core::{math::Real, random::XorShiftRng};
 
 #[cfg(feature = "simd")]
 use crate::polyblep::{apply_polyblamp_triangle, apply_polyblep_pulse, apply_polyblep_saw, apply_polyblep_square};
 #[cfg(feature = "simd")]
 use crate::sample::SIMD_LANES;
 use crate::{
+    math,
     polyblep::{polyblamp_triangle, polyblep_pulse, polyblep_saw, polyblep_square},
     sample::Sample,
 };
@@ -103,11 +104,11 @@ pub(crate) fn generate_waveform_sample(
     duty_cycle: f64,
     rng: &mut XorShiftRng,
 ) -> f64 {
-    let normalized_phase = (phase % <f64 as Sample>::TAU) * <f64 as Sample>::INV_TAU;
-    let normalized_inc = phase_increment * <f64 as Sample>::INV_TAU;
+    let normalized_phase = (phase % <f64 as Real>::TAU) * <f64 as Real>::INV_TAU;
+    let normalized_inc = phase_increment * <f64 as Real>::INV_TAU;
 
     match waveform {
-        Waveform::Sine => phase.sin(),
+        Waveform::Sine => math::sin(phase),
         Waveform::Sawtooth => polyblep_saw(normalized_phase, normalized_inc),
         Waveform::Square => polyblep_square(normalized_phase, normalized_inc),
         Waveform::Pulse => polyblep_pulse(normalized_phase, normalized_inc, duty_cycle),
@@ -133,7 +134,7 @@ pub(crate) fn process_waveform_scalar<S: Sample>(
         *sample = S::from_f64(value * scale);
         *phase += phase_increment;
     }
-    *phase = phase.rem_euclid(<f64 as Sample>::TAU);
+    *phase = phase.rem_euclid(<f64 as Real>::TAU);
 }
 
 /// Generate 4 band-limited waveform samples using SIMD with PolyBLEP corrections.

@@ -5,6 +5,7 @@ use bbx_core::flush_denormal_f64;
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT, MAX_BLOCK_OUTPUTS},
     context::DspContext,
+    math,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
 };
@@ -59,7 +60,7 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
             .to_f64()
             .clamp(Self::MIN_Q, Self::MAX_Q);
 
-        let g = (S::PI.to_f64() * cutoff_hz / context.sample_rate).tan();
+        let g = math::tan(S::PI.to_f64() * cutoff_hz / context.sample_rate);
         let k = 1.0 / q;
         let a1 = 1.0 / (1.0 + g * (g + k));
         let a2 = g * a1;

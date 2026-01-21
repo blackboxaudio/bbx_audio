@@ -17,14 +17,13 @@ bench = false
 [features]
 default = ["std"]
 std = ["alloc", "bbx_core/std", "bbx_midi/std"]
-alloc = ["bbx_core/alloc", "bbx_midi/alloc", "dep:libm"]
+alloc = ["bbx_core/alloc", "bbx_midi/alloc"]
 ftz-daz = ["bbx_core/ftz-daz"]
 simd = ["std", "bbx_core/simd"]
 
 [dependencies]
 bbx_core.workspace = true
 bbx_midi.workspace = true
-libm = { version = "0.2", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }

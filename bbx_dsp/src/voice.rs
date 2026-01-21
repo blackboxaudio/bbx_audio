@@ -5,12 +5,14 @@
 
 use bbx_core::StackVec;
 
+use crate::math;
+
 /// Converts a MIDI note number to frequency in Hz.
 ///
 /// Uses A4 = 440 Hz as the reference.
 #[inline]
 pub fn midi_note_to_frequency(note: u8) -> f32 {
-    440.0 * 2.0f32.powf((note as f32 - 69.0) / 12.0)
+    440.0 * math::powf(2.0f32, (note as f32 - 69.0) / 12.0)
 }
 
 /// Monophonic voice state for MIDI-controlled synthesis.

@@ -5,6 +5,7 @@ use bbx_core::flush_denormal_f64;
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT, MAX_BLOCK_OUTPUTS},
     context::DspContext,
+    math,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
     smoothing::LinearSmoothedValue,
@@ -56,7 +57,7 @@ impl<S: Sample> OverdriveBlock<S> {
     fn update_filter(&mut self, sample_rate: f64) {
         // Tone control: 0.0 = darker (300Hz), 1.0 = brighter (3KHz)
         let cutoff = 300.0 + (self.tone + 2700.0);
-        self.filter_coefficient = 1.0 - (-2.0 * S::PI.to_f64() * cutoff / sample_rate).exp();
+        self.filter_coefficient = 1.0 - math::exp(-2.0 * S::PI.to_f64() * cutoff / sample_rate);
     }
 
     #[inline]
@@ -73,7 +74,7 @@ impl<S: Sample> OverdriveBlock<S> {
     #[inline]
     fn soft_clip(&self, x: f64) -> f64 {
         // The 1.5 factor adjusts the "knee" of the saturation curve
-        (x * 1.5).tanh() / 1.5
+        math::tanh(x * 1.5) / 1.5
     }
 }
 

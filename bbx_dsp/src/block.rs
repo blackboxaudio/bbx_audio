@@ -4,8 +4,14 @@
 //! [`BlockType`] for type-erased block storage in the graph.
 
 #[cfg(feature = "alloc")]
-use alloc::{format, string::{String, ToString}, vec::Vec};
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 
+#[cfg(feature = "std")]
+use crate::blocks::io::{file_input::FileInputBlock, file_output::FileOutputBlock};
 use crate::{
     blocks::{
         effectors::{
@@ -24,9 +30,6 @@ use crate::{
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
 };
-
-#[cfg(feature = "std")]
-use crate::blocks::io::{file_input::FileInputBlock, file_output::FileOutputBlock};
 
 /// Maximum number of inputs a block can have (realtime-safe stack allocation).
 /// Set to 16 to support third-order ambisonics (16 channels).

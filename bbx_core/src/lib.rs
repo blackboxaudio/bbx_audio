@@ -11,6 +11,7 @@ extern crate alloc;
 
 pub mod denormal;
 pub mod error;
+pub mod math;
 pub mod random;
 pub mod sample;
 #[cfg(feature = "simd")]
@@ -21,6 +22,7 @@ pub mod stack_vec;
 
 pub use denormal::{flush_denormal_f32, flush_denormal_f64, flush_denormals_f32_batch, flush_denormals_f64_batch};
 pub use error::{BbxError, Result};
+pub use math::Real;
 pub use sample::Sample;
 #[cfg(feature = "alloc")]
 pub use spsc::{Consumer, Producer, SpscRingBuffer};

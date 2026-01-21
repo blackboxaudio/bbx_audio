@@ -7,14 +7,13 @@
 //! buffer allocation, execution ordering via topological sort, and modulation
 //! value collection.
 
-use alloc::string::String;
-use alloc::vec;
-use alloc::vec::Vec;
-
+use alloc::{string::String, vec, vec::Vec};
 use std::collections::HashMap;
 
 use bbx_core::StackVec;
 
+// Re-export for backwards compatibility
+pub use crate::block::{MAX_BLOCK_INPUTS, MAX_BLOCK_OUTPUTS};
 use crate::{
     block::{BlockCategory, BlockId, BlockType},
     blocks::{effectors::mixer::MixerBlock, io::output::OutputBlock},
@@ -24,9 +23,6 @@ use crate::{
     parameter::Parameter,
     sample::Sample,
 };
-
-// Re-export for backwards compatibility
-pub use crate::block::{MAX_BLOCK_INPUTS, MAX_BLOCK_OUTPUTS};
 
 /// Describes an audio connection between two blocks.
 ///

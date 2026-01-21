@@ -64,11 +64,16 @@ pub mod smoothing;
 pub mod voice;
 pub mod waveform;
 
-// Requires alloc (includes libm for math functions)
+pub mod math {
+    //! Mathematical operations for DSP.
+    //!
+    //! Re-exported from `bbx_core` for convenience.
+    pub use bbx_core::math::*;
+}
+
+// Requires alloc
 #[cfg(feature = "alloc")]
 pub mod buffer;
-#[cfg(feature = "alloc")]
-pub mod math;
 
 // Requires std (graph uses HashMap, prelude re-exports graph types)
 #[cfg(feature = "std")]
@@ -85,7 +90,6 @@ pub mod writer;
 pub use block::BlockCategory;
 pub use channel::{ChannelConfig, ChannelLayout};
 pub use frame::{Frame, MAX_FRAME_SAMPLES};
-pub use voice::VoiceState;
-
 #[cfg(feature = "std")]
 pub use plugin::PluginDsp;
+pub use voice::VoiceState;

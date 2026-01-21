@@ -200,6 +200,7 @@ dependencies = [
 name = "bbx_core"
 version = "0.4.3"
 dependencies = [
+ "libm",
  "loom",
 ]
 
@@ -225,7 +226,6 @@ dependencies = [
  "bbx_core",
  "bbx_midi",
  "criterion",
- "libm",
 ]
 
 [[package]]

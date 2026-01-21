@@ -6,6 +6,7 @@ use crate::{
     block::{Block, MAX_BLOCK_INPUTS},
     channel::ChannelConfig,
     context::DspContext,
+    math,
     parameter::ModulationOutput,
     sample::Sample,
 };
@@ -100,7 +101,7 @@ impl<S: Sample> Block<S> for MixerBlock<S> {
         let num_samples = outputs[0].len();
         let normalization_factor = match self.normalization {
             NormalizationStrategy::Average => S::from_f64(1.0 / self.num_sources as f64),
-            NormalizationStrategy::ConstantPower => S::from_f64(1.0 / (self.num_sources as f64).sqrt()),
+            NormalizationStrategy::ConstantPower => S::from_f64(1.0 / math::sqrt(self.num_sources as f64)),
         };
 
         for (ch, output) in outputs.iter_mut().enumerate().take(num_channels) {

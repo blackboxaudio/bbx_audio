@@ -18,6 +18,9 @@ alloc = []
 ftz-daz = []
 simd = ["std"]
 
+[dependencies]
+libm = "0.2"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }
 

@@ -6,6 +6,7 @@ use crate::{
     block::{Block, MAX_BLOCK_INPUTS, MAX_BLOCK_OUTPUTS},
     channel::{ChannelConfig, ChannelLayout},
     context::DspContext,
+    math,
     parameter::ModulationOutput,
     sample::Sample,
 };
@@ -118,13 +119,13 @@ impl<S: Sample> AmbisonicDecoderBlock<S> {
     fn compute_sh_coefficients(&self, azimuth_deg: f64, elevation_deg: f64) -> [f64; MAX_BLOCK_INPUTS] {
         let mut coeffs = [0.0; MAX_BLOCK_INPUTS];
 
-        let az = azimuth_deg.to_radians();
-        let el = elevation_deg.to_radians();
+        let az = math::to_radians(azimuth_deg);
+        let el = math::to_radians(elevation_deg);
 
-        let cos_el = el.cos();
-        let sin_el = el.sin();
-        let cos_az = az.cos();
-        let sin_az = az.sin();
+        let cos_el = math::cos(el);
+        let sin_el = math::sin(el);
+        let cos_az = math::cos(az);
+        let sin_az = math::sin(az);
 
         // Order 0 (W channel)
         coeffs[0] = 1.0;
@@ -138,9 +139,9 @@ impl<S: Sample> AmbisonicDecoderBlock<S> {
 
         if self.input_order >= 2 {
             // Order 2: ACN 4-8
-            let cos_2az = (2.0 * az).cos();
-            let sin_2az = (2.0 * az).sin();
-            let sin_2el = (2.0 * el).sin();
+            let cos_2az = math::cos(2.0 * az);
+            let sin_2az = math::sin(2.0 * az);
+            let sin_2el = math::sin(2.0 * el);
             let cos_el_sq = cos_el * cos_el;
 
             coeffs[4] = 0.8660254037844386 * cos_el_sq * sin_2az; // V
@@ -152,18 +153,18 @@ impl<S: Sample> AmbisonicDecoderBlock<S> {
 
         if self.input_order >= 3 {
             // Order 3: ACN 9-15
-            let cos_3az = (3.0 * az).cos();
-            let sin_3az = (3.0 * az).sin();
+            let cos_3az = math::cos(3.0 * az);
+            let sin_3az = math::sin(3.0 * az);
             let cos_el_sq = cos_el * cos_el;
             let cos_el_cu = cos_el_sq * cos_el;
             let sin_el_sq = sin_el * sin_el;
 
             coeffs[9] = 0.7905694150420949 * cos_el_cu * sin_3az; // Q
-            coeffs[10] = 1.9364916731037085 * cos_el_sq * sin_el * (2.0 * az).sin(); // O
+            coeffs[10] = 1.9364916731037085 * cos_el_sq * sin_el * math::sin(2.0 * az); // O
             coeffs[11] = 0.6123724356957945 * cos_el * (5.0 * sin_el_sq - 1.0) * sin_az; // M
             coeffs[12] = 0.5 * sin_el * (5.0 * sin_el_sq - 3.0); // K
             coeffs[13] = 0.6123724356957945 * cos_el * (5.0 * sin_el_sq - 1.0) * cos_az; // L
-            coeffs[14] = 1.9364916731037085 * cos_el_sq * sin_el * (2.0 * az).cos(); // N
+            coeffs[14] = 1.9364916731037085 * cos_el_sq * sin_el * math::cos(2.0 * az); // N
             coeffs[15] = 0.7905694150420949 * cos_el_cu * cos_3az; // P
         }
 
@@ -178,7 +179,7 @@ impl<S: Sample> AmbisonicDecoderBlock<S> {
             return;
         }
 
-        let energy_scale = 1.0 / (num_speakers as f64).sqrt();
+        let energy_scale = 1.0 / math::sqrt(num_speakers as f64);
 
         for spk in 0..num_speakers {
             for ch in 0..num_channels {

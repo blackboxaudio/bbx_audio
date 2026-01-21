@@ -2,10 +2,8 @@
 
 #[cfg(feature = "alloc")]
 use alloc::string::String;
-
 #[cfg(feature = "std")]
 use core::fmt::{Display, Formatter};
-
 #[cfg(feature = "std")]
 use std::time::SystemTime;
 
