@@ -11,12 +11,15 @@ mod hrtf;
 mod matrix;
 mod virtual_speaker;
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use hrtf::HrtfConvolver;
 
 use crate::{
-    block::Block, channel::ChannelConfig, context::DspContext, graph::MAX_BLOCK_INPUTS, parameter::ModulationOutput,
+    block::{Block, MAX_BLOCK_INPUTS},
+    channel::ChannelConfig,
+    context::DspContext,
+    parameter::ModulationOutput,
     sample::Sample,
 };
 

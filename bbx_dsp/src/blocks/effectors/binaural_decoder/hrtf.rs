@@ -7,7 +7,7 @@ use super::{
     hrir_data::{HRIR_LENGTH, get_hrir_for_azimuth},
     virtual_speaker::{MAX_HRIR_LENGTH, MAX_VIRTUAL_SPEAKERS, VirtualSpeaker, layouts},
 };
-use crate::{graph::MAX_BLOCK_INPUTS, sample::Sample};
+use crate::{block::MAX_BLOCK_INPUTS, sample::Sample};
 
 /// HRTF convolution engine with pre-allocated buffers.
 ///

@@ -3,7 +3,8 @@
 //! This module provides the [`Buffer`] trait for generic buffer operations
 //! and [`AudioBuffer`] for storing audio sample data during DSP processing.
 
-use std::ops::{Index, IndexMut};
+use alloc::vec::Vec;
+use core::ops::{Index, IndexMut};
 
 #[cfg(feature = "simd")]
 use bbx_core::simd::fill as simd_fill;
@@ -107,7 +108,7 @@ impl<S: Sample> AudioBuffer<S> {
 
     /// Drain the first `count` values from the `AudioBuffer`.
     #[inline]
-    pub fn drain_front(&mut self, count: usize) -> std::vec::Drain<'_, S> {
+    pub fn drain_front(&mut self, count: usize) -> alloc::vec::Drain<'_, S> {
         let actual_count = count.min(self.data.len());
         self.data.drain(0..actual_count)
     }

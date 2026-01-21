@@ -1,10 +1,15 @@
 //! MIDI message types and parsing.
 
-use std::{
-    fmt::{Display, Formatter},
-    time::SystemTime,
-};
+#[cfg(feature = "alloc")]
+use alloc::string::String;
 
+#[cfg(feature = "std")]
+use core::fmt::{Display, Formatter};
+
+#[cfg(feature = "std")]
+use std::time::SystemTime;
+
+#[cfg(feature = "alloc")]
 const NOTES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
 /// A parsed MIDI message with channel, status, and data bytes.
@@ -123,7 +128,10 @@ impl MidiMessage {
     }
 
     /// Get the note name (e.g., "C4", "F#3") for note messages.
+    #[cfg(feature = "alloc")]
     pub fn get_note(&self) -> Option<String> {
+        use alloc::format;
+
         let note_number = self.get_note_number()?;
         // Determine the note name (C, C#, D, etc.)
         let note_index = (note_number % 12) as usize;
@@ -137,6 +145,7 @@ impl MidiMessage {
     }
 
     /// Get the note frequency in Hz (A4 = 440 Hz) for note messages.
+    #[cfg(feature = "std")]
     pub fn get_note_frequency(&self) -> Option<f32> {
         let note_number = self.get_note_number()?;
         Some(440.0 * 2.0f32.powf((note_number as f32 - 69.0) / 12.0))
@@ -170,8 +179,9 @@ impl MidiMessage {
     }
 }
 
+#[cfg(feature = "std")]
 impl Display for MidiMessage {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()

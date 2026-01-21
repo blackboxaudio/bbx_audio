@@ -28,5 +28,7 @@ pub use effectors::{
     vca::VcaBlock,
 };
 pub use generators::oscillator::OscillatorBlock;
-pub use io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock};
+#[cfg(feature = "std")]
+pub use io::{file_input::FileInputBlock, file_output::FileOutputBlock};
+pub use io::output::OutputBlock;
 pub use modulators::{envelope::EnvelopeBlock, lfo::LfoBlock};

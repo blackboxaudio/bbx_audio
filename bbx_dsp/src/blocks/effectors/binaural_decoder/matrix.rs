@@ -1,6 +1,6 @@
 //! Matrix-based binaural decoder using ILD (Interaural Level Difference) approximation.
 
-use crate::graph::MAX_BLOCK_INPUTS;
+use crate::block::MAX_BLOCK_INPUTS;
 
 /// Compute matrix decoder coefficients for the given ambisonic order.
 ///

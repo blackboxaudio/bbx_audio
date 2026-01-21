@@ -1,12 +1,11 @@
 //! Ambisonic decoder block for converting B-format to speaker layouts.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{
-    block::Block,
+    block::{Block, MAX_BLOCK_INPUTS, MAX_BLOCK_OUTPUTS},
     channel::{ChannelConfig, ChannelLayout},
     context::DspContext,
-    graph::{MAX_BLOCK_INPUTS, MAX_BLOCK_OUTPUTS},
     parameter::ModulationOutput,
     sample::Sample,
 };

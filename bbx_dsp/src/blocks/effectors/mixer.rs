@@ -1,9 +1,12 @@
 //! Channel-wise audio mixer block.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{
-    block::Block, channel::ChannelConfig, context::DspContext, graph::MAX_BLOCK_INPUTS, parameter::ModulationOutput,
+    block::{Block, MAX_BLOCK_INPUTS},
+    channel::ChannelConfig,
+    context::DspContext,
+    parameter::ModulationOutput,
     sample::Sample,
 };
 

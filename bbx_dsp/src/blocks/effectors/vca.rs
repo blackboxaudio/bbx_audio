@@ -12,14 +12,14 @@ use crate::{block::Block, context::DspContext, parameter::ModulationOutput, samp
 ///
 /// The output is the sample-by-sample product of both inputs.
 pub struct VcaBlock<S: Sample> {
-    _phantom: std::marker::PhantomData<S>,
+    _phantom: core::marker::PhantomData<S>,
 }
 
 impl<S: Sample> VcaBlock<S> {
     /// Create a new VCA block.
     pub fn new() -> Self {
         Self {
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         }
     }
 }

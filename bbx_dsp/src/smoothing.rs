@@ -4,7 +4,7 @@
 //! avoiding audible clicks when parameters change abruptly. Supports both
 //! [`Linear`] and [`Multiplicative`] (exponential) smoothing strategies.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use bbx_core::flush_denormal_f64;
 

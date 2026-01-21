@@ -7,6 +7,10 @@
 //! buffer allocation, execution ordering via topological sort, and modulation
 //! value collection.
 
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
+
 use std::collections::HashMap;
 
 use bbx_core::StackVec;
@@ -21,12 +25,8 @@ use crate::{
     sample::Sample,
 };
 
-/// Maximum number of inputs a block can have (realtime-safe stack allocation).
-/// Set to 16 to support third-order ambisonics (16 channels).
-pub const MAX_BLOCK_INPUTS: usize = 16;
-/// Maximum number of outputs a block can have (realtime-safe stack allocation).
-/// Set to 16 to support third-order ambisonics (16 channels).
-pub const MAX_BLOCK_OUTPUTS: usize = 16;
+// Re-export for backwards compatibility
+pub use crate::block::{MAX_BLOCK_INPUTS, MAX_BLOCK_OUTPUTS};
 
 /// Describes an audio connection between two blocks.
 ///

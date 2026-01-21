@@ -1,10 +1,9 @@
 //! Matrix mixer block for flexible NxM channel routing.
 
 use crate::{
-    block::Block,
+    block::{Block, MAX_BLOCK_INPUTS, MAX_BLOCK_OUTPUTS},
     channel::ChannelConfig,
     context::DspContext,
-    graph::{MAX_BLOCK_INPUTS, MAX_BLOCK_OUTPUTS},
     parameter::ModulationOutput,
     sample::Sample,
 };

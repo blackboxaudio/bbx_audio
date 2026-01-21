@@ -3,7 +3,7 @@
 //! A virtual speaker represents a point source at a specific position,
 //! with associated HRIR filters for left and right ears.
 
-use crate::graph::MAX_BLOCK_INPUTS;
+use crate::block::MAX_BLOCK_INPUTS;
 
 /// Maximum HRIR length in samples (512 samples at 48kHz ≈ 10.7ms).
 pub const MAX_HRIR_LENGTH: usize = 512;

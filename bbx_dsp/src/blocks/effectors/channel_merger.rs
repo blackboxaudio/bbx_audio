@@ -1,9 +1,12 @@
 //! Channel merger block for combining individual channels into multi-channel audio.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{
-    block::Block, channel::ChannelConfig, context::DspContext, graph::MAX_BLOCK_OUTPUTS, parameter::ModulationOutput,
+    block::{Block, MAX_BLOCK_OUTPUTS},
+    channel::ChannelConfig,
+    context::DspContext,
+    parameter::ModulationOutput,
     sample::Sample,
 };
 

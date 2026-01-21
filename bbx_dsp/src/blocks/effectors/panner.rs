@@ -8,10 +8,9 @@ use std::simd::{StdFloat, f64x4, num::SimdFloat};
 #[cfg(feature = "simd")]
 use crate::sample::SIMD_LANES;
 use crate::{
-    block::Block,
+    block::{Block, MAX_BLOCK_OUTPUTS},
     channel::{ChannelConfig, ChannelLayout},
     context::DspContext,
-    graph::MAX_BLOCK_OUTPUTS,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
     smoothing::LinearSmoothedValue,
@@ -195,15 +194,15 @@ impl<S: Sample> PannerBlock<S> {
 
             let speaker_rad = self.speaker_azimuths[i].to_radians();
             let angle_diff = (azimuth_rad - speaker_rad).abs();
-            let angle_diff = if angle_diff > std::f64::consts::PI {
-                2.0 * std::f64::consts::PI - angle_diff
+            let angle_diff = if angle_diff > core::f64::consts::PI {
+                2.0 * core::f64::consts::PI - angle_diff
             } else {
                 angle_diff
             };
 
-            let spread = std::f64::consts::FRAC_PI_2;
+            let spread = core::f64::consts::FRAC_PI_2;
             if angle_diff < spread {
-                *gain = ((spread - angle_diff) / spread * std::f64::consts::FRAC_PI_2).cos();
+                *gain = ((spread - angle_diff) / spread * core::f64::consts::FRAC_PI_2).cos();
                 *gain = gain.max(0.0);
             } else {
                 *gain = 0.0;
@@ -514,7 +513,7 @@ mod tests {
 
         panner.process(&inputs, &mut outputs, &[], &context);
 
-        let expected_gain = (std::f32::consts::FRAC_PI_4).cos();
+        let expected_gain = (core::f32::consts::FRAC_PI_4).cos();
         for i in 0..4 {
             assert!((left_out[i] - expected_gain).abs() < 0.01);
             assert!((right_out[i] - expected_gain).abs() < 0.01);
