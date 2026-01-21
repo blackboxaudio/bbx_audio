@@ -47,7 +47,7 @@ Storage allocated once, reused forever:
 
 ```rust
 // In Graph struct
-audio_buffers: Vec<AudioBuffer<S>>,
+audio_buffers: Vec<SampleBuffer<S>>,
 modulation_values: Vec<S>,
 
 // In prepare()

@@ -9,6 +9,7 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+pub mod buffer;
 pub mod denormal;
 pub mod error;
 pub mod math;
@@ -20,6 +21,7 @@ pub mod simd;
 pub mod spsc;
 pub mod stack_vec;
 
+pub use buffer::Buffer;
 pub use denormal::{flush_denormal_f32, flush_denormal_f64, flush_denormals_f32_batch, flush_denormals_f64_batch};
 pub use error::{BbxError, Result};
 pub use math::Real;

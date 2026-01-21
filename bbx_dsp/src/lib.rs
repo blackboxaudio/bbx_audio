@@ -26,7 +26,7 @@
 //! ## Features
 //!
 //! - `std` (default) - Enables standard library support and all features (Graph, prelude, file I/O)
-//! - `alloc` - Enables allocation-based features (AudioBuffer)
+//! - `alloc` - Enables allocation-based features (SampleBuffer)
 //! - `simd` - Enables SIMD optimizations (requires `std` and nightly)
 //! - `ftz-daz` - Enables flush-to-zero/denormals-are-zero for denormal handling
 //!

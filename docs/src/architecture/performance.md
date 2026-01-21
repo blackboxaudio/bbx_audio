@@ -31,7 +31,7 @@ Keep hot data together:
 
 ```rust
 // Good: Contiguous buffer storage
-audio_buffers: Vec<AudioBuffer<S>>
+audio_buffers: Vec<SampleBuffer<S>>
 
 // Good: Sequential processing
 for block_id in &self.execution_order {

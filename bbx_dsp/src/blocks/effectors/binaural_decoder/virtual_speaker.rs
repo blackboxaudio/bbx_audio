@@ -60,8 +60,8 @@ impl VirtualSpeaker {
 fn compute_sh_coefficients(azimuth_deg: f64, elevation_deg: f64, order: usize) -> [f64; MAX_BLOCK_INPUTS] {
     let mut coeffs = [0.0; MAX_BLOCK_INPUTS];
 
-    let az = math::to_radians(azimuth_deg);
-    let el = math::to_radians(elevation_deg);
+    let az = math::radians(azimuth_deg);
+    let el = math::radians(elevation_deg);
 
     let cos_el = math::cos(el);
     let sin_el = math::sin(el);

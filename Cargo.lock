@@ -232,6 +232,7 @@ dependencies = [
 name = "bbx_file"
 version = "0.4.3"
 dependencies = [
+ "bbx_core",
  "bbx_dsp",
  "hound",
  "tempfile",
@@ -284,6 +285,7 @@ dependencies = [
 name = "bbx_sandbox"
 version = "0.4.3"
 dependencies = [
+ "bbx_core",
  "bbx_dsp",
  "bbx_file",
  "bbx_midi",

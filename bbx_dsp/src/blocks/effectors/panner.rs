@@ -180,7 +180,7 @@ impl<S: Sample> PannerBlock<S> {
     /// Calculate VBAP gains for surround panning.
     fn calculate_vbap_gains(&self, azimuth_deg: f64, _elevation_deg: f64, gains: &mut [f64; MAX_BLOCK_OUTPUTS]) {
         let num_speakers = self.output_layout.channel_count();
-        let azimuth_rad = math::to_radians(azimuth_deg);
+        let azimuth_rad = math::radians(azimuth_deg);
 
         for (i, gain) in gains.iter_mut().enumerate().take(num_speakers) {
             if i == 3
@@ -193,7 +193,7 @@ impl<S: Sample> PannerBlock<S> {
                 continue;
             }
 
-            let speaker_rad = math::to_radians(self.speaker_azimuths[i]);
+            let speaker_rad = math::radians(self.speaker_azimuths[i]);
             let angle_diff = math::abs(azimuth_rad - speaker_rad);
             let angle_diff = if angle_diff > core::f64::consts::PI {
                 2.0 * core::f64::consts::PI - angle_diff
@@ -221,8 +221,8 @@ impl<S: Sample> PannerBlock<S> {
 
     /// Calculate SN3D normalized spherical harmonic coefficients for ambisonic encoding.
     fn calculate_ambisonic_gains(&self, azimuth_deg: f64, elevation_deg: f64, gains: &mut [f64; MAX_BLOCK_OUTPUTS]) {
-        let az = math::to_radians(azimuth_deg);
-        let el = math::to_radians(elevation_deg);
+        let az = math::radians(azimuth_deg);
+        let el = math::radians(elevation_deg);
 
         let cos_el = math::cos(el);
         let sin_el = math::sin(el);

@@ -10,14 +10,14 @@
 use alloc::{string::String, vec, vec::Vec};
 use std::collections::HashMap;
 
-use bbx_core::StackVec;
+use bbx_core::{Buffer, StackVec};
 
 // Re-export for backwards compatibility
 pub use crate::block::{MAX_BLOCK_INPUTS, MAX_BLOCK_OUTPUTS};
 use crate::{
     block::{BlockCategory, BlockId, BlockType},
     blocks::{effectors::mixer::MixerBlock, io::output::OutputBlock},
-    buffer::{AudioBuffer, Buffer},
+    buffer::SampleBuffer,
     channel::ChannelLayout,
     context::DspContext,
     parameter::Parameter,
@@ -106,7 +106,7 @@ pub struct Graph<S: Sample> {
     output_block: Option<BlockId>,
 
     // Pre-allocated buffers
-    audio_buffers: Vec<AudioBuffer<S>>,
+    audio_buffers: Vec<SampleBuffer<S>>,
     modulation_values: Vec<S>,
 
     // Buffer management
@@ -220,7 +220,7 @@ impl<S: Sample> Graph<S> {
 
         let output_count = self.blocks[block_id.0].output_count();
         for _ in 0..output_count {
-            self.audio_buffers.push(AudioBuffer::new(self.buffer_size));
+            self.audio_buffers.push(SampleBuffer::new(self.buffer_size));
         }
 
         block_id

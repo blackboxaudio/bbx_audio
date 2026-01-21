@@ -100,7 +100,7 @@ let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 let mut graph = builder.build();
 
 // Audio callback
-fn process(graph: &mut Graph, output: &mut AudioBuffer) {
+fn process(graph: &mut Graph, output: &mut SampleBuffer) {
     graph.process_buffers(&mut output.channels());
 }
 ```

@@ -70,6 +70,7 @@ pub trait Real: Copy {
     fn trunc(self) -> Self;
     fn fract(self) -> Self;
     fn copysign(self, sign: Self) -> Self;
+    fn radians(self) -> Self;
 }
 
 impl Real for f32 {
@@ -185,6 +186,10 @@ impl Real for f32 {
     fn copysign(self, sign: Self) -> Self {
         libm::copysignf(self, sign)
     }
+    #[inline]
+    fn radians(self) -> Self {
+        self * Self::PI / 180.0
+    }
 }
 
 impl Real for f64 {
@@ -299,6 +304,10 @@ impl Real for f64 {
     #[inline]
     fn copysign(self, sign: Self) -> Self {
         libm::copysign(self, sign)
+    }
+    #[inline]
+    fn radians(self) -> Self {
+        self * Self::PI / 180.0
     }
 }
 
@@ -429,16 +438,9 @@ pub fn copysign<T: Real>(magnitude: T, sign: T) -> T {
     magnitude.copysign(sign)
 }
 
-/// Converts degrees to radians.
 #[inline]
-pub fn to_radians(deg: f64) -> f64 {
-    deg * f64::PI / 180.0
-}
-
-/// Converts degrees to radians (f32).
-#[inline]
-pub fn to_radians_f32(deg: f32) -> f32 {
-    deg * f32::PI / 180.0
+pub fn radians<T: Real>(deg: T) -> T {
+    deg.radians()
 }
 
 #[cfg(test)]

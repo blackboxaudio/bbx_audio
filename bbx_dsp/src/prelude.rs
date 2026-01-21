@@ -47,7 +47,7 @@ pub use crate::blocks::{
 };
 pub use crate::{
     block::{Block, BlockId, BlockType},
-    buffer::AudioBuffer,
+    buffer::SampleBuffer,
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE, DspContext},
     graph::{Graph, GraphBuilder},
     parameter::Parameter,

@@ -215,7 +215,7 @@ public:
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
-    void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    void processBlock(juce::SampleBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -305,7 +305,7 @@ void PluginAudioProcessor::releaseResources()
     m_rustDsp.Reset();
 }
 
-void PluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+void PluginAudioProcessor::processBlock(juce::SampleBuffer<float>& buffer,
                                          juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;

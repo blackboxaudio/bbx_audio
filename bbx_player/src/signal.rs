@@ -3,9 +3,9 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use bbx_core::StackVec;
+use bbx_core::{Buffer, StackVec};
 use bbx_dsp::{
-    buffer::{AudioBuffer, Buffer},
+    buffer::SampleBuffer,
     graph::{Graph, MAX_BLOCK_OUTPUTS},
     sample::Sample,
 };
@@ -16,7 +16,7 @@ use bbx_dsp::{
 /// which is the format expected by audio backends.
 pub struct Signal<S: Sample> {
     graph: Graph<S>,
-    output_buffers: Vec<AudioBuffer<S>>,
+    output_buffers: Vec<SampleBuffer<S>>,
     sample_rate: u32,
     num_channels: usize,
     buffer_size: usize,
@@ -34,7 +34,7 @@ impl<S: Sample> Signal<S> {
 
         let mut output_buffers = Vec::with_capacity(channels);
         for _ in 0..channels {
-            output_buffers.push(AudioBuffer::new(buffer_size));
+            output_buffers.push(SampleBuffer::new(buffer_size));
         }
 
         Self {

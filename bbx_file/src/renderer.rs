@@ -2,12 +2,8 @@
 
 use std::time::Instant;
 
-use bbx_dsp::{
-    buffer::{AudioBuffer, Buffer},
-    graph::Graph,
-    sample::Sample,
-    writer::Writer,
-};
+use bbx_core::Buffer;
+use bbx_dsp::{buffer::SampleBuffer, graph::Graph, sample::Sample, writer::Writer};
 
 /// Specifies how long to render.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,7 +74,7 @@ pub struct RenderStats {
 pub struct OfflineRenderer<S: Sample> {
     graph: Graph<S>,
     writer: Box<dyn Writer<S>>,
-    output_buffers: Vec<AudioBuffer<S>>,
+    output_buffers: Vec<SampleBuffer<S>>,
     buffer_size: usize,
     sample_rate: f64,
     num_channels: usize,
@@ -118,7 +114,7 @@ impl<S: Sample> OfflineRenderer<S> {
             num_channels
         );
 
-        let output_buffers = (0..num_channels).map(|_| AudioBuffer::new(buffer_size)).collect();
+        let output_buffers = (0..num_channels).map(|_| SampleBuffer::new(buffer_size)).collect();
 
         Self {
             graph,
