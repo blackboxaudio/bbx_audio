@@ -1,0 +1,31 @@
+[package]
+name = "bbx_daisy"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Electrosmith Daisy hardware support for bbx_audio"
+readme = "README.md"
+keywords = ["audio", "dsp", "embedded", "daisy", "stm32"]
+categories = ["embedded", "hardware-support", "no-std"]
+
+[dependencies]
+bbx_core = { workspace = true }
+
+# Embedded HAL (only for ARM Cortex-M targets)
+[target.'cfg(all(target_arch = "arm", target_os = "none"))'.dependencies]
+cortex-m = "0.7"
+cortex-m-rt = "0.7"
+stm32h7xx-hal = { version = "0.16", features = ["stm32h750v", "rt"] }
+panic-halt = "1.0"
+
+[features]
+default = ["seed"]
+seed = []
+seed_1_1 = []
+seed_1_2 = []
+pod = []
+patch_sm = []
+patch_init = ["patch_sm"]

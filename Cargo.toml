@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "bbx_core",
+    "bbx_daisy",
     "bbx_draw",
     "bbx_dsp",
     "bbx_file",
@@ -24,6 +25,7 @@ rust-version = "1.89.0"
 # Internal crates (version + path for publishing)
 # Note: default-features = false allows individual crates to opt-in to features
 bbx_core = { version = "0.4.3", path = "bbx_core", default-features = false }
+bbx_daisy = { version = "0.4.3", path = "bbx_daisy" }
 bbx_dsp = { version = "0.4.3", path = "bbx_dsp", default-features = false }
 bbx_file = { version = "0.4.3", path = "bbx_file" }
 bbx_midi = { version = "0.4.3", path = "bbx_midi", default-features = false }
