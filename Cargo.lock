@@ -226,6 +226,8 @@ dependencies = [
  "bbx_core",
  "cortex-m",
  "cortex-m-rt",
+ "embedded-hal",
+ "libm",
  "panic-halt",
  "stm32h7xx-hal",
 ]

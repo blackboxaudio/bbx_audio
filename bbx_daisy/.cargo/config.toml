@@ -1,0 +1,17 @@
+# Cargo configuration for embedded ARM Cortex-M7 targets (STM32H750)
+
+[build]
+target = "thumbv7em-none-eabihf"
+
+[target.thumbv7em-none-eabihf]
+# Use probe-rs for flashing and debugging
+runner = "probe-rs run --chip STM32H750VBTx"
+
+# Linker configuration
+rustflags = [
+    "-C", "link-arg=-Tlink.x",
+    "-C", "link-arg=-Tdefmt.x",
+]
+
+[env]
+DEFMT_LOG = "debug"

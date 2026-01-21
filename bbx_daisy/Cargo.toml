@@ -14,12 +14,35 @@ categories = ["embedded", "hardware-support", "no-std"]
 [dependencies]
 bbx_core = { workspace = true }
 
+# Embedded HAL traits (platform-independent)
+# Using 0.2 for compatibility with stm32h7xx-hal 0.16
+embedded-hal = "0.2"
+
+# Math library for no_std
+libm = "0.2"
+
 # Embedded HAL (only for ARM Cortex-M targets)
 [target.'cfg(all(target_arch = "arm", target_os = "none"))'.dependencies]
 cortex-m = "0.7"
 cortex-m-rt = "0.7"
 stm32h7xx-hal = { version = "0.16", features = ["stm32h750v", "rt"] }
 panic-halt = "1.0"
+
+[[example]]
+name = "01_blink"
+required-features = ["seed"]
+
+[[example]]
+name = "02_oscillator"
+required-features = ["seed"]
+
+[[example]]
+name = "03_filter_knob"
+required-features = ["seed"]
+
+[[example]]
+name = "04_simple_synth"
+required-features = ["seed"]
 
 [features]
 default = ["seed"]
