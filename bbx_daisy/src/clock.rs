@@ -6,7 +6,11 @@
 //! - PLL1: 480 MHz system clock (SYSCLK)
 //! - PLL3: SAI clock source for audio (12.288 MHz for 48kHz)
 
-use stm32h7xx_hal::{pac, prelude::*, rcc::{Ccdr, PllConfigStrategy}};
+use stm32h7xx_hal::{
+    pac,
+    prelude::*,
+    rcc::{Ccdr, PllConfigStrategy},
+};
 
 /// Audio sample rates supported by the clock configuration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

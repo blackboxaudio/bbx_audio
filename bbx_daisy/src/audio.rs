@@ -29,11 +29,12 @@
 //! }
 //! ```
 
-use core::mem::MaybeUninit;
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    mem::MaybeUninit,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
-use crate::buffer::FrameBuffer;
-use crate::clock::SampleRate;
+use crate::{buffer::FrameBuffer, clock::SampleRate};
 
 /// Default block size for audio processing (32 samples at ~48kHz = 0.67ms latency).
 pub const BLOCK_SIZE: usize = 32;

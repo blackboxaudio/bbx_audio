@@ -251,13 +251,8 @@ where
     ///
     /// WM8731 uses a 16-bit I2C word: [7-bit addr][9-bit data].
     fn write_reg(&mut self, reg: u8, value: u16) -> CodecResult<()> {
-        let bytes = [
-            (reg << 1) | ((value >> 8) as u8 & 0x01),
-            (value & 0xFF) as u8,
-        ];
-        self.i2c
-            .write(self.address, &bytes)
-            .map_err(|_| CodecError::I2cError)
+        let bytes = [(reg << 1) | ((value >> 8) as u8 & 0x01), (value & 0xFF) as u8];
+        self.i2c.write(self.address, &bytes).map_err(|_| CodecError::I2cError)
     }
 }
 

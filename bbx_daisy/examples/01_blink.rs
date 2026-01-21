@@ -17,11 +17,10 @@
 #![no_std]
 #![no_main]
 
+use bbx_daisy::peripherals::gpio::Led;
 use cortex_m_rt::entry;
 use panic_halt as _;
 use stm32h7xx_hal::{pac, prelude::*};
-
-use bbx_daisy::peripherals::gpio::Led;
 
 #[entry]
 fn main() -> ! {
@@ -34,9 +33,7 @@ fn main() -> ! {
 
     // Configure clocks (use default internal oscillator for simplicity)
     let rcc = dp.RCC.constrain();
-    let ccdr = rcc
-        .sys_ck(480.MHz())
-        .freeze(pwr, &dp.SYSCFG);
+    let ccdr = rcc.sys_ck(480.MHz()).freeze(pwr, &dp.SYSCFG);
 
     // Configure GPIO port C
     let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);

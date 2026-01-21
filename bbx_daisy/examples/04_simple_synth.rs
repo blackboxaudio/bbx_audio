@@ -25,12 +25,13 @@
 
 use core::f32::consts::PI;
 
+use bbx_daisy::{
+    FrameBuffer,
+    audio::{self, AudioCallback, BLOCK_SIZE},
+    context::DEFAULT_SAMPLE_RATE,
+};
 use cortex_m_rt::entry;
 use panic_halt as _;
-
-use bbx_daisy::audio::{self, AudioCallback, BLOCK_SIZE};
-use bbx_daisy::context::DEFAULT_SAMPLE_RATE;
-use bbx_daisy::FrameBuffer;
 
 const BASE_FREQUENCY: f32 = 220.0;
 

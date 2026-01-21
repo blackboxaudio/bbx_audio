@@ -2,9 +2,7 @@
 //!
 //! Copies the memory.x linker script to the output directory for ARM targets.
 
-use std::env;
-use std::fs;
-use std::path::PathBuf;
+use std::{env, fs, path::PathBuf};
 
 fn main() {
     let target = env::var("TARGET").unwrap_or_default();

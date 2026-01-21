@@ -138,11 +138,7 @@ impl<P: InputPin> Button<P> {
     #[inline]
     pub fn is_pressed_raw(&self) -> bool {
         let high = self.pin.is_high().unwrap_or(false);
-        if self.active_low {
-            !high
-        } else {
-            high
-        }
+        if self.active_low { !high } else { high }
     }
 
     /// Update debounce state and return the stable pressed state.
@@ -249,29 +245,19 @@ pub struct GateIn<P> {
 impl<P: InputPin> GateIn<P> {
     /// Create a new gate input (active high).
     pub fn new(pin: P) -> Self {
-        Self {
-            pin,
-            active_low: false,
-        }
+        Self { pin, active_low: false }
     }
 
     /// Create a new active-low gate input.
     pub fn new_active_low(pin: P) -> Self {
-        Self {
-            pin,
-            active_low: true,
-        }
+        Self { pin, active_low: true }
     }
 
     /// Check if the gate is currently active.
     #[inline]
     pub fn is_active(&self) -> bool {
         let high = self.pin.is_high().unwrap_or(false);
-        if self.active_low {
-            !high
-        } else {
-            high
-        }
+        if self.active_low { !high } else { high }
     }
 
     /// Release the underlying pin.
