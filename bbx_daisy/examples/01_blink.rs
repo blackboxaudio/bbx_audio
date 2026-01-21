@@ -17,39 +17,18 @@
 #![no_std]
 #![no_main]
 
-use bbx_daisy::peripherals::gpio::Led;
-use cortex_m_rt::entry;
-use panic_halt as _;
-use stm32h7xx_hal::{pac, prelude::*};
+use bbx_daisy::{bbx_daisy_run, prelude::*};
 
-#[entry]
-fn main() -> ! {
-    // Get access to device peripherals
-    let dp = pac::Peripherals::take().unwrap();
-    let cp = cortex_m::Peripherals::take().unwrap();
-
-    // Configure power
-    let pwr = dp.PWR.constrain().freeze();
-
-    // Configure clocks (use default internal oscillator for simplicity)
-    let rcc = dp.RCC.constrain();
-    let ccdr = rcc.sys_ck(480.MHz()).freeze(pwr, &dp.SYSCFG);
-
-    // Configure GPIO port C
-    let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
-
-    // Configure PC7 as output for the user LED
-    let led_pin = gpioc.pc7.into_push_pull_output();
+fn blink(mut board: Board) -> ! {
+    let led_pin = board.gpioc.pc7.into_push_pull_output();
     let mut led = Led::new(led_pin);
 
-    // Configure SysTick for delays
-    let mut delay = cp.SYST.delay(ccdr.clocks);
-
-    // Blink the LED
     loop {
         led.on();
-        delay.delay_ms(500u16);
+        board.delay.delay_ms(500u16);
         led.off();
-        delay.delay_ms(500u16);
+        board.delay.delay_ms(500u16);
     }
 }
+
+bbx_daisy_run!(blink);

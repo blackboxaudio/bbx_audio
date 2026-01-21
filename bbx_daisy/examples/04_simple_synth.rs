@@ -4,13 +4,13 @@
 //! - Sawtooth oscillator
 //! - Low-pass filter with envelope modulation
 //! - ADSR amplitude envelope
-//! - Button-triggered note on/off
+//!
+//! This example demonstrates a complex audio processor with multiple
+//! interacting components (oscillator, filter, envelopes).
 //!
 //! ## Hardware
 //!
-//! - Daisy Seed
-//! - Button connected to D0 (PB12) with pull-up
-//! - Potentiometer on D21 (PC4) for filter cutoff
+//! - Daisy Seed (any variant)
 //! - Audio output connected to speakers/headphones
 //!
 //! ## Building & Flashing
@@ -23,15 +23,7 @@
 #![no_std]
 #![no_main]
 
-use core::f32::consts::PI;
-
-use bbx_daisy::{
-    FrameBuffer,
-    audio::{self, AudioCallback, BLOCK_SIZE},
-    context::DEFAULT_SAMPLE_RATE,
-};
-use cortex_m_rt::entry;
-use panic_halt as _;
+use bbx_daisy::{bbx_daisy_audio, prelude::*};
 
 const BASE_FREQUENCY: f32 = 220.0;
 
@@ -121,7 +113,13 @@ impl LowPassFilter {
     }
 
     fn set_cutoff(&mut self, cutoff: f32) {
-        self.cutoff = cutoff.clamp(20.0, 20000.0);
+        self.cutoff = if cutoff < 20.0 {
+            20.0
+        } else if cutoff > 20000.0 {
+            20000.0
+        } else {
+            cutoff
+        };
     }
 
     fn process(&mut self, input: f32) -> f32 {
@@ -145,10 +143,6 @@ impl Oscillator {
         }
     }
 
-    fn set_frequency(&mut self, freq: f32) {
-        self.frequency = freq.clamp(20.0, 20000.0);
-    }
-
     fn saw(&mut self) -> f32 {
         let output = self.phase * 2.0 - 1.0;
         self.phase += self.frequency / DEFAULT_SAMPLE_RATE;
@@ -158,8 +152,6 @@ impl Oscillator {
         output
     }
 }
-
-static mut SYNTH: Synth = Synth::new();
 
 struct Synth {
     osc: Oscillator,
@@ -177,23 +169,17 @@ impl Synth {
             filter: LowPassFilter::new(),
             amp_env: Envelope::new(),
             filter_env: Envelope::new(),
-            base_cutoff: 500.0,
-            env_amount: 2000.0,
+            base_cutoff: 800.0,
+            env_amount: 3000.0,
         }
     }
 
-    fn note_on(&mut self, frequency: f32) {
-        self.osc.set_frequency(frequency);
+    fn note_on(&mut self) {
         self.amp_env.trigger();
         self.filter_env.trigger();
     }
 
-    fn note_off(&mut self) {
-        self.amp_env.release();
-        self.filter_env.release();
-    }
-
-    fn process(&mut self) -> f32 {
+    fn process_sample(&mut self) -> f32 {
         let osc_out = self.osc.saw();
 
         let filter_env = self.filter_env.process();
@@ -206,50 +192,17 @@ impl Synth {
     }
 }
 
-fn audio_callback(_input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>) {
-    unsafe {
-        let synth = core::ptr::addr_of_mut!(SYNTH);
+impl AudioProcessor for Synth {
+    fn process(&mut self, _input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>) {
         for i in 0..BLOCK_SIZE {
-            let sample = (*synth).process();
+            let sample = self.process_sample();
             output.set_frame(i, sample, sample);
         }
     }
-}
 
-#[entry]
-fn main() -> ! {
-    audio::set_callback(audio_callback);
-
-    let mut audio_interface = audio::default_audio();
-    audio_interface.init();
-    audio_interface.start();
-
-    let mut note_playing = false;
-    let mut button_was_pressed = false;
-
-    unsafe {
-        let synth = core::ptr::addr_of_mut!(SYNTH);
-        (*synth).base_cutoff = 800.0;
-        (*synth).env_amount = 3000.0;
-    }
-
-    loop {
-        let button_pressed = false;
-
-        if button_pressed && !button_was_pressed {
-            unsafe {
-                let synth = core::ptr::addr_of_mut!(SYNTH);
-                if note_playing {
-                    (*synth).note_off();
-                    note_playing = false;
-                } else {
-                    (*synth).note_on(BASE_FREQUENCY);
-                    note_playing = true;
-                }
-            }
-        }
-        button_was_pressed = button_pressed;
-
-        cortex_m::asm::delay(48_000);
+    fn prepare(&mut self, _sample_rate: f32) {
+        self.note_on();
     }
 }
+
+bbx_daisy_audio!(Synth, Synth::new());
