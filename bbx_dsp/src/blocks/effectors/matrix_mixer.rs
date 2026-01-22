@@ -230,4 +230,37 @@ mod tests {
     fn test_matrix_mixer_zero_outputs_panics() {
         let _ = MatrixMixerBlock::<f32>::new(2, 0);
     }
+
+    #[test]
+    fn test_matrix_mixer_counts_f64() {
+        let mixer = MatrixMixerBlock::<f64>::new(4, 2);
+        assert_eq!(mixer.input_count(), 4);
+        assert_eq!(mixer.output_count(), 2);
+        assert_eq!(mixer.channel_config(), ChannelConfig::Explicit);
+    }
+
+    #[test]
+    fn test_matrix_mixer_identity_f64() {
+        let mut mixer = MatrixMixerBlock::<f64>::identity(2);
+        let context = test_context();
+
+        let left_in = [1.0f64, 2.0, 3.0, 4.0];
+        let right_in = [5.0f64, 6.0, 7.0, 8.0];
+        let mut left_out = [0.0f64; 4];
+        let mut right_out = [0.0f64; 4];
+
+        let inputs: [&[f64]; 2] = [&left_in, &right_in];
+        let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
+
+        mixer.process(&inputs, &mut outputs, &[], &context);
+
+        assert_eq!(left_out, left_in);
+        assert_eq!(right_out, right_in);
+    }
+
+    #[test]
+    fn test_matrix_mixer_modulation_outputs_empty() {
+        let mixer = MatrixMixerBlock::<f32>::new(2, 2);
+        assert!(mixer.modulation_outputs().is_empty());
+    }
 }

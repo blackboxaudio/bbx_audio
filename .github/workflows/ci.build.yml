@@ -1,0 +1,49 @@
+name: Build
+
+on:
+    pull_request:
+    push:
+        branches: [main, develop]
+
+jobs:
+    build-desktop:
+        name: Build (Desktop)
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v4
+
+            - name: Setup Linux Dependencies
+              run: sudo apt install libasound2-dev libssl-dev pkg-config
+
+            - name: Setup Rust
+              uses: dtolnay/rust-toolchain@nightly
+
+            - name: Cache Rust dependencies
+              uses: Swatinem/rust-cache@v2
+
+            - name: Build Workspace
+              run: cargo build --workspace
+
+    build-embedded:
+        name: Build (Embedded)
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v4
+
+            - name: Setup Rust
+              uses: dtolnay/rust-toolchain@nightly
+              with:
+                  targets: thumbv7em-none-eabihf
+
+            - name: Cache Rust dependencies
+              uses: Swatinem/rust-cache@v2
+
+            - name: Build bbx_daisy
+              run: cargo build -p bbx_daisy --target thumbv7em-none-eabihf --features seed --release
+
+            - name: Build Examples
+              run: |
+                  cargo build -p bbx_daisy --example 01_blink --target thumbv7em-none-eabihf --release
+                  cargo build -p bbx_daisy --example 02_oscillator --target thumbv7em-none-eabihf --release

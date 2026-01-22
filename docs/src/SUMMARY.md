@@ -48,6 +48,7 @@
     - [Stack Vector](crates/core/stack-vec.md)
     - [Random Number Generation](crates/core/random.md)
     - [Error Types](crates/core/error.md)
+- [bbx_daisy](crates/bbx-daisy.md)
 - [bbx_draw](crates/bbx-draw.md)
     - [Visualizer Trait](crates/draw/visualizer.md)
     - [Audio Bridge](crates/draw/audio-bridge.md)
@@ -104,6 +105,13 @@
     - [FileInputBlock](blocks/io/file-input.md)
     - [FileOutputBlock](blocks/io/file-output.md)
     - [OutputBlock](blocks/io/output.md)
+
+# Embedded Development
+
+- [Overview](embedded/overview.md)
+- [Build Process](embedded/build-process.md)
+- [Memory Constraints](embedded/memory.md)
+- [Troubleshooting](embedded/troubleshooting.md)
 
 # Architecture Deep-Dives
 

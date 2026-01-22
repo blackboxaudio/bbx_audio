@@ -7,7 +7,7 @@
 //!
 //! ## Quick Start
 //!
-//! For audio processing, implement [`AudioProcessor`] and use [`bbx_daisy_audio!`]:
+//! For audio processing, implement `AudioProcessor` and use `bbx_daisy_audio!`:
 //!
 //! ```ignore
 //! #![no_std]
@@ -31,7 +31,7 @@
 //! bbx_daisy_audio!(SineOsc, SineOsc { phase: 0.0, phase_inc: 440.0 / DEFAULT_SAMPLE_RATE });
 //! ```
 //!
-//! For GPIO-only applications, use [`bbx_daisy_run!`]:
+//! For GPIO-only applications, use `bbx_daisy_run!`:
 //!
 //! ```ignore
 //! #![no_std]
