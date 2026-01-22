@@ -13,6 +13,7 @@ categories = ["embedded", "hardware-support", "no-std"]
 
 [dependencies]
 bbx_core = { workspace = true }
+bbx_dsp = { workspace = true, default-features = false }
 
 # Embedded HAL traits (platform-independent)
 # Using 0.2 for compatibility with stm32h7xx-hal 0.16

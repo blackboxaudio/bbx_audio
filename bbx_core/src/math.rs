@@ -71,6 +71,7 @@ pub trait Real: Copy {
     fn fract(self) -> Self;
     fn copysign(self, sign: Self) -> Self;
     fn radians(self) -> Self;
+    fn rem_euclid(self, rhs: Self) -> Self;
 }
 
 impl Real for f32 {
@@ -190,6 +191,11 @@ impl Real for f32 {
     fn radians(self) -> Self {
         self * Self::PI / 180.0
     }
+    #[inline]
+    fn rem_euclid(self, rhs: Self) -> Self {
+        let r = libm::fmodf(self, rhs);
+        if r < 0.0 { r + libm::fabsf(rhs) } else { r }
+    }
 }
 
 impl Real for f64 {
@@ -308,6 +314,11 @@ impl Real for f64 {
     #[inline]
     fn radians(self) -> Self {
         self * Self::PI / 180.0
+    }
+    #[inline]
+    fn rem_euclid(self, rhs: Self) -> Self {
+        let r = libm::fmod(self, rhs);
+        if r < 0.0 { r + libm::fabs(rhs) } else { r }
     }
 }
 
@@ -441,6 +452,11 @@ pub fn copysign<T: Real>(magnitude: T, sign: T) -> T {
 #[inline]
 pub fn radians<T: Real>(deg: T) -> T {
     deg.radians()
+}
+
+#[inline]
+pub fn rem_euclid<T: Real>(x: T, rhs: T) -> T {
+    x.rem_euclid(rhs)
 }
 
 #[cfg(test)]

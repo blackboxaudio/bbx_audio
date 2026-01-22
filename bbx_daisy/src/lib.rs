@@ -75,6 +75,12 @@ pub mod context;
 // Prelude for convenient imports
 pub mod prelude;
 
+/// DSP functionality re-exported from `bbx_dsp`.
+///
+/// Provides access to blocks, parameters, and other DSP primitives
+/// for use in embedded audio processing.
+pub use bbx_dsp as dsp;
+
 // HAL-dependent modules (only available on ARM Cortex-M targets)
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub mod audio;

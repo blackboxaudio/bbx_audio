@@ -134,7 +134,7 @@ pub(crate) fn process_waveform_scalar<S: Sample>(
         *sample = S::from_f64(value * scale);
         *phase += phase_increment;
     }
-    *phase = phase.rem_euclid(<f64 as Real>::TAU);
+    *phase = Real::rem_euclid(*phase, <f64 as Real>::TAU);
 }
 
 /// Generate 4 band-limited waveform samples using SIMD with PolyBLEP corrections.

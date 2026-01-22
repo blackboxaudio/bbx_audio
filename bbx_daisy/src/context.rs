@@ -116,6 +116,18 @@ impl<const BUFFER_SIZE: usize> Default for EmbeddedDspContext<BUFFER_SIZE> {
     }
 }
 
+impl<const BUFFER_SIZE: usize> From<EmbeddedDspContext<BUFFER_SIZE>> for bbx_dsp::context::DspContext {
+    fn from(ctx: EmbeddedDspContext<BUFFER_SIZE>) -> Self {
+        Self {
+            sample_rate: ctx.sample_rate as f64,
+            num_channels: ctx.num_channels,
+            buffer_size: BUFFER_SIZE,
+            current_sample: ctx.current_sample as u64,
+            channel_layout: bbx_dsp::ChannelLayout::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

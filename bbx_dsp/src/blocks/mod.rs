@@ -12,9 +12,12 @@ pub mod io;
 pub mod modulators;
 
 // Re-export block types for ergonomic imports
+#[cfg(feature = "alloc")]
 pub use effectors::{
     ambisonic_decoder::AmbisonicDecoderBlock,
     binaural_decoder::{BinauralDecoderBlock, BinauralStrategy},
+};
+pub use effectors::{
     channel_merger::ChannelMergerBlock,
     channel_router::{ChannelMode, ChannelRouterBlock},
     channel_splitter::ChannelSplitterBlock,
@@ -31,4 +34,7 @@ pub use generators::oscillator::OscillatorBlock;
 pub use io::output::OutputBlock;
 #[cfg(feature = "std")]
 pub use io::{file_input::FileInputBlock, file_output::FileOutputBlock};
-pub use modulators::{envelope::EnvelopeBlock, lfo::LfoBlock};
+pub use modulators::{
+    envelope::{EnvelopeBlock, EnvelopeStage},
+    lfo::LfoBlock,
+};

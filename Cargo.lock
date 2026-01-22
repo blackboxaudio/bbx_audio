@@ -224,6 +224,7 @@ name = "bbx_daisy"
 version = "0.4.3"
 dependencies = [
  "bbx_core",
+ "bbx_dsp",
  "cortex-m",
  "cortex-m-rt",
  "embedded-hal",

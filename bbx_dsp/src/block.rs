@@ -10,12 +10,15 @@ use alloc::{
     vec::Vec,
 };
 
+#[cfg(feature = "alloc")]
+use crate::blocks::effectors::{ambisonic_decoder::AmbisonicDecoderBlock, binaural_decoder::BinauralDecoderBlock};
 #[cfg(feature = "std")]
 use crate::blocks::io::{file_input::FileInputBlock, file_output::FileOutputBlock};
+#[cfg(feature = "alloc")]
+use crate::parameter::Parameter;
 use crate::{
     blocks::{
         effectors::{
-            ambisonic_decoder::AmbisonicDecoderBlock, binaural_decoder::BinauralDecoderBlock,
             channel_merger::ChannelMergerBlock, channel_router::ChannelRouterBlock,
             channel_splitter::ChannelSplitterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock,
             low_pass_filter::LowPassFilterBlock, matrix_mixer::MatrixMixerBlock, mixer::MixerBlock,
@@ -27,7 +30,7 @@ use crate::{
     },
     channel::ChannelConfig,
     context::DspContext,
-    parameter::{ModulationOutput, Parameter},
+    parameter::ModulationOutput,
     sample::Sample,
 };
 
@@ -159,8 +162,10 @@ pub enum BlockType<S: Sample> {
 
     // EFFECTORS
     /// Decodes ambisonics B-format to speaker layout.
+    #[cfg(feature = "alloc")]
     AmbisonicDecoder(AmbisonicDecoderBlock<S>),
     /// Decodes ambisonics B-format to stereo for headphones.
+    #[cfg(feature = "alloc")]
     BinauralDecoder(BinauralDecoderBlock<S>),
     /// Merges individual mono inputs into multi-channel output.
     ChannelMerger(ChannelMergerBlock<S>),
@@ -214,7 +219,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.process(inputs, outputs, modulation_values, context),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.process(inputs, outputs, modulation_values, context),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::ChannelMerger(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::ChannelRouter(block) => block.process(inputs, outputs, modulation_values, context),
@@ -249,7 +256,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.input_count(),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.input_count(),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.input_count(),
             BlockType::ChannelMerger(block) => block.input_count(),
             BlockType::ChannelRouter(block) => block.input_count(),
@@ -284,7 +293,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.output_count(),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.output_count(),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.output_count(),
             BlockType::ChannelMerger(block) => block.output_count(),
             BlockType::ChannelRouter(block) => block.output_count(),
@@ -319,7 +330,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.modulation_outputs(),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.modulation_outputs(),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.modulation_outputs(),
             BlockType::ChannelMerger(block) => block.modulation_outputs(),
             BlockType::ChannelRouter(block) => block.modulation_outputs(),
@@ -354,7 +367,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.channel_config(),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.channel_config(),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.channel_config(),
             BlockType::ChannelMerger(block) => block.channel_config(),
             BlockType::ChannelRouter(block) => block.channel_config(),
@@ -404,7 +419,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.prepare(context),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.prepare(context),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.prepare(context),
             BlockType::ChannelMerger(block) => block.prepare(context),
             BlockType::ChannelRouter(block) => block.prepare(context),
@@ -441,7 +458,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.reset(),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.reset(),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.reset(),
             BlockType::ChannelMerger(block) => block.reset(),
             BlockType::ChannelRouter(block) => block.reset(),
@@ -486,7 +505,9 @@ impl<S: Sample> BlockType<S> {
             },
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(_) => Err("Ambisonic decoder has no modulated parameters".to_string()),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(_) => Err("Binaural decoder has no modulated parameters".to_string()),
             BlockType::ChannelMerger(_) => Err("Channel merger has no modulated parameters".to_string()),
             BlockType::ChannelRouter(_) => Err("Channel router uses direct field access, not Parameter<S>".to_string()),
@@ -600,9 +621,11 @@ impl<S: Sample> BlockType<S> {
             BlockType::FileOutput(_) => BlockCategory::IO,
             BlockType::Output(_) => BlockCategory::IO,
             BlockType::Oscillator(_) => BlockCategory::Generator,
-            BlockType::AmbisonicDecoder(_)
-            | BlockType::BinauralDecoder(_)
-            | BlockType::ChannelMerger(_)
+            #[cfg(feature = "alloc")]
+            BlockType::AmbisonicDecoder(_) => BlockCategory::Effector,
+            #[cfg(feature = "alloc")]
+            BlockType::BinauralDecoder(_) => BlockCategory::Effector,
+            BlockType::ChannelMerger(_)
             | BlockType::ChannelRouter(_)
             | BlockType::ChannelSplitter(_)
             | BlockType::DcBlocker(_)
@@ -627,7 +650,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::FileOutput(_) => "File Output",
             BlockType::Output(_) => "Output",
             BlockType::Oscillator(_) => "Oscillator",
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(_) => "Ambisonic Decoder",
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(_) => "Binaural Decoder",
             BlockType::ChannelMerger(_) => "Channel Merger",
             BlockType::ChannelRouter(_) => "Channel Router",
@@ -674,9 +699,11 @@ impl<S: Sample> BlockType<S> {
                 }
             }
 
-            BlockType::AmbisonicDecoder(_)
-            | BlockType::BinauralDecoder(_)
-            | BlockType::ChannelMerger(_)
+            #[cfg(feature = "alloc")]
+            BlockType::AmbisonicDecoder(_) => {}
+            #[cfg(feature = "alloc")]
+            BlockType::BinauralDecoder(_) => {}
+            BlockType::ChannelMerger(_)
             | BlockType::ChannelRouter(_)
             | BlockType::ChannelSplitter(_)
             | BlockType::DcBlocker(_)
@@ -780,12 +807,14 @@ impl<S: Sample> From<OscillatorBlock<S>> for BlockType<S> {
 }
 
 // Effectors
+#[cfg(feature = "alloc")]
 impl<S: Sample> From<AmbisonicDecoderBlock<S>> for BlockType<S> {
     fn from(block: AmbisonicDecoderBlock<S>) -> Self {
         BlockType::AmbisonicDecoder(block)
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<S: Sample> From<BinauralDecoderBlock<S>> for BlockType<S> {
     fn from(block: BinauralDecoderBlock<S>) -> Self {
         BlockType::BinauralDecoder(block)

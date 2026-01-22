@@ -23,81 +23,13 @@
 #![no_std]
 #![no_main]
 
-use bbx_daisy::{bbx_daisy_audio, prelude::*};
+use bbx_daisy::{
+    bbx_daisy_audio,
+    dsp::{ChannelLayout, block::Block, blocks::EnvelopeBlock, context::DspContext},
+    prelude::*,
+};
 
 const BASE_FREQUENCY: f32 = 220.0;
-
-#[derive(Clone, Copy, PartialEq)]
-enum EnvelopeStage {
-    Idle,
-    Attack,
-    Decay,
-    Sustain,
-    Release,
-}
-
-struct Envelope {
-    stage: EnvelopeStage,
-    level: f32,
-    attack_rate: f32,
-    decay_rate: f32,
-    sustain_level: f32,
-    release_rate: f32,
-}
-
-impl Envelope {
-    const fn new() -> Self {
-        Self {
-            stage: EnvelopeStage::Idle,
-            level: 0.0,
-            attack_rate: 0.001,
-            decay_rate: 0.0001,
-            sustain_level: 0.7,
-            release_rate: 0.0005,
-        }
-    }
-
-    fn trigger(&mut self) {
-        self.stage = EnvelopeStage::Attack;
-    }
-
-    fn release(&mut self) {
-        if self.stage != EnvelopeStage::Idle {
-            self.stage = EnvelopeStage::Release;
-        }
-    }
-
-    fn process(&mut self) -> f32 {
-        match self.stage {
-            EnvelopeStage::Idle => {
-                self.level = 0.0;
-            }
-            EnvelopeStage::Attack => {
-                self.level += self.attack_rate;
-                if self.level >= 1.0 {
-                    self.level = 1.0;
-                    self.stage = EnvelopeStage::Decay;
-                }
-            }
-            EnvelopeStage::Decay => {
-                self.level -= self.decay_rate;
-                if self.level <= self.sustain_level {
-                    self.level = self.sustain_level;
-                    self.stage = EnvelopeStage::Sustain;
-                }
-            }
-            EnvelopeStage::Sustain => {}
-            EnvelopeStage::Release => {
-                self.level -= self.release_rate;
-                if self.level <= 0.0 {
-                    self.level = 0.0;
-                    self.stage = EnvelopeStage::Idle;
-                }
-            }
-        }
-        self.level
-    }
-}
 
 struct LowPassFilter {
     state: f32,
@@ -156,46 +88,62 @@ impl Oscillator {
 struct Synth {
     osc: Oscillator,
     filter: LowPassFilter,
-    amp_env: Envelope,
-    filter_env: Envelope,
+    amp_env: EnvelopeBlock<f32>,
+    filter_env: EnvelopeBlock<f32>,
+    amp_env_buffer: [f32; BLOCK_SIZE],
+    filter_env_buffer: [f32; BLOCK_SIZE],
     base_cutoff: f32,
     env_amount: f32,
 }
 
 impl Synth {
-    const fn new() -> Self {
+    fn new() -> Self {
         Self {
             osc: Oscillator::new(),
             filter: LowPassFilter::new(),
-            amp_env: Envelope::new(),
-            filter_env: Envelope::new(),
+            amp_env: EnvelopeBlock::new(0.01, 0.1, 0.7, 0.3),
+            filter_env: EnvelopeBlock::new(0.01, 0.1, 0.7, 0.3),
+            amp_env_buffer: [0.0; BLOCK_SIZE],
+            filter_env_buffer: [0.0; BLOCK_SIZE],
             base_cutoff: 800.0,
             env_amount: 3000.0,
         }
     }
 
     fn note_on(&mut self) {
-        self.amp_env.trigger();
-        self.filter_env.trigger();
-    }
-
-    fn process_sample(&mut self) -> f32 {
-        let osc_out = self.osc.saw();
-
-        let filter_env = self.filter_env.process();
-        let cutoff = self.base_cutoff + self.env_amount * filter_env;
-        self.filter.set_cutoff(cutoff);
-        let filtered = self.filter.process(osc_out);
-
-        let amp_env = self.amp_env.process();
-        filtered * amp_env * 0.5
+        self.amp_env.note_on();
+        self.filter_env.note_on();
     }
 }
 
 impl AudioProcessor for Synth {
     fn process(&mut self, _input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>) {
+        let context = DspContext {
+            sample_rate: DEFAULT_SAMPLE_RATE as f64,
+            num_channels: 2,
+            buffer_size: BLOCK_SIZE,
+            current_sample: 0,
+            channel_layout: ChannelLayout::Stereo,
+        };
+
+        let inputs: [&[f32]; 0] = [];
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut self.amp_env_buffer];
+            self.amp_env.process(&inputs, &mut outputs, &[], &context);
+        }
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut self.filter_env_buffer];
+            self.filter_env.process(&inputs, &mut outputs, &[], &context);
+        }
+
         for i in 0..BLOCK_SIZE {
-            let sample = self.process_sample();
+            let osc_out = self.osc.saw();
+
+            let cutoff = self.base_cutoff + self.env_amount * self.filter_env_buffer[i];
+            self.filter.set_cutoff(cutoff);
+            let filtered = self.filter.process(osc_out);
+
+            let sample = filtered * self.amp_env_buffer[i] * 0.5;
             output.set_frame(i, sample, sample);
         }
     }

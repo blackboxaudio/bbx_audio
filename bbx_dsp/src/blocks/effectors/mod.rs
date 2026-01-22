@@ -1,7 +1,9 @@
 //! `Effector`s are blocks that perform some arbitrary processing from the outputs
 //! of other blocks.
 
+#[cfg(feature = "alloc")]
 pub mod ambisonic_decoder;
+#[cfg(feature = "alloc")]
 pub mod binaural_decoder;
 pub mod channel_merger;
 pub mod channel_router;
