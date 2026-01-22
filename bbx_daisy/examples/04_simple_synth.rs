@@ -117,7 +117,12 @@ impl Synth {
 }
 
 impl AudioProcessor for Synth {
-    fn process(&mut self, _input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>) {
+    fn process(
+        &mut self,
+        _input: &FrameBuffer<BLOCK_SIZE>,
+        output: &mut FrameBuffer<BLOCK_SIZE>,
+        _controls: &Controls,
+    ) {
         let context = DspContext {
             sample_rate: DEFAULT_SAMPLE_RATE as f64,
             num_channels: 2,

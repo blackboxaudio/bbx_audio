@@ -55,6 +55,15 @@ impl Knob {
         Self::new(0.1)
     }
 
+    /// Create with default smoothing in const context (for static initialization).
+    pub const fn default_smoothing_const() -> Self {
+        Self {
+            value: 0.0,
+            alpha: 0.1,
+            deadzone: 0.005,
+        }
+    }
+
     /// Set the deadzone for min/max positions.
     pub fn with_deadzone(mut self, deadzone: f32) -> Self {
         self.deadzone = deadzone.clamp(0.0, 0.1);

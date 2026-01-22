@@ -27,8 +27,9 @@ MEMORY
     BACKUP (rw) : ORIGIN = 0x38800000, LENGTH = 4K
 }
 
-/* Stack configuration */
+/* Stack configuration - place in DTCM for fast access */
 _stack_start = ORIGIN(DTCM) + LENGTH(DTCM);
+_stack_end = ORIGIN(DTCM);
 
 /* DMA buffer placement - must be in SRAM accessible by DMA */
 SECTIONS

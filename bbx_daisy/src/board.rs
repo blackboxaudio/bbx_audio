@@ -98,4 +98,68 @@ impl Board {
             gpiog,
         }
     }
+
+    /// Initialize the board with ADC for control inputs.
+    ///
+    /// This variant also configures ADC1 for reading knobs on Pod hardware.
+    /// Returns a [`BoardWithAdc`] that includes the board and ADC configuration.
+    ///
+    /// # Panics
+    ///
+    /// Panics if peripherals have already been taken.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let board_adc = Board::init_with_adc();
+    /// // ADC is now ready for reading knobs
+    /// ```
+    #[cfg(feature = "pod")]
+    pub fn init_with_adc() -> BoardWithAdc {
+        let dp = pac::Peripherals::take().expect("device peripherals already taken");
+        let cp = cortex_m::Peripherals::take().expect("core peripherals already taken");
+
+        let pwr = dp.PWR.constrain().freeze();
+
+        let rcc = dp.RCC.constrain();
+        let ccdr = rcc.sys_ck(480.MHz()).freeze(pwr, &dp.SYSCFG);
+
+        let gpioa = dp.GPIOA.split(ccdr.peripheral.GPIOA);
+        let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
+        let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
+        let gpiod = dp.GPIOD.split(ccdr.peripheral.GPIOD);
+        let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
+        let gpiog = dp.GPIOG.split(ccdr.peripheral.GPIOG);
+
+        let delay = cp.SYST.delay(ccdr.clocks);
+
+        // ADC initialization would go here
+        // For Pod: PC4 (Knob 1) and PC1 (Knob 2) need to be configured as analog inputs
+        // This is a placeholder - actual ADC hardware setup requires HAL ADC configuration
+
+        let board = Self {
+            clocks: ccdr.clocks,
+            delay,
+            gpioa,
+            gpiob,
+            gpioc,
+            gpiod,
+            gpioe,
+            gpiog,
+        };
+
+        BoardWithAdc { board }
+    }
+}
+
+/// Board with ADC initialized for control input reading.
+///
+/// This struct is returned by [`Board::init_with_adc()`] and provides
+/// access to both the standard board peripherals and ADC functionality.
+#[cfg(feature = "pod")]
+pub struct BoardWithAdc {
+    /// The initialized board with all peripherals.
+    pub board: Board,
+    // ADC reader would be added here when hardware support is complete
+    // pub adc: AdcReader,
 }

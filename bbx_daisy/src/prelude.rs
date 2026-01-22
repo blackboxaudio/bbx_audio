@@ -26,4 +26,5 @@ pub use crate::{audio::BLOCK_SIZE, board::Board, processor::AudioProcessor};
 pub use crate::{
     buffer::{FrameBuffer, StaticSampleBuffer},
     context::{DEFAULT_SAMPLE_RATE, EmbeddedDspContext},
+    controls::Controls,
 };

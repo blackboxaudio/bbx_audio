@@ -71,6 +71,7 @@
 // Core buffer types and context (always available)
 pub mod buffer;
 pub mod context;
+pub mod controls;
 
 // Prelude for convenient imports
 pub mod prelude;
@@ -102,8 +103,11 @@ pub mod processor;
 // Re-exports at crate root
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use board::Board;
+#[cfg(all(target_arch = "arm", target_os = "none", feature = "pod"))]
+pub use board::BoardWithAdc;
 pub use buffer::{FrameBuffer, StaticSampleBuffer};
 pub use context::EmbeddedDspContext;
+pub use controls::Controls;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use processor::AudioProcessor;
 
