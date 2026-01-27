@@ -16,8 +16,14 @@ jobs:
             - name: Setup Linux Dependencies
               run: sudo apt install libasound2-dev libssl-dev pkg-config
 
+            - name: Read toolchain version
+              id: toolchain
+              run: echo "channel=$(grep 'channel' rust-toolchain.toml | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+
             - name: Setup Rust
               uses: dtolnay/rust-toolchain@master
+              with:
+                  toolchain: ${{ steps.toolchain.outputs.channel }}
 
             - name: Cache Rust dependencies
               uses: Swatinem/rust-cache@v2
@@ -32,9 +38,14 @@ jobs:
             - name: Checkout Repository
               uses: actions/checkout@v4
 
+            - name: Read toolchain version
+              id: toolchain
+              run: echo "channel=$(grep 'channel' rust-toolchain.toml | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+
             - name: Setup Rust
               uses: dtolnay/rust-toolchain@master
               with:
+                  toolchain: ${{ steps.toolchain.outputs.channel }}
                   targets: thumbv7em-none-eabihf
 
             - name: Cache Rust dependencies
