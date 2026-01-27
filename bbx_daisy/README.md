@@ -15,14 +15,22 @@ This crate provides stack-allocated buffer types and hardware abstractions for r
 
 ## Supported Boards
 
-| Board | Feature Flag | Codec | Status |
-|-------|--------------|-------|--------|
-| Daisy Seed | `seed` (default) | AK4556 | Ready |
-| Daisy Seed 1.1 | `seed_1_1` | WM8731 | Ready |
-| Daisy Seed 1.2 | `seed_1_2` | PCM3060 | Ready |
-| Daisy Pod | `pod` | WM8731 | Ready |
-| Patch SM | `patch_sm` | PCM3060 | Ready |
-| Patch.Init() | `patch_init` | PCM3060 | Ready |
+**IMPORTANT**: Only one product feature should be enabled at a time. The build system enforces this and will fail if multiple features are detected.
+
+| Board | Feature Flag | Codec | SAI Config | DMA Config | Status |
+|-------|--------------|-------|------------|------------|--------|
+| Daisy Seed | `seed` (default) | AK4556 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Verified |
+| Daisy Seed 1.1 | `seed_1_1` | WM8731 | CH_B TX (slave) | Stream 0→B, Stream 1→A | ✓ Verified |
+| Daisy Seed 1.2 | `seed_1_2` | PCM3060 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Verified |
+| Daisy Pod | `pod` | WM8731 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Verified |
+| Patch SM | `patch_sm` | PCM3060 | CH_B TX (slave) | Stream 0→B, Stream 1→A | ✓ Verified |
+| Patch.Init() | `patch_init` | PCM3060 | CH_B TX (slave)* | Stream 0→B, Stream 1→A | ✓ Verified |
+| Patch (alias) | `patch` | PCM3060 | CH_B TX (slave)* | Stream 0→B, Stream 1→A | ✓ Verified |
+| Daisy Field | `field` | - | - | - | ✗ Not Implemented |
+
+\* `patch_init` and `patch` both use `patch_sm` hardware configuration
+
+**Note**: The SAI (Serial Audio Interface) and DMA configurations vary by board due to hardware design differences. The crate automatically selects the correct master/slave channel configuration and DMA stream assignments based on the feature flag. All configurations match the reference libDaisy implementation.
 
 ## Quick Start
 
@@ -170,12 +178,18 @@ ctx.advance();
 # Install ARM target
 rustup target add thumbv7em-none-eabihf
 
-# Build for Daisy Seed
+# Build for Daisy Seed (default)
 cargo build -p bbx_daisy --target thumbv7em-none-eabihf --release
 
-# Build for other variants
-cargo build -p bbx_daisy --target thumbv7em-none-eabihf --features pod --release
-cargo build -p bbx_daisy --target thumbv7em-none-eabihf --features patch_sm --release
+# Build for other variants (use --no-default-features to avoid feature conflicts)
+cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --features pod --release
+cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --features seed_1_1 --release
+cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --features seed_1_2 --release
+cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --features patch_sm --release
+cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --features patch --release
+
+# The build system enforces mutual exclusivity - this will fail:
+# cargo build --features "seed,pod"  # ERROR: Multiple features enabled
 ```
 
 ## Flashing to Hardware

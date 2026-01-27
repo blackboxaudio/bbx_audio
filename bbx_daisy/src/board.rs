@@ -273,8 +273,9 @@ impl AudioBoard<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>> {
         let mut codec = Wm8731::with_default_address(i2c4);
         codec.init(SampleRate::Rate48000).map_err(BoardError::CodecInit)?;
 
-        // Get SAI1 with PLL3_P clock source (already configured in ClockConfig)
-        let sai1_rec = ccdr.peripheral.SAI1;
+        // Get SAI1 with PLL3_P clock source explicitly configured
+        use stm32h7xx_hal::rcc::rec::Sai1ClkSel;
+        let sai1_rec = ccdr.peripheral.SAI1.kernel_clk_mux(Sai1ClkSel::Pll3P);
         let dma1_rec = ccdr.peripheral.DMA1;
 
         let delay = cp.SYST.delay(ccdr.clocks);
@@ -374,8 +375,9 @@ impl AudioBoard<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>> {
         adc1.set_resolution(adc_config.resolution);
         let adc1 = adc1.enable();
 
-        // Get SAI1 with PLL3_P clock source
-        let sai1_rec = ccdr.peripheral.SAI1;
+        // Get SAI1 with PLL3_P clock source explicitly configured
+        use stm32h7xx_hal::rcc::rec::Sai1ClkSel;
+        let sai1_rec = ccdr.peripheral.SAI1.kernel_clk_mux(Sai1ClkSel::Pll3P);
         let dma1_rec = ccdr.peripheral.DMA1;
 
         Ok(AudioBoardWithAdc {

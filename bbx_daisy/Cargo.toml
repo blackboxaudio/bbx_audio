@@ -47,9 +47,19 @@ required-features = ["seed"]
 
 [features]
 default = ["seed"]
+
+# Daisy Seed variants
 seed = []
 seed_1_1 = []
 seed_1_2 = []
+
+# Daisy Pod
 pod = []
+
+# Patch family
 patch_sm = []
-patch_init = ["patch_sm"]
+patch_init = ["patch_sm"]  # Patch.Init uses Patch SM hardware
+patch = ["patch_sm"]       # Alias for Patch SM
+
+# Field (not yet implemented)
+field = []

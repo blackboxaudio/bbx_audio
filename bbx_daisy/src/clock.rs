@@ -72,11 +72,13 @@ impl ClockConfig {
     /// - HSE at 16 MHz
     /// - PLL1 at 480 MHz for SYSCLK
     /// - PLL3 configured for SAI audio clocking (PLL3_P)
+    /// - VOS0 power mode for full 480 MHz operation
     ///
     /// Note: SAI1 clock source is set to PLL3_P. The caller should use
     /// `ccdr.peripheral.SAI1` which will already be configured for audio.
     pub fn configure(self, pwr: pac::PWR, rcc: pac::RCC, syscfg: &pac::SYSCFG) -> Ccdr {
-        let pwr = pwr.constrain().freeze();
+        // Enable VOS0 (highest voltage scale) for 480 MHz operation
+        let pwr = pwr.constrain().vos0(syscfg).freeze();
 
         let rcc = rcc.constrain();
 

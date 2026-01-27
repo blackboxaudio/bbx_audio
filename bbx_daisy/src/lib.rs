@@ -92,6 +92,8 @@ pub mod clock;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub mod codec;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
+mod init; // Early hardware initialization (FPU setup, etc.)
+#[cfg(all(target_arch = "arm", target_os = "none"))]
 mod macros;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub mod peripherals;

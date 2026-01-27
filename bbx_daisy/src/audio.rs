@@ -17,9 +17,19 @@
 //!
 //! ## SAI Configuration
 //!
-//! - **SAI1 Block B (TX)**: Master, 24-bit I2S, falling edge clock strobe
-//! - **SAI1 Block A (RX)**: Slave, 24-bit I2S, rising edge clock strobe, internal sync
+//! Board-specific channel configurations:
+//! - **seed/seed_1_2/pod**: TX on Channel A (master), RX on Channel B (slave)
+//! - **seed_1_1/patch_sm**: TX on Channel B (slave), RX on Channel A (master)
 //! - **Format**: 24-bit samples, MSB-justified, left-justified in 32-bit words
+//!
+//! ## DMA Configuration
+//!
+//! DMA stream assignment follows the SAI channel configuration:
+//! - **seed/seed_1_2/pod**: Stream 0 → Channel A (TX), Stream 1 → Channel B (RX)
+//! - **seed_1_1/patch_sm**: Stream 0 → Channel B (TX), Stream 1 → Channel A (RX)
+//!
+//! The DMA channels must match the SAI master/slave configuration to ensure audio
+//! data flows correctly between memory buffers and the codec.
 //!
 //! ## Memory Layout
 //!
@@ -37,15 +47,15 @@
 //! - Non-cached by default (no cache coherency issues)
 //! - 4-byte aligned via linker script
 //!
-//! ## SAI Pin Configuration (Pod/Seed)
+//! ## SAI Pin Configuration
 //!
-//! | Pin  | Function | Description                        |
-//! |------|----------|------------------------------------|
-//! | PE2  | MCLK     | Master clock (12.288/24.576 MHz)   |
-//! | PE4  | FS       | Frame sync (48/96 kHz)             |
-//! | PE5  | SCK      | Serial clock (3.072/6.144 MHz)     |
-//! | PE6  | SD_A     | Data A (TX for Seed, RX for Seed 1.1) |
-//! | PE3  | SD_B     | Data B (RX for Seed, TX for Seed 1.1) |
+//! | Pin  | Function | Description                                    |
+//! |------|----------|------------------------------------------------|
+//! | PE2  | MCLK     | Master clock (12.288/24.576 MHz)               |
+//! | PE4  | FS       | Frame sync (48/96 kHz)                         |
+//! | PE5  | SCK      | Serial clock (3.072/6.144 MHz)                 |
+//! | PE6  | SD_A     | Data A (TX: seed/seed_1_2/pod, RX: seed_1_1/patch_sm) |
+//! | PE3  | SD_B     | Data B (RX: seed/seed_1_2/pod, TX: seed_1_1/patch_sm) |
 //!
 //! ## Interrupt Priority
 //!
@@ -54,8 +64,11 @@
 //!
 //! ## Sample Format Conversion
 //!
-//! - **I2S to f32**: `i32_to_f32()` shifts right by 8 bits (24-bit → full 24-bit), then normalizes to [-1.0, 1.0]
-//! - **f32 to I2S**: `f32_to_i32()` clamps, scales to 24-bit, then left-justifies in 32-bit word
+//! The codec uses unsigned 24-bit (u24) format:
+//! - **I2S to f32**: `i32_to_f32()` converts u24 (0x000000-0xFFFFFF) to [-1.0, 1.0] via offset and normalization
+//! - **f32 to I2S**: `f32_to_i32()` converts [-1.0, 1.0] to u24 format (0x000000 = -1.0, 0x800000 = 0.0, 0xFFFFFF =
+//!   ~1.0)
+//! - This matches the reference daisy crate and libDaisy implementation
 //!
 //! # Usage
 //!
@@ -138,9 +151,19 @@ static mut TX_BUFFER: MaybeUninit<[u32; DMA_BUFFER_LENGTH]> = MaybeUninit::unini
 static mut RX_BUFFER: MaybeUninit<[u32; DMA_BUFFER_LENGTH]> = MaybeUninit::uninit();
 
 /// Type alias for the DMA RX transfer.
+#[cfg(not(any(feature = "seed_1_1", feature = "patch_sm")))]
 type DmaRxTransfer = Transfer<
     dma::dma::Stream1<DMA1>,
-    sai::dma::ChannelA<SAI1>,
+    sai::dma::ChannelB<SAI1>, // RX on Channel B for seed/seed_1_2/pod
+    PeripheralToMemory,
+    &'static mut [u32; DMA_BUFFER_LENGTH],
+    DBTransfer,
+>;
+
+#[cfg(any(feature = "seed_1_1", feature = "patch_sm"))]
+type DmaRxTransfer = Transfer<
+    dma::dma::Stream1<DMA1>,
+    sai::dma::ChannelA<SAI1>, // RX on Channel A for seed_1_1/patch_sm
     PeripheralToMemory,
     &'static mut [u32; DMA_BUFFER_LENGTH],
     DBTransfer,
@@ -224,7 +247,7 @@ impl AudioInterface {
 /// This function takes ownership of the necessary peripherals and starts
 /// audio streaming. It configures:
 ///
-/// - SAI1 in I2S mode (Channel B TX master, Channel A RX slave)
+/// - SAI1 in I2S mode (board-specific master/slave configuration)
 /// - DMA1 streams 0/1 for TX/RX with circular buffers
 /// - DMA interrupt for audio processing
 ///
@@ -269,7 +292,20 @@ pub fn init_and_start(
     // Configure DMA1 streams
     let dma1_streams = StreamsTuple::new(dma1, dma1_rec);
 
-    // DMA1 Stream 0: TX (memory -> SAI1 Channel B)
+    // Configure DMA channel mapping based on board
+    #[cfg(not(any(feature = "seed_1_1", feature = "patch_sm")))]
+    let (tx_dma_channel, rx_dma_channel) = (
+        unsafe { pac::Peripherals::steal().SAI1.dma_ch_a() }, // TX on Channel A (seed/seed_1_2/pod)
+        unsafe { pac::Peripherals::steal().SAI1.dma_ch_b() }, // RX on Channel B (seed/seed_1_2/pod)
+    );
+
+    #[cfg(any(feature = "seed_1_1", feature = "patch_sm"))]
+    let (tx_dma_channel, rx_dma_channel) = (
+        unsafe { pac::Peripherals::steal().SAI1.dma_ch_b() }, // TX on Channel B (seed_1_1/patch_sm)
+        unsafe { pac::Peripherals::steal().SAI1.dma_ch_a() }, // RX on Channel A (seed_1_1/patch_sm)
+    );
+
+    // DMA1 Stream 0: TX (memory -> SAI1 Channel A/B depending on board)
     let dma_config = DmaConfig::default()
         .priority(dma::config::Priority::High)
         .memory_increment(true)
@@ -277,38 +313,48 @@ pub fn init_and_start(
         .circular_buffer(true)
         .fifo_enable(false);
 
-    let mut dma1_str0: Transfer<_, _, MemoryToPeripheral, _, _> = Transfer::init(
-        dma1_streams.0,
-        unsafe { pac::Peripherals::steal().SAI1.dma_ch_b() },
-        tx_buffer,
-        None,
-        dma_config,
-    );
+    let mut dma1_str0: Transfer<_, _, MemoryToPeripheral, _, _> =
+        Transfer::init(dma1_streams.0, tx_dma_channel, tx_buffer, None, dma_config);
 
-    // DMA1 Stream 1: RX (SAI1 Channel A -> memory) with interrupts
+    // DMA1 Stream 1: RX (SAI1 Channel B/A -> memory) with interrupts
     let dma_config = dma_config
         .transfer_complete_interrupt(true)
         .half_transfer_interrupt(true);
 
-    let mut dma1_str1: Transfer<_, _, PeripheralToMemory, _, _> = Transfer::init(
-        dma1_streams.1,
-        unsafe { pac::Peripherals::steal().SAI1.dma_ch_a() },
-        rx_buffer,
-        None,
-        dma_config,
-    );
+    let mut dma1_str1: Transfer<_, _, PeripheralToMemory, _, _> =
+        Transfer::init(dma1_streams.1, rx_dma_channel, rx_buffer, None, dma_config);
 
     // Configure SAI1 for I2S: 24-bit, MSB-justified
-    // TX channel (Channel B) is master with falling edge clock strobe
-    let sai1_tx_config = sai::I2SChanConfig::new(sai::I2SDir::Tx)
-        .set_frame_sync_active_high(true)
-        .set_clock_strobe(sai::I2SClockStrobe::Falling);
+    // Board-specific SAI channel configuration:
+    // - seed/seed_1_2/pod: TX on Channel A (master), RX on Channel B (slave)
+    // - seed_1_1/patch_sm: TX on Channel B (slave), RX on Channel A (master)
+    #[cfg(not(any(feature = "seed_1_1", feature = "patch_sm")))]
+    let (tx_is_master, rx_sync_type) = (true, sai::I2SSync::Internal);
 
-    // RX channel (Channel A) is slave with internal sync and rising edge
-    let sai1_rx_config = sai::I2SChanConfig::new(sai::I2SDir::Rx)
-        .set_sync_type(sai::I2SSync::Internal)
-        .set_frame_sync_active_high(true)
-        .set_clock_strobe(sai::I2SClockStrobe::Rising);
+    #[cfg(any(feature = "seed_1_1", feature = "patch_sm"))]
+    let (tx_is_master, rx_sync_type) = (false, sai::I2SSync::Internal);
+
+    let sai1_tx_config = if tx_is_master {
+        sai::I2SChanConfig::new(sai::I2SDir::Tx)
+            .set_frame_sync_active_high(true)
+            .set_clock_strobe(sai::I2SClockStrobe::Falling)
+    } else {
+        sai::I2SChanConfig::new(sai::I2SDir::Tx)
+            .set_sync_type(rx_sync_type)
+            .set_frame_sync_active_high(true)
+            .set_clock_strobe(sai::I2SClockStrobe::Falling)
+    };
+
+    let sai1_rx_config = if !tx_is_master {
+        sai::I2SChanConfig::new(sai::I2SDir::Rx)
+            .set_frame_sync_active_high(true)
+            .set_clock_strobe(sai::I2SClockStrobe::Rising)
+    } else {
+        sai::I2SChanConfig::new(sai::I2SDir::Rx)
+            .set_sync_type(rx_sync_type)
+            .set_frame_sync_active_high(true)
+            .set_clock_strobe(sai::I2SClockStrobe::Rising)
+    };
 
     // Use the provided sample rate (PLL3 MCLK must match: 12.288MHz @ 48kHz, 24.576MHz @ 96kHz)
     let sample_rate_hz = Hertz::from_raw(sample_rate.hz());
@@ -332,14 +378,21 @@ pub fn init_and_start(
     // The default priority is sufficient for most use cases. For custom priority, users can set it
     // before calling init_and_start() using cortex_m::peripheral::Peripherals::take().
 
-    // Start RX DMA first (it enables Channel B DMA)
+    // Determine which channels to enable based on board configuration
+    #[cfg(not(any(feature = "seed_1_1", feature = "patch_sm")))]
+    let (tx_channel, rx_channel) = (SaiChannel::ChannelA, SaiChannel::ChannelB);
+
+    #[cfg(any(feature = "seed_1_1", feature = "patch_sm"))]
+    let (tx_channel, rx_channel) = (SaiChannel::ChannelB, SaiChannel::ChannelA);
+
+    // Start RX DMA first (enables the RX channel for the configured board)
     dma1_str1.start(|_sai1_rb| {
-        sai1.enable_dma(SaiChannel::ChannelB);
+        sai1.enable_dma(rx_channel);
     });
 
     // Start TX DMA and enable SAI
     dma1_str0.start(|sai1_rb| {
-        sai1.enable_dma(SaiChannel::ChannelA);
+        sai1.enable_dma(tx_channel);
 
         // Wait until SAI1's FIFO starts to receive data
         while sai1_rb.cha().sr.read().flvl().is_empty() {}
@@ -376,10 +429,16 @@ pub fn init_and_start(
 unsafe fn process_audio_buffer(buffer_half: usize) {
     // Access buffers via raw pointers
     let tx_ptr = ptr::addr_of_mut!(TX_BUFFER);
-    let rx_ptr = ptr::addr_of!(RX_BUFFER);
+    let rx_ptr = ptr::addr_of_mut!(RX_BUFFER);
 
     let tx_buffer = unsafe { (*tx_ptr).assume_init_mut() };
-    let rx_buffer = unsafe { (*rx_ptr).assume_init_ref() };
+    let rx_buffer = unsafe { (*rx_ptr).assume_init_mut() };
+
+    // Invalidate D-cache for RX buffer before reading - ensures we see DMA writes
+    // Safety: RX buffer is only accessed from this interrupt handler
+    unsafe {
+        cortex_m::Peripherals::steal().SCB.invalidate_dcache_by_slice(rx_buffer);
+    }
 
     let stereo_block_length = BLOCK_SIZE * 2; // L, R pairs
     let offset = buffer_half * stereo_block_length;
@@ -408,24 +467,50 @@ unsafe fn process_audio_buffer(buffer_half: usize) {
         tx_buffer[offset + i * 2] = f32_to_i32(left) as u32;
         tx_buffer[offset + i * 2 + 1] = f32_to_i32(right) as u32;
     }
+
+    // Clean D-cache for TX buffer after writing - flushes CPU writes for DMA to see
+    // Safety: TX buffer is only accessed from this interrupt handler
+    unsafe {
+        cortex_m::Peripherals::steal().SCB.clean_dcache_by_slice(tx_buffer);
+    }
 }
 
-/// Convert 24-bit I2S sample (in i32) to f32 [-1.0, 1.0].
+/// Convert 24-bit I2S sample (unsigned u24 format in u32) to f32 [-1.0, 1.0].
+///
+/// The codec uses unsigned 24-bit format where:
+/// - 0x000000 represents -1.0 (minimum)
+/// - 0x800000 represents 0.0 (center)
+/// - 0xFFFFFF represents ~1.0 (maximum)
+///
+/// This matches the reference daisy crate and libDaisy implementation.
 #[inline(always)]
 fn i32_to_f32(sample: i32) -> f32 {
-    // I2S 24-bit samples are left-justified in 32-bit words
-    // Shift right by 8 to get 24-bit value, then normalize
-    const SCALE: f32 = 1.0 / 8388608.0; // 1 / 2^23
-    (sample >> 8) as f32 * SCALE
+    use core::num::Wrapping;
+
+    // Convert to unsigned 24-bit by adding 0x800000 (center point)
+    let y = sample as u32;
+    let y = (Wrapping(y) + Wrapping(0x0080_0000)).0 & 0x00FF_FFFF;
+
+    // Normalize to [-1.0, 1.0] range
+    (y as f32 / 8_388_608.0) - 1.0
 }
 
-/// Convert f32 [-1.0, 1.0] to 24-bit I2S sample (in i32).
+/// Convert f32 [-1.0, 1.0] to 24-bit I2S sample (unsigned u24 format in u32).
+///
+/// The codec expects unsigned 24-bit format where:
+/// - 0x000000 represents -1.0 (minimum)
+/// - 0x800000 represents 0.0 (center)
+/// - 0xFFFFFF represents ~1.0 (maximum)
+///
+/// This matches the reference daisy crate and libDaisy implementation.
 #[inline(always)]
 fn f32_to_i32(sample: f32) -> i32 {
-    // Clamp to valid range, scale to 24-bit, left-justify in 32-bit
-    const SCALE: f32 = 8388607.0; // 2^23 - 1
-    let clamped = sample.clamp(-1.0, 1.0);
-    ((clamped * SCALE) as i32) << 8
+    // Scale to 24-bit range and clamp
+    let scaled = sample * 8_388_607.0;
+    let clamped = scaled.clamp(-8_388_608.0, 8_388_607.0);
+
+    // Convert to unsigned 24-bit format (cast to i32 then to u32)
+    (clamped as i32) as u32 as i32
 }
 
 // ============================================================================
