@@ -15,6 +15,8 @@ pub use libm::{ceilf, cosf, expf, fabsf, floorf, log10f, logf, powf, sinf, sqrtf
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use stm32h7xx_hal::prelude::*;
 
+#[cfg(all(target_arch = "arm", target_os = "none", feature = "pod"))]
+pub use crate::board::{AudioBoard, AudioBoardWithAdc, AudioPeripherals};
 // Peripheral abstractions
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use crate::peripherals::{
@@ -22,9 +24,9 @@ pub use crate::peripherals::{
 };
 // Audio processing
 #[cfg(all(target_arch = "arm", target_os = "none"))]
-pub use crate::{audio::BLOCK_SIZE, board::Board, processor::AudioProcessor};
+pub use crate::{audio::BLOCK_SIZE, audio::DEFAULT_SAMPLE_RATE, board::Board, processor::AudioProcessor};
 pub use crate::{
     buffer::{FrameBuffer, StaticSampleBuffer},
-    context::{DEFAULT_SAMPLE_RATE, EmbeddedDspContext},
+    context::EmbeddedDspContext,
     controls::Controls,
 };

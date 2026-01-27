@@ -11,6 +11,8 @@
 ///
 /// This macro creates a complete entry point for Daisy audio applications.
 /// It handles all unsafe static state management internally, including:
+/// - Clock configuration with PLL3 for SAI audio
+/// - SAI1 + DMA initialization
 /// - Audio callback registration
 /// - ADC initialization for hardware controls (knobs, CVs)
 /// - Control value smoothing
@@ -86,11 +88,26 @@ macro_rules! bbx_daisy_audio {
                 __BBX_PROCESSOR.write($processor_init);
             }
 
+            // Initialize board with audio support
+            #[cfg(feature = "pod")]
+            let board = $crate::board::AudioBoard::init();
+
+            // Set the audio callback
             $crate::audio::set_callback(__bbx_audio_callback);
 
-            let mut audio = $crate::audio::default_audio();
-            audio.init();
-            audio.start();
+            // Start audio processing
+            #[cfg(feature = "pod")]
+            {
+                let audio = board.audio;
+                $crate::audio::init_and_start(
+                    audio.sai1,
+                    audio.dma1,
+                    audio.dma1_rec,
+                    audio.sai1_pins,
+                    audio.sai1_rec,
+                    &audio.clocks,
+                );
+            }
 
             loop {
                 $crate::__internal::wfi();
@@ -103,6 +120,9 @@ macro_rules! bbx_daisy_audio {
 ///
 /// This variant initializes ADC hardware for reading knobs on Pod hardware.
 /// Use this when you need real-time control input during audio processing.
+///
+/// The knob values are read in the main loop and available in the
+/// `controls` parameter of `AudioProcessor::process()`.
 ///
 /// # Example
 ///
@@ -155,33 +175,43 @@ macro_rules! bbx_daisy_audio_with_controls {
 
         #[$crate::__internal::entry]
         fn main() -> ! {
-            // Initialize board with ADC
-            let board_adc = $crate::Board::init_with_adc();
-
             unsafe {
                 __BBX_PROCESSOR.write($processor_init);
             }
 
+            // Initialize board with ADC for knob reading
+            let mut board = $crate::board::AudioBoard::init_with_adc();
+
+            // Set the audio callback
             $crate::audio::set_callback(__bbx_audio_callback);
 
-            let mut audio = $crate::audio::default_audio();
-            audio.init();
-            audio.start();
+            // Start audio processing
+            {
+                let audio = board.audio;
+                $crate::audio::init_and_start(
+                    audio.sai1,
+                    audio.dma1,
+                    audio.dma1_rec,
+                    audio.sai1_pins,
+                    audio.sai1_rec,
+                    &audio.clocks,
+                );
+            }
 
             // Main loop: read ADC and update controls
             loop {
-                // Read knobs and update controls
+                // Read knobs and update controls (16-bit values, scale to 12-bit range)
+                let raw1 = (board.read_knob1() >> 4) as u16;
+                let raw2 = (board.read_knob2() >> 4) as u16;
+
                 unsafe {
                     let knob1_ptr = core::ptr::addr_of_mut!(__BBX_KNOB1);
                     let knob2_ptr = core::ptr::addr_of_mut!(__BBX_KNOB2);
                     let controls_ptr = core::ptr::addr_of_mut!(__BBX_CONTROLS);
 
-                    // Read raw ADC values (placeholder - actual hardware reading TBD)
-                    // In full implementation, board_adc would provide read methods
-                    // For now, controls remain at default values
-
-                    // (*controls_ptr).knob1 = (*knob1_ptr).process_u12(raw1);
-                    // (*controls_ptr).knob2 = (*knob2_ptr).process_u12(raw2);
+                    // Process raw ADC values through smoothing filters
+                    (*controls_ptr).knob1 = (*knob1_ptr).process_u12(raw1);
+                    (*controls_ptr).knob2 = (*knob2_ptr).process_u12(raw2);
                 }
 
                 $crate::__internal::wfi();

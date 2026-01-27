@@ -104,7 +104,7 @@ pub mod processor;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use board::Board;
 #[cfg(all(target_arch = "arm", target_os = "none", feature = "pod"))]
-pub use board::BoardWithAdc;
+pub use board::{AudioBoard, AudioBoardWithAdc, AudioPeripherals, BoardWithAdc};
 pub use buffer::{FrameBuffer, StaticSampleBuffer};
 pub use context::EmbeddedDspContext;
 pub use controls::Controls;

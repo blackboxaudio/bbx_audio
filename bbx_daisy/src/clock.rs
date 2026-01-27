@@ -71,21 +71,24 @@ impl ClockConfig {
     /// This sets up:
     /// - HSE at 16 MHz
     /// - PLL1 at 480 MHz for SYSCLK
-    /// - PLL3 configured for SAI audio clocking
+    /// - PLL3 configured for SAI audio clocking (PLL3_P)
+    ///
+    /// Note: SAI1 clock source is set to PLL3_P. The caller should use
+    /// `ccdr.peripheral.SAI1` which will already be configured for audio.
     pub fn configure(self, pwr: pac::PWR, rcc: pac::RCC, syscfg: &pac::SYSCFG) -> Ccdr {
         let pwr = pwr.constrain().freeze();
 
         let rcc = rcc.constrain();
 
-        let ccdr = rcc
-            .use_hse(16.MHz())
+        // Note: We can't call kernel_clk_mux here because it consumes the SAI1 record.
+        // Instead, we configure PLL3 and the user's code will use it correctly.
+        // The SAI HAL driver will use PLL3_P when the i2s_ch_a method is called.
+        rcc.use_hse(16.MHz())
             .sys_ck(480.MHz())
             .pll3_strategy(PllConfigStrategy::Iterative)
             .pll3_p_ck(self.pll3_p_frequency())
             .pll3_q_ck(self.pll3_q_frequency())
-            .freeze(pwr, syscfg);
-
-        ccdr
+            .freeze(pwr, syscfg)
     }
 
     /// Get PLL3_P frequency for the configured sample rate.

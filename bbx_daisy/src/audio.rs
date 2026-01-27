@@ -5,8 +5,8 @@
 //!
 //! # Architecture
 //!
-//! - SAI1 Block A: Transmit (to codec DAC)
-//! - SAI1 Block B: Receive (from codec ADC)
+//! - SAI1 Block A: Receive (from codec ADC) - slave, internal sync
+//! - SAI1 Block B: Transmit (to codec DAC) - master
 //! - DMA1: Circular buffer transfers with half/complete interrupts
 //!
 //! # Usage
@@ -31,21 +31,39 @@
 
 use core::{
     mem::MaybeUninit,
-    sync::atomic::{AtomicBool, Ordering},
+    ptr,
+    sync::atomic::{AtomicBool, AtomicPtr, Ordering},
+};
+
+use stm32h7xx_hal::{
+    dma::{
+        self, DBTransfer, MemoryToPeripheral, PeripheralToMemory, Transfer,
+        dma::{DmaConfig, StreamsTuple},
+    },
+    gpio::{Alternate, gpioe},
+    pac::{self, DMA1, SAI1, interrupt},
+    prelude::*,
+    rcc::{CoreClocks, rec},
+    sai::{self, I2sUsers, SaiChannel, SaiI2sExt},
+    time::Hertz,
 };
 
 use crate::{buffer::FrameBuffer, clock::SampleRate};
 
-/// Default block size for audio processing (32 samples at ~48kHz = 0.67ms latency).
-pub const BLOCK_SIZE: usize = 32;
+/// Default block size for audio processing (48 samples at ~48kHz = 1ms latency).
+pub const BLOCK_SIZE: usize = 48;
 
-/// DMA buffer size (double-buffered, so 2x block size).
-const DMA_BUFFER_SIZE: usize = BLOCK_SIZE * 2;
+/// DMA buffer size in samples (double-buffered for ping-pong operation).
+/// Format: [L, R, L, R, ...] with 48 stereo frames * 2 halves = 192 u32 words
+const DMA_BUFFER_LENGTH: usize = BLOCK_SIZE * 2 * 2;
+
+/// Audio sample rate in Hz.
+const AUDIO_SAMPLE_HZ: Hertz = Hertz::from_raw(48_000);
 
 /// Audio callback function type.
 ///
 /// Called from the DMA interrupt with input samples and output buffer to fill.
-/// Must complete within the buffer period (~0.67ms at 48kHz/32 samples).
+/// Must complete within the buffer period (~1ms at 48kHz/48 samples).
 pub type AudioCallback = fn(input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>);
 
 /// Default passthrough callback (copies input to output).
@@ -61,18 +79,30 @@ fn default_callback(input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BL
 // ============================================================================
 
 /// Global audio callback function pointer.
-static mut AUDIO_CALLBACK: AudioCallback = default_callback;
+static AUDIO_CALLBACK: AtomicPtr<()> = AtomicPtr::new(default_callback as *mut ());
 
 /// Flag indicating audio is running.
 static AUDIO_RUNNING: AtomicBool = AtomicBool::new(false);
 
 /// DMA transmit buffer (placed in DMA-accessible SRAM3).
 #[unsafe(link_section = ".sram3")]
-static mut TX_BUFFER: MaybeUninit<[[i32; 2]; DMA_BUFFER_SIZE]> = MaybeUninit::uninit();
+static mut TX_BUFFER: MaybeUninit<[u32; DMA_BUFFER_LENGTH]> = MaybeUninit::uninit();
 
 /// DMA receive buffer (placed in DMA-accessible SRAM3).
 #[unsafe(link_section = ".sram3")]
-static mut RX_BUFFER: MaybeUninit<[[i32; 2]; DMA_BUFFER_SIZE]> = MaybeUninit::uninit();
+static mut RX_BUFFER: MaybeUninit<[u32; DMA_BUFFER_LENGTH]> = MaybeUninit::uninit();
+
+/// Type alias for the DMA RX transfer.
+type DmaRxTransfer = Transfer<
+    dma::dma::Stream1<DMA1>,
+    sai::dma::ChannelA<SAI1>,
+    PeripheralToMemory,
+    &'static mut [u32; DMA_BUFFER_LENGTH],
+    DBTransfer,
+>;
+
+/// Global DMA transfer handle for interrupt access.
+static mut DMA_RX_TRANSFER: MaybeUninit<Option<DmaRxTransfer>> = MaybeUninit::uninit();
 
 // ============================================================================
 // Public API
@@ -87,9 +117,7 @@ static mut RX_BUFFER: MaybeUninit<[[i32; 2]; DMA_BUFFER_SIZE]> = MaybeUninit::un
 pub fn set_callback(callback: AudioCallback) {
     // Safety: Only safe to call when audio is not running
     if !AUDIO_RUNNING.load(Ordering::SeqCst) {
-        unsafe {
-            AUDIO_CALLBACK = callback;
-        }
+        AUDIO_CALLBACK.store(callback as *mut (), Ordering::SeqCst);
     }
 }
 
@@ -112,9 +140,19 @@ impl Default for AudioConfig {
     }
 }
 
+/// SAI1 pin set for audio I/O.
+pub type Sai1Pins = (
+    gpioe::PE2<Alternate<6>>,         // MCLK_A
+    gpioe::PE5<Alternate<6>>,         // SCK_A
+    gpioe::PE4<Alternate<6>>,         // FS_A
+    gpioe::PE6<Alternate<6>>,         // SD_A (TX)
+    Option<gpioe::PE3<Alternate<6>>>, // SD_B (RX)
+);
+
 /// Audio interface handle.
 ///
 /// Manages SAI and DMA peripherals for audio I/O.
+/// This struct is consumed by `start()` which takes ownership of the hardware.
 pub struct AudioInterface {
     config: AudioConfig,
 }
@@ -134,57 +172,138 @@ impl AudioInterface {
     pub const fn block_size(&self) -> usize {
         BLOCK_SIZE
     }
+}
 
-    /// Initialize the audio interface.
-    ///
-    /// This configures SAI1 in I2S master mode and sets up DMA transfers.
-    /// Call this after clock configuration and before `start()`.
-    pub fn init(&mut self) {
-        // Initialize DMA buffers to zero using raw pointers (Rust 2024 compatible)
-        unsafe {
-            let tx_ptr = core::ptr::addr_of_mut!(TX_BUFFER);
-            let rx_ptr = core::ptr::addr_of_mut!(RX_BUFFER);
-            (*tx_ptr).write([[0i32; 2]; DMA_BUFFER_SIZE]);
-            (*rx_ptr).write([[0i32; 2]; DMA_BUFFER_SIZE]);
-        }
+/// Initialize and start the audio interface.
+///
+/// This function takes ownership of the necessary peripherals and starts
+/// audio streaming. It configures:
+///
+/// - SAI1 in I2S mode (Channel B TX master, Channel A RX slave)
+/// - DMA1 streams 0/1 for TX/RX with circular buffers
+/// - DMA interrupt for audio processing
+///
+/// # Arguments
+///
+/// * `sai1` - SAI1 peripheral
+/// * `dma1` - DMA1 peripheral
+/// * `dma1_rec` - DMA1 clock configuration record
+/// * `sai1_pins` - Configured SAI1 pins
+/// * `sai1_rec` - SAI1 clock configuration record
+/// * `clocks` - System clocks reference
+pub fn init_and_start(
+    sai1: SAI1,
+    dma1: DMA1,
+    dma1_rec: rec::Dma1,
+    sai1_pins: Sai1Pins,
+    sai1_rec: rec::Sai1,
+    clocks: &CoreClocks,
+) {
+    // Initialize DMA buffers to zero using raw pointers
+    let tx_buffer: &'static mut [u32; DMA_BUFFER_LENGTH] = unsafe {
+        let tx_ptr = ptr::addr_of_mut!(TX_BUFFER);
+        let buf = (*tx_ptr).assume_init_mut();
+        buf.fill(0);
+        buf
+    };
+    let rx_buffer: &'static mut [u32; DMA_BUFFER_LENGTH] = unsafe {
+        let rx_ptr = ptr::addr_of_mut!(RX_BUFFER);
+        let buf = (*rx_ptr).assume_init_mut();
+        buf.fill(0);
+        buf
+    };
 
-        // SAI and DMA configuration would go here
-        // For now, this is a placeholder that shows the structure
-
-        // In a full implementation:
-        // 1. Configure SAI1 Block A (TX) and Block B (RX) for I2S
-        // 2. Configure DMA1 Stream 0 for SAI1_A (TX)
-        // 3. Configure DMA1 Stream 1 for SAI1_B (RX)
-        // 4. Enable half-transfer and transfer-complete interrupts
+    // Initialize global transfer holder using raw pointer
+    unsafe {
+        let transfer_ptr = ptr::addr_of_mut!(DMA_RX_TRANSFER);
+        (*transfer_ptr).write(None);
     }
 
-    /// Start audio processing.
-    ///
-    /// Begins DMA transfers and enables interrupts.
-    pub fn start(&mut self) {
-        if AUDIO_RUNNING.swap(true, Ordering::SeqCst) {
-            return; // Already running
-        }
+    // Configure DMA1 streams
+    let dma1_streams = StreamsTuple::new(dma1, dma1_rec);
 
-        // Enable DMA and SAI
-        // In a full implementation:
-        // 1. Enable DMA streams
-        // 2. Enable SAI blocks
+    // DMA1 Stream 0: TX (memory -> SAI1 Channel B)
+    let dma_config = DmaConfig::default()
+        .priority(dma::config::Priority::High)
+        .memory_increment(true)
+        .peripheral_increment(false)
+        .circular_buffer(true)
+        .fifo_enable(false);
+
+    let mut dma1_str0: Transfer<_, _, MemoryToPeripheral, _, _> = Transfer::init(
+        dma1_streams.0,
+        unsafe { pac::Peripherals::steal().SAI1.dma_ch_b() },
+        tx_buffer,
+        None,
+        dma_config,
+    );
+
+    // DMA1 Stream 1: RX (SAI1 Channel A -> memory) with interrupts
+    let dma_config = dma_config
+        .transfer_complete_interrupt(true)
+        .half_transfer_interrupt(true);
+
+    let mut dma1_str1: Transfer<_, _, PeripheralToMemory, _, _> = Transfer::init(
+        dma1_streams.1,
+        unsafe { pac::Peripherals::steal().SAI1.dma_ch_a() },
+        rx_buffer,
+        None,
+        dma_config,
+    );
+
+    // Configure SAI1 for I2S: 48 kHz, 24-bit, MSB-justified
+    // TX channel (Channel B) is master with falling edge clock strobe
+    let sai1_tx_config = sai::I2SChanConfig::new(sai::I2SDir::Tx)
+        .set_frame_sync_active_high(true)
+        .set_clock_strobe(sai::I2SClockStrobe::Falling);
+
+    // RX channel (Channel A) is slave with internal sync and rising edge
+    let sai1_rx_config = sai::I2SChanConfig::new(sai::I2SDir::Rx)
+        .set_sync_type(sai::I2SSync::Internal)
+        .set_frame_sync_active_high(true)
+        .set_clock_strobe(sai::I2SClockStrobe::Rising);
+
+    let mut sai1 = sai1.i2s_ch_a(
+        sai1_pins,
+        AUDIO_SAMPLE_HZ,
+        sai::I2SDataSize::BITS_24,
+        sai1_rec,
+        clocks,
+        I2sUsers::new(sai1_tx_config).add_slave(sai1_rx_config),
+    );
+
+    // Enable DMA1 Stream 1 interrupt
+    unsafe {
+        pac::NVIC::unmask(pac::Interrupt::DMA1_STR1);
     }
 
-    /// Stop audio processing.
-    ///
-    /// Stops DMA transfers and disables interrupts.
-    pub fn stop(&mut self) {
-        if !AUDIO_RUNNING.swap(false, Ordering::SeqCst) {
-            return; // Already stopped
-        }
+    // Start RX DMA first (it enables Channel B DMA)
+    dma1_str1.start(|_sai1_rb| {
+        sai1.enable_dma(SaiChannel::ChannelB);
+    });
 
-        // Disable SAI and DMA
-        // In a full implementation:
-        // 1. Disable SAI blocks
-        // 2. Disable DMA streams
+    // Start TX DMA and enable SAI
+    dma1_str0.start(|sai1_rb| {
+        sai1.enable_dma(SaiChannel::ChannelA);
+
+        // Wait until SAI1's FIFO starts to receive data
+        while sai1_rb.cha().sr.read().flvl().is_empty() {}
+
+        sai1.enable();
+
+        // Jump start audio - send first samples to get clocks running
+        // This is required per the STM32H7 reference manual
+        use stm32h7xx_hal::traits::i2s::FullDuplex;
+        let _ = sai1.try_send(0, 0);
+    });
+
+    // Store the RX transfer handle for interrupt use
+    unsafe {
+        let transfer_ptr = ptr::addr_of_mut!(DMA_RX_TRANSFER);
+        (*transfer_ptr).write(Some(dma1_str1));
     }
+
+    AUDIO_RUNNING.store(true, Ordering::SeqCst);
 }
 
 // ============================================================================
@@ -200,38 +319,39 @@ impl AudioInterface {
 /// Must only be called from the DMA interrupt handler.
 #[inline(always)]
 unsafe fn process_audio_buffer(buffer_half: usize) {
-    unsafe {
-        let offset = buffer_half * BLOCK_SIZE;
+    // Access buffers via raw pointers
+    let tx_ptr = ptr::addr_of_mut!(TX_BUFFER);
+    let rx_ptr = ptr::addr_of!(RX_BUFFER);
 
-        // Get raw pointers to the buffers (Rust 2024 compatible)
-        let tx_ptr = core::ptr::addr_of_mut!(TX_BUFFER);
-        let rx_ptr = core::ptr::addr_of!(RX_BUFFER);
+    let tx_buffer = unsafe { (*tx_ptr).assume_init_mut() };
+    let rx_buffer = unsafe { (*rx_ptr).assume_init_ref() };
 
-        let tx_buf = (*tx_ptr).assume_init_mut();
-        let rx_buf = (*rx_ptr).assume_init_ref();
+    let stereo_block_length = BLOCK_SIZE * 2; // L, R pairs
+    let offset = buffer_half * stereo_block_length;
 
-        // Convert DMA samples (i32) to f32 for processing
-        let mut input: FrameBuffer<BLOCK_SIZE> = FrameBuffer::new();
-        let mut output: FrameBuffer<BLOCK_SIZE> = FrameBuffer::new();
+    // Convert DMA samples (i32 in u32) to f32 for processing
+    let mut input: FrameBuffer<BLOCK_SIZE> = FrameBuffer::new();
+    let mut output: FrameBuffer<BLOCK_SIZE> = FrameBuffer::new();
 
-        // Deinterleave and convert RX buffer to FrameBuffer
-        for i in 0..BLOCK_SIZE {
-            let [left_i32, right_i32] = rx_buf[offset + i];
-            let left = i32_to_f32(left_i32);
-            let right = i32_to_f32(right_i32);
-            input.set_frame(i, left, right);
-        }
+    // Deinterleave and convert RX buffer to FrameBuffer
+    for i in 0..BLOCK_SIZE {
+        let left_u32 = rx_buffer[offset + i * 2];
+        let right_u32 = rx_buffer[offset + i * 2 + 1];
+        let left = i32_to_f32(left_u32 as i32);
+        let right = i32_to_f32(right_u32 as i32);
+        input.set_frame(i, left, right);
+    }
 
-        // Call user callback
-        let callback = core::ptr::addr_of!(AUDIO_CALLBACK);
-        (*callback)(&input, &mut output);
+    // Call user callback (loaded atomically)
+    let callback_ptr = AUDIO_CALLBACK.load(Ordering::SeqCst);
+    let callback: AudioCallback = unsafe { core::mem::transmute(callback_ptr) };
+    callback(&input, &mut output);
 
-        // Convert and interleave output FrameBuffer to TX buffer
-        for i in 0..BLOCK_SIZE {
-            let [left, right] = *output.frame(i);
-            tx_buf[offset + i][0] = f32_to_i32(left);
-            tx_buf[offset + i][1] = f32_to_i32(right);
-        }
+    // Convert and interleave output FrameBuffer to TX buffer
+    for i in 0..BLOCK_SIZE {
+        let [left, right] = *output.frame(i);
+        tx_buffer[offset + i * 2] = f32_to_i32(left) as u32;
+        tx_buffer[offset + i * 2 + 1] = f32_to_i32(right) as u32;
     }
 }
 
@@ -254,24 +374,33 @@ fn f32_to_i32(sample: f32) -> i32 {
 }
 
 // ============================================================================
-// Interrupt Handlers (to be connected by the application)
+// Interrupt Handler
 // ============================================================================
 
-/// DMA1 Stream 0 interrupt handler (SAI1 TX half/complete).
-///
-/// Call this from the DMA1_STR0 interrupt vector.
-///
-/// # Safety
-///
-/// Must only be called from the DMA interrupt context.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn dma1_str0_handler(half_transfer: bool) {
-    if !AUDIO_RUNNING.load(Ordering::Relaxed) {
-        return;
-    }
+/// DMA1 Stream 1 interrupt handler (SAI1 RX half/complete).
+#[interrupt]
+fn DMA1_STR1() {
+    // Safety: We only access this from the interrupt handler
+    let transfer_ptr = ptr::addr_of_mut!(DMA_RX_TRANSFER);
+    let transfer = unsafe { (*transfer_ptr).assume_init_mut() };
 
-    let buffer_half = if half_transfer { 0 } else { 1 };
-    unsafe { process_audio_buffer(buffer_half) };
+    if let Some(transfer) = transfer {
+        let buffer_half = if transfer.get_half_transfer_flag() {
+            transfer.clear_half_transfer_interrupt();
+            0
+        } else if transfer.get_transfer_complete_flag() {
+            transfer.clear_transfer_complete_interrupt();
+            1
+        } else {
+            return;
+        };
+
+        // Process audio in the half that was just filled
+        // (we write to the other half that's currently being DMA'd)
+        unsafe {
+            process_audio_buffer(buffer_half);
+        }
+    }
 }
 
 // ============================================================================
@@ -287,3 +416,6 @@ pub fn default_audio() -> AudioInterface {
 pub fn audio_with_rate(sample_rate: SampleRate) -> AudioInterface {
     AudioInterface::new(AudioConfig { sample_rate })
 }
+
+/// Default sample rate as f32 for DSP calculations.
+pub const DEFAULT_SAMPLE_RATE: f32 = 48_000.0;
