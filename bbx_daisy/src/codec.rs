@@ -2,13 +2,56 @@
 //!
 //! This module provides codec drivers for Daisy hardware variants:
 //!
-//! | Board         | Codec    | Interface | Bit Depth |
-//! |---------------|----------|-----------|-----------|
-//! | Seed          | AK4556   | I2S       | 24-bit    |
-//! | Seed 1.1      | WM8731   | I2S + I2C | 24-bit    |
-//! | Seed 1.2      | PCM3060  | I2S + I2C | 24-bit    |
-//! | Pod           | WM8731   | I2S + I2C | 24-bit    |
-//! | Patch SM      | PCM3060  | I2S + I2C | 24-bit    |
+//! | Board         | Codec    | Interface | Bit Depth | I2C Address |
+//! |---------------|----------|-----------|-----------|-------------|
+//! | Seed          | AK4556   | I2S       | 24-bit    | N/A         |
+//! | Seed 1.1      | WM8731   | I2S + I2C | 24-bit    | 0x1A        |
+//! | Seed 1.2      | PCM3060  | I2S + I2C | 24-bit    | 0x46        |
+//! | Pod           | WM8731   | I2S + I2C | 24-bit    | 0x1A        |
+//! | Patch SM      | PCM3060  | I2S + I2C | 24-bit    | 0x46        |
+//!
+//! # Codec Initialization Sequences
+//!
+//! ## WM8731 (Pod/Seed 1.1)
+//!
+//! 1. Reset codec (reg 0x0F = 0x00)
+//! 2. Wait 10ms
+//! 3. Power down unused sections (reg 0x06 = 0x07: line in, mic powered down)
+//! 4. Configure analog path (reg 0x04 = 0x10: DAC selected)
+//! 5. Configure digital path (reg 0x05 = 0x00: no soft mute, HPF enabled)
+//! 6. Configure digital interface (reg 0x07 = 0x0A: I2S, 24-bit, slave)
+//! 7. Configure sample rate (reg 0x08 = 0x00 @ 48kHz, 0x1C @ 96kHz)
+//! 8. Set output volume (reg 0x02/0x03 = 0x79: 0dB)
+//! 9. Activate codec (reg 0x09 = 0x01)
+//!
+//! **Timing**: 10ms delays between writes are conservative; most registers take effect immediately.
+//! PLL settling time is ~1ms after activation.
+//!
+//! ## PCM3060 (Seed 1.2/Patch SM)
+//!
+//! 1. Master reset (reg 0x40 bit 7 = 1), wait 4ms
+//! 2. Soft reset (reg 0x40 bit 6 = 1), wait 4ms
+//! 3. Clear resets (reg 0x40 = 0x00), wait 1ms
+//! 4. Configure DAC format (reg 0x41 = 0x00: I2S, 24-bit)
+//! 5. Set DAC attenuation (reg 0x43/0x44 = 0x00: 0dB)
+//! 6. Set ADC attenuation (reg 0x45/0x46 = 0x00: 0dB)
+//! 7. Configure ADC format (reg 0x47 = 0x00: I2S, 24-bit)
+//!
+//! **Note**: Reset sequence timing per datasheet section 8.5.1.
+//!
+//! ## AK4556 (Seed)
+//!
+//! - No I2C control required
+//! - Auto-detects sample rate from MCLK/LRCK ratio
+//! - Fixed unity gain (no software volume control)
+//!
+//! # Error Handling
+//!
+//! All codec operations return `Result<T, CodecError>`:
+//! - `I2cError`: I2C communication failure
+//! - `InvalidConfig`: Unsupported configuration
+//! - `NotResponding`: Codec not responding to I2C
+//! - `Timeout`: Operation timed out
 
 use crate::clock::SampleRate;
 
@@ -333,6 +376,20 @@ impl<I2C> Pcm3060<I2C> {
     pub fn with_default_address(i2c: I2C) -> Self {
         Self::new(i2c, Self::I2C_ADDR_00)
     }
+
+    /// Delay for approximately the given number of milliseconds.
+    ///
+    /// Uses a busy-wait loop calibrated for ~480MHz STM32H7.
+    /// This is intentionally conservative to ensure codec stability.
+    #[cfg(all(target_arch = "arm", target_os = "none"))]
+    fn delay_ms(ms: u32) {
+        const CYCLES_PER_MS: u32 = 480_000;
+        cortex_m::asm::delay(ms * CYCLES_PER_MS);
+    }
+
+    /// No-op delay for non-embedded targets (testing).
+    #[cfg(not(all(target_arch = "arm", target_os = "none")))]
+    fn delay_ms(_ms: u32) {}
 }
 
 impl<I2C, E> Codec for Pcm3060<I2C>
@@ -342,8 +399,18 @@ where
     fn init(&mut self, _sample_rate: SampleRate) -> CodecResult<()> {
         use pcm3060_regs::*;
 
-        // System control: Reset off, power up all sections
+        // PCM3060 reset sequence per datasheet:
+        // 1. Master reset (MRST bit 7 = 1)
+        self.write_reg(REG_64, 0x80)?;
+        Self::delay_ms(4);
+
+        // 2. Soft reset (SRST bit 6 = 1)
+        self.write_reg(REG_64, 0x40)?;
+        Self::delay_ms(4);
+
+        // 3. Clear both reset bits, power up all sections
         self.write_reg(REG_64, 0x00)?;
+        Self::delay_ms(1);
 
         // DAC control 1: I2S format, 24-bit
         self.write_reg(REG_65, 0x00)?;

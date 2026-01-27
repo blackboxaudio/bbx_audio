@@ -3,6 +3,13 @@
 //! This module provides the [`Board`] struct which handles all hardware
 //! initialization (power, clocks, GPIO ports) in a single call.
 
+#[cfg(feature = "pod")]
+use stm32h7xx_hal::{
+    adc::{self, Adc},
+    gpio::Analog,
+    pac::{ADC1, DMA1, SAI1},
+    rcc::rec,
+};
 use stm32h7xx_hal::{
     delay::Delay,
     gpio::{
@@ -15,19 +22,62 @@ use stm32h7xx_hal::{
 };
 
 #[cfg(feature = "pod")]
-use stm32h7xx_hal::{
-    adc::{self, Adc, AdcSampleTime},
-    gpio::Analog,
-    pac::{ADC1, DMA1, SAI1},
-    rcc::rec,
-};
-
-#[cfg(feature = "pod")]
 use crate::{
     audio::Sai1Pins,
     clock::{ClockConfig, SampleRate},
-    codec::{Codec, Wm8731},
+    codec::{Codec, CodecError, Wm8731},
 };
+
+/// Board initialization error.
+#[cfg(feature = "pod")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoardError {
+    /// Codec initialization failed.
+    CodecInit(CodecError),
+    /// Peripherals have already been taken.
+    PeripheralsTaken,
+}
+
+/// ADC configuration for control inputs.
+#[cfg(feature = "pod")]
+#[derive(Debug, Clone, Copy)]
+pub struct AdcConfig {
+    /// ADC resolution (12-bit or 16-bit).
+    pub resolution: adc::Resolution,
+    /// ADC sample time (affects conversion speed vs accuracy trade-off).
+    pub sample_time: adc::AdcSampleTime,
+}
+
+#[cfg(feature = "pod")]
+impl AdcConfig {
+    /// Default configuration for knobs: 12-bit resolution, T_64 sample time.
+    ///
+    /// 12-bit is sufficient for knobs and provides faster conversion than 16-bit.
+    pub fn default_knobs() -> Self {
+        Self {
+            resolution: adc::Resolution::TwelveBit,
+            sample_time: adc::AdcSampleTime::T_64,
+        }
+    }
+
+    /// High-precision configuration: 16-bit resolution, T_810 sample time.
+    ///
+    /// Use for CV inputs or when maximum precision is needed.
+    /// Slower conversion but more accurate.
+    pub fn high_precision() -> Self {
+        Self {
+            resolution: adc::Resolution::SixteenBit,
+            sample_time: adc::AdcSampleTime::T_810,
+        }
+    }
+}
+
+#[cfg(feature = "pod")]
+impl Default for AdcConfig {
+    fn default() -> Self {
+        Self::default_knobs()
+    }
+}
 
 /// Initialized board with all peripherals ready to use.
 ///
@@ -125,6 +175,8 @@ impl Board {
 /// `audio::init_and_start()` to begin audio processing.
 #[cfg(feature = "pod")]
 pub struct AudioPeripherals {
+    /// Configured sample rate (48kHz or 96kHz).
+    pub sample_rate: SampleRate,
     /// SAI1 peripheral for audio I/O.
     pub sai1: SAI1,
     /// DMA1 peripheral for audio DMA transfers.
@@ -145,8 +197,11 @@ pub struct AudioPeripherals {
 /// - All GPIO ports for user access
 /// - Audio peripherals ready to be started
 /// - Delay timer
+/// - Codec handle for runtime control (volume, gain, mute)
 #[cfg(feature = "pod")]
-pub struct AudioBoard {
+pub struct AudioBoard<CODEC> {
+    /// Audio codec handle (allows runtime volume/gain/mute control).
+    pub codec: CODEC,
     /// SysTick-based delay provider.
     pub delay: Delay,
     /// GPIO Port A pins.
@@ -164,20 +219,24 @@ pub struct AudioBoard {
 }
 
 #[cfg(feature = "pod")]
-impl AudioBoard {
+impl AudioBoard<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>> {
     /// Initialize the board for audio processing with Pod hardware.
     ///
     /// This configures:
     /// - 480 MHz system clock with PLL3 for SAI audio
     /// - All GPIO ports
     /// - SAI1 pins configured for I2S
+    /// - WM8731 codec via I2C
     ///
-    /// # Panics
+    /// Returns the initialized board with codec handle for runtime control.
     ///
-    /// Panics if peripherals have already been taken.
-    pub fn init() -> Self {
-        let dp = pac::Peripherals::take().expect("device peripherals already taken");
-        let cp = cortex_m::Peripherals::take().expect("core peripherals already taken");
+    /// # Errors
+    ///
+    /// Returns `BoardError::PeripheralsTaken` if peripherals have already been taken.
+    /// Returns `BoardError::CodecInit` if codec initialization fails.
+    pub fn init_pod() -> Result<Self, BoardError> {
+        let dp = pac::Peripherals::take().ok_or(BoardError::PeripheralsTaken)?;
+        let cp = cortex_m::Peripherals::take().ok_or(BoardError::PeripheralsTaken)?;
 
         // Configure clocks with PLL3 for SAI audio
         let clock_config = ClockConfig::new(SampleRate::Rate48000);
@@ -212,7 +271,7 @@ impl AudioBoard {
 
         // Initialize WM8731 codec
         let mut codec = Wm8731::with_default_address(i2c4);
-        codec.init(SampleRate::Rate48000).expect("WM8731 codec init failed");
+        codec.init(SampleRate::Rate48000).map_err(BoardError::CodecInit)?;
 
         // Get SAI1 with PLL3_P clock source (already configured in ClockConfig)
         let sai1_rec = ccdr.peripheral.SAI1;
@@ -220,7 +279,8 @@ impl AudioBoard {
 
         let delay = cp.SYST.delay(ccdr.clocks);
 
-        Self {
+        Ok(AudioBoard {
+            codec,
             delay,
             gpioa,
             gpiob,
@@ -228,6 +288,7 @@ impl AudioBoard {
             gpiod,
             gpiog,
             audio: AudioPeripherals {
+                sample_rate: SampleRate::Rate48000,
                 sai1: dp.SAI1,
                 dma1: dp.DMA1,
                 dma1_rec,
@@ -235,15 +296,36 @@ impl AudioBoard {
                 sai1_rec,
                 clocks: ccdr.clocks,
             },
-        }
+        })
+    }
+
+    /// Initialize the board for audio processing with Pod hardware (legacy API).
+    ///
+    /// This is a convenience wrapper around `init_pod()` that maintains backwards compatibility.
+    /// Prefer using `init_pod()` for clarity.
+    pub fn init() -> Result<Self, BoardError> {
+        Self::init_pod()
     }
 
     /// Initialize with ADC configured for knob reading.
     ///
     /// This variant configures ADC1 for reading the two knobs on Pod hardware.
-    pub fn init_with_adc() -> AudioBoardWithAdc {
-        let dp = pac::Peripherals::take().expect("device peripherals already taken");
-        let cp = cortex_m::Peripherals::take().expect("core peripherals already taken");
+    /// The ADC configuration (resolution, sample time) can be customized via `adc_config`.
+    ///
+    /// # Arguments
+    ///
+    /// * `adc_config` - ADC configuration (resolution, sample time). Use `AdcConfig::default_knobs()` for standard knob
+    ///   reading.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BoardError::PeripheralsTaken` if peripherals have already been taken.
+    /// Returns `BoardError::CodecInit` if codec initialization fails.
+    pub fn init_with_adc_config(
+        adc_config: AdcConfig,
+    ) -> Result<AudioBoardWithAdc<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>>, BoardError> {
+        let dp = pac::Peripherals::take().ok_or(BoardError::PeripheralsTaken)?;
+        let cp = cortex_m::Peripherals::take().ok_or(BoardError::PeripheralsTaken)?;
 
         // Configure clocks with PLL3 for SAI audio
         let clock_config = ClockConfig::new(SampleRate::Rate48000);
@@ -278,31 +360,33 @@ impl AudioBoard {
 
         // Initialize WM8731 codec
         let mut codec = Wm8731::with_default_address(i2c4);
-        codec.init(SampleRate::Rate48000).expect("WM8731 codec init failed");
+        codec.init(SampleRate::Rate48000).map_err(BoardError::CodecInit)?;
 
         // Configure ADC pins (analog mode)
         let knob1_pin = gpioc.pc4.into_analog();
         let knob2_pin = gpioc.pc1.into_analog();
 
-        // Configure ADC1
+        // Configure ADC1 with user-specified settings
         let mut delay_local = cp.SYST.delay(ccdr.clocks);
         let mut adc1: Adc<ADC1, adc::Disabled> =
             Adc::adc1(dp.ADC1, 4.MHz(), &mut delay_local, ccdr.peripheral.ADC12, &ccdr.clocks);
-        adc1.set_sample_time(AdcSampleTime::T_64);
-        adc1.set_resolution(adc::Resolution::SixteenBit);
+        adc1.set_sample_time(adc_config.sample_time);
+        adc1.set_resolution(adc_config.resolution);
         let adc1 = adc1.enable();
 
         // Get SAI1 with PLL3_P clock source
         let sai1_rec = ccdr.peripheral.SAI1;
         let dma1_rec = ccdr.peripheral.DMA1;
 
-        AudioBoardWithAdc {
+        Ok(AudioBoardWithAdc {
+            codec,
             delay: delay_local,
             gpioa,
             gpiob,
             gpiod,
             gpiog,
             audio: AudioPeripherals {
+                sample_rate: SampleRate::Rate48000,
                 sai1: dp.SAI1,
                 dma1: dp.DMA1,
                 dma1_rec,
@@ -313,7 +397,15 @@ impl AudioBoard {
             adc1,
             knob1_pin,
             knob2_pin,
-        }
+        })
+    }
+
+    /// Initialize with ADC using default configuration (legacy API).
+    ///
+    /// This is a convenience wrapper that uses `AdcConfig::default_knobs()`.
+    /// For custom ADC configuration, use `init_with_adc_config()`.
+    pub fn init_with_adc() -> Result<AudioBoardWithAdc<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>>, BoardError> {
+        Self::init_with_adc_config(AdcConfig::default_knobs())
     }
 }
 
@@ -322,7 +414,9 @@ impl AudioBoard {
 /// This struct is returned by [`AudioBoard::init_with_adc()`] and provides
 /// access to both the standard board peripherals and ADC functionality.
 #[cfg(feature = "pod")]
-pub struct AudioBoardWithAdc {
+pub struct AudioBoardWithAdc<CODEC> {
+    /// Audio codec handle (allows runtime volume/gain/mute control).
+    pub codec: CODEC,
     /// SysTick-based delay provider.
     pub delay: Delay,
     /// GPIO Port A pins.
@@ -344,13 +438,17 @@ pub struct AudioBoardWithAdc {
 }
 
 #[cfg(feature = "pod")]
-impl AudioBoardWithAdc {
-    /// Read knob 1 value (0-65535 for 16-bit resolution).
+impl<CODEC> AudioBoardWithAdc<CODEC> {
+    /// Read knob 1 value.
+    ///
+    /// Returns raw ADC value (0-4095 for 12-bit, 0-65535 for 16-bit depending on configuration).
     pub fn read_knob1(&mut self) -> u32 {
         self.adc1.read(&mut self.knob1_pin).unwrap_or(0)
     }
 
-    /// Read knob 2 value (0-65535 for 16-bit resolution).
+    /// Read knob 2 value.
+    ///
+    /// Returns raw ADC value (0-4095 for 12-bit, 0-65535 for 16-bit depending on configuration).
     pub fn read_knob2(&mut self) -> u32 {
         self.adc1.read(&mut self.knob2_pin).unwrap_or(0)
     }

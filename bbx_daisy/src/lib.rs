@@ -120,4 +120,5 @@ pub mod __internal {
     pub use cortex_m::asm::wfi;
     pub use cortex_m_rt::entry;
     pub use panic_halt;
+    pub use stm32h7xx_hal::pac;
 }

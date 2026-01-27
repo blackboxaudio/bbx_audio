@@ -90,7 +90,7 @@ macro_rules! bbx_daisy_audio {
 
             // Initialize board with audio support
             #[cfg(feature = "pod")]
-            let board = $crate::board::AudioBoard::init();
+            let board = $crate::board::AudioBoard::init().expect("Failed to initialize audio board");
 
             // Set the audio callback
             $crate::audio::set_callback(__bbx_audio_callback);
@@ -100,6 +100,7 @@ macro_rules! bbx_daisy_audio {
             {
                 let audio = board.audio;
                 $crate::audio::init_and_start(
+                    audio.sample_rate,
                     audio.sai1,
                     audio.dma1,
                     audio.dma1_rec,
@@ -180,29 +181,38 @@ macro_rules! bbx_daisy_audio_with_controls {
             }
 
             // Initialize board with ADC for knob reading
-            let mut board = $crate::board::AudioBoard::init_with_adc();
+            let board = $crate::board::AudioBoard::init_with_adc().expect("Failed to initialize audio board with ADC");
 
             // Set the audio callback
             $crate::audio::set_callback(__bbx_audio_callback);
 
-            // Start audio processing
-            {
-                let audio = board.audio;
-                $crate::audio::init_and_start(
-                    audio.sai1,
-                    audio.dma1,
-                    audio.dma1_rec,
-                    audio.sai1_pins,
-                    audio.sai1_rec,
-                    &audio.clocks,
-                );
-            }
+            // Destructure board to extract audio peripherals and ADC components
+            let $crate::board::AudioBoardWithAdc {
+                audio,
+                mut adc1,
+                mut knob1_pin,
+                mut knob2_pin,
+                codec: _codec, // Codec handle available here if needed
+                ..
+            } = board;
+
+            // Start audio processing (consumes audio peripherals)
+            $crate::audio::init_and_start(
+                audio.sample_rate,
+                audio.sai1,
+                audio.dma1,
+                audio.dma1_rec,
+                audio.sai1_pins,
+                audio.sai1_rec,
+                &audio.clocks,
+            );
 
             // Main loop: read ADC and update controls
             loop {
-                // Read knobs and update controls (16-bit values, scale to 12-bit range)
-                let raw1 = (board.read_knob1() >> 4) as u16;
-                let raw2 = (board.read_knob2() >> 4) as u16;
+                // Read knobs and update controls
+                // ADC returns u32, shift down to 12-bit range for processing
+                let raw1 = (adc1.read(&mut knob1_pin).unwrap_or(0_u32) >> 4) as u16;
+                let raw2 = (adc1.read(&mut knob2_pin).unwrap_or(0_u32) >> 4) as u16;
 
                 unsafe {
                     let knob1_ptr = core::ptr::addr_of_mut!(__BBX_KNOB1);

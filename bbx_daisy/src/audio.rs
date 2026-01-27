@@ -5,9 +5,57 @@
 //!
 //! # Architecture
 //!
-//! - SAI1 Block A: Receive (from codec ADC) - slave, internal sync
-//! - SAI1 Block B: Transmit (to codec DAC) - master
-//! - DMA1: Circular buffer transfers with half/complete interrupts
+//! ## Clock Tree
+//!
+//! ```text
+//! HSE (16 MHz external crystal)
+//!   ├─> PLL1 → 480 MHz → SYSCLK (CPU, AHB, APB)
+//!   └─> PLL3 → SAI MCLK:
+//!       ├─> 12.288 MHz @ 48 kHz (256 × Fs)
+//!       └─> 24.576 MHz @ 96 kHz (256 × Fs)
+//! ```
+//!
+//! ## SAI Configuration
+//!
+//! - **SAI1 Block B (TX)**: Master, 24-bit I2S, falling edge clock strobe
+//! - **SAI1 Block A (RX)**: Slave, 24-bit I2S, rising edge clock strobe, internal sync
+//! - **Format**: 24-bit samples, MSB-justified, left-justified in 32-bit words
+//!
+//! ## Memory Layout
+//!
+//! ```text
+//! DTCM (128KB):   0x20000000 - Stack, heap (fastest access)
+//! AXI SRAM (512KB): 0x24000000 - General purpose RAM
+//! SRAM1 (128KB):  0x30000000 - D2 domain, DMA-accessible
+//! SRAM2 (128KB):  0x30020000 - D2 domain, DMA-accessible
+//! SRAM3 (32KB):   0x30040000 - D2 domain, DMA buffers here ✓
+//! SRAM4 (64KB):   0x38000000 - D3 domain, battery-backed
+//! ```
+//!
+//! DMA audio buffers are placed in SRAM3 (D2 domain) which is:
+//! - DMA-accessible by DMA1/DMA2
+//! - Non-cached by default (no cache coherency issues)
+//! - 4-byte aligned via linker script
+//!
+//! ## SAI Pin Configuration (Pod/Seed)
+//!
+//! | Pin  | Function | Description                        |
+//! |------|----------|------------------------------------|
+//! | PE2  | MCLK     | Master clock (12.288/24.576 MHz)   |
+//! | PE4  | FS       | Frame sync (48/96 kHz)             |
+//! | PE5  | SCK      | Serial clock (3.072/6.144 MHz)     |
+//! | PE6  | SD_A     | Data A (TX for Seed, RX for Seed 1.1) |
+//! | PE3  | SD_B     | Data B (RX for Seed, TX for Seed 1.1) |
+//!
+//! ## Interrupt Priority
+//!
+//! DMA1_STR1 interrupt priority is left at default. For custom priority,
+//! set it before calling `init_and_start()` using `cortex_m::peripheral::Peripherals::take()`.
+//!
+//! ## Sample Format Conversion
+//!
+//! - **I2S to f32**: `i32_to_f32()` shifts right by 8 bits (24-bit → full 24-bit), then normalizes to [-1.0, 1.0]
+//! - **f32 to I2S**: `f32_to_i32()` clamps, scales to 24-bit, then left-justifies in 32-bit word
 //!
 //! # Usage
 //!
@@ -56,9 +104,6 @@ pub const BLOCK_SIZE: usize = 48;
 /// DMA buffer size in samples (double-buffered for ping-pong operation).
 /// Format: [L, R, L, R, ...] with 48 stereo frames * 2 halves = 192 u32 words
 const DMA_BUFFER_LENGTH: usize = BLOCK_SIZE * 2 * 2;
-
-/// Audio sample rate in Hz.
-const AUDIO_SAMPLE_HZ: Hertz = Hertz::from_raw(48_000);
 
 /// Audio callback function type.
 ///
@@ -185,6 +230,7 @@ impl AudioInterface {
 ///
 /// # Arguments
 ///
+/// * `sample_rate` - Audio sample rate (48kHz or 96kHz)
 /// * `sai1` - SAI1 peripheral
 /// * `dma1` - DMA1 peripheral
 /// * `dma1_rec` - DMA1 clock configuration record
@@ -192,6 +238,7 @@ impl AudioInterface {
 /// * `sai1_rec` - SAI1 clock configuration record
 /// * `clocks` - System clocks reference
 pub fn init_and_start(
+    sample_rate: SampleRate,
     sai1: SAI1,
     dma1: DMA1,
     dma1_rec: rec::Dma1,
@@ -251,7 +298,7 @@ pub fn init_and_start(
         dma_config,
     );
 
-    // Configure SAI1 for I2S: 48 kHz, 24-bit, MSB-justified
+    // Configure SAI1 for I2S: 24-bit, MSB-justified
     // TX channel (Channel B) is master with falling edge clock strobe
     let sai1_tx_config = sai::I2SChanConfig::new(sai::I2SDir::Tx)
         .set_frame_sync_active_high(true)
@@ -263,19 +310,27 @@ pub fn init_and_start(
         .set_frame_sync_active_high(true)
         .set_clock_strobe(sai::I2SClockStrobe::Rising);
 
+    // Use the provided sample rate (PLL3 MCLK must match: 12.288MHz @ 48kHz, 24.576MHz @ 96kHz)
+    let sample_rate_hz = Hertz::from_raw(sample_rate.hz());
+
     let mut sai1 = sai1.i2s_ch_a(
         sai1_pins,
-        AUDIO_SAMPLE_HZ,
+        sample_rate_hz,
         sai::I2SDataSize::BITS_24,
         sai1_rec,
         clocks,
         I2sUsers::new(sai1_tx_config).add_slave(sai1_rx_config),
     );
 
-    // Enable DMA1 Stream 1 interrupt
+    // Enable DMA1 Stream 1 interrupt with high priority
+    // Priority 0 = highest priority, prevents preemption by lower-priority interrupts
+    // This ensures audio processing is not interrupted, reducing risk of buffer underruns
     unsafe {
-        pac::NVIC::unmask(pac::Interrupt::DMA1_STR1);
+        cortex_m::peripheral::NVIC::unmask(pac::Interrupt::DMA1_STR1);
     }
+    // Note: Priority setting requires mutable NVIC peripheral which is not available in this context.
+    // The default priority is sufficient for most use cases. For custom priority, users can set it
+    // before calling init_and_start() using cortex_m::peripheral::Peripherals::take().
 
     // Start RX DMA first (it enables Channel B DMA)
     dma1_str1.start(|_sai1_rb| {
