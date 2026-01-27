@@ -152,6 +152,24 @@ impl<I2C> Wm8731<I2C> {
     pub fn with_default_address(i2c: I2C) -> Self {
         Self::new(i2c, Self::I2C_ADDR_LOW)
     }
+
+    /// Delay for approximately the given number of milliseconds.
+    ///
+    /// Uses a busy-wait loop calibrated for ~480MHz STM32H7.
+    /// This is intentionally conservative to ensure codec stability.
+    #[cfg(all(target_arch = "arm", target_os = "none"))]
+    fn delay_ms(ms: u32) {
+        // STM32H750 runs at ~480MHz, cortex_m::asm::delay uses cycles
+        // ~480_000 cycles per ms (conservative estimate)
+        const CYCLES_PER_MS: u32 = 480_000;
+        cortex_m::asm::delay(ms * CYCLES_PER_MS);
+    }
+
+    /// No-op delay for non-embedded targets (testing).
+    #[cfg(not(all(target_arch = "arm", target_os = "none")))]
+    fn delay_ms(_ms: u32) {
+        // No delay needed for host testing
+    }
 }
 
 impl<I2C, E> Codec for Wm8731<I2C>
@@ -163,19 +181,25 @@ where
 
         // Reset the codec
         self.write_reg(RESET, 0x00)?;
+        Self::delay_ms(10);
 
         // Power down line input and mic (we only use DAC output typically)
         // Keep everything else powered up
         self.write_reg(POWER_DOWN, 0x07)?;
+        Self::delay_ms(10);
 
         // Configure analog audio path: DAC selected, no bypass, no sidetone
         self.write_reg(ANALOG_PATH, 0x10)?;
+        Self::delay_ms(10);
 
         // Configure digital audio path: no soft mute, no de-emphasis, ADC HPF enabled
         self.write_reg(DIGITAL_PATH, 0x00)?;
+        Self::delay_ms(10);
 
         // Configure digital interface: I2S format, 24-bit, slave mode
-        self.write_reg(DIGITAL_IF, 0x02)?;
+        // Bits [1:0] = 0x02 (I2S format), Bits [3:2] = 0x08 (24-bit word length)
+        self.write_reg(DIGITAL_IF, 0x0A)?;
+        Self::delay_ms(10);
 
         // Configure sampling: normal mode, USB mode disabled
         let sr_bits = match sample_rate {
@@ -183,13 +207,19 @@ where
             SampleRate::Rate96000 => 0x1C, // 96kHz, MCLK = 24.576MHz
         };
         self.write_reg(SAMPLING, sr_bits)?;
+        Self::delay_ms(10);
 
         // Set headphone output volume to 0dB
         self.write_reg(LEFT_HP_OUT, 0x79)?;
+        Self::delay_ms(10);
         self.write_reg(RIGHT_HP_OUT, 0x79)?;
+        Self::delay_ms(10);
 
-        // Activate the codec
+        // Activate the codec (deactivate first to ensure clean transition)
+        self.write_reg(ACTIVE, 0x00)?;
+        Self::delay_ms(10);
         self.write_reg(ACTIVE, 0x01)?;
+        Self::delay_ms(10);
 
         self.ready = true;
         Ok(())

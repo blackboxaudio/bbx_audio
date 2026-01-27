@@ -4,20 +4,29 @@
 //! initialization (power, clocks, GPIO ports) in a single call.
 
 use stm32h7xx_hal::{
-    adc::{self, Adc, AdcSampleTime},
     delay::Delay,
     gpio::{
-        Analog, gpioa::Parts as GpioA, gpiob::Parts as GpioB, gpioc::Parts as GpioC, gpiod::Parts as GpioD,
+        gpioa::Parts as GpioA, gpiob::Parts as GpioB, gpioc::Parts as GpioC, gpiod::Parts as GpioD,
         gpioe::Parts as GpioE, gpiog::Parts as GpioG, gpioh::Parts as GpioH,
     },
-    pac::{self, ADC1, DMA1, SAI1},
+    pac,
     prelude::*,
-    rcc::{CoreClocks, rec},
+    rcc::CoreClocks,
 };
 
+#[cfg(feature = "pod")]
+use stm32h7xx_hal::{
+    adc::{self, Adc, AdcSampleTime},
+    gpio::Analog,
+    pac::{ADC1, DMA1, SAI1},
+    rcc::rec,
+};
+
+#[cfg(feature = "pod")]
 use crate::{
     audio::Sai1Pins,
     clock::{ClockConfig, SampleRate},
+    codec::{Codec, Wm8731},
 };
 
 /// Initialized board with all peripherals ready to use.
@@ -114,6 +123,7 @@ impl Board {
 ///
 /// This struct holds the peripherals that need to be passed to
 /// `audio::init_and_start()` to begin audio processing.
+#[cfg(feature = "pod")]
 pub struct AudioPeripherals {
     /// SAI1 peripheral for audio I/O.
     pub sai1: SAI1,
@@ -151,8 +161,6 @@ pub struct AudioBoard {
     pub gpiog: GpioG,
     /// Audio peripherals for starting audio.
     pub audio: AudioPeripherals,
-    /// GPIO Port H pins (for I2C4).
-    pub gpioh: GpioH,
 }
 
 #[cfg(feature = "pod")]
@@ -197,6 +205,15 @@ impl AudioBoard {
             Some(gpioe.pe3.into_alternate()), // SD_B (RX)
         );
 
+        // Configure I2C4 for WM8731 codec control (PH11=SCL, PH12=SDA, AF4)
+        let scl = gpioh.ph11.into_alternate().set_open_drain();
+        let sda = gpioh.ph12.into_alternate().set_open_drain();
+        let i2c4 = dp.I2C4.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C4, &ccdr.clocks);
+
+        // Initialize WM8731 codec
+        let mut codec = Wm8731::with_default_address(i2c4);
+        codec.init(SampleRate::Rate48000).expect("WM8731 codec init failed");
+
         // Get SAI1 with PLL3_P clock source (already configured in ClockConfig)
         let sai1_rec = ccdr.peripheral.SAI1;
         let dma1_rec = ccdr.peripheral.DMA1;
@@ -218,7 +235,6 @@ impl AudioBoard {
                 sai1_rec,
                 clocks: ccdr.clocks,
             },
-            gpioh,
         }
     }
 
@@ -255,6 +271,15 @@ impl AudioBoard {
             Some(gpioe.pe3.into_alternate()), // SD_B (RX)
         );
 
+        // Configure I2C4 for WM8731 codec control (PH11=SCL, PH12=SDA, AF4)
+        let scl = gpioh.ph11.into_alternate().set_open_drain();
+        let sda = gpioh.ph12.into_alternate().set_open_drain();
+        let i2c4 = dp.I2C4.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C4, &ccdr.clocks);
+
+        // Initialize WM8731 codec
+        let mut codec = Wm8731::with_default_address(i2c4);
+        codec.init(SampleRate::Rate48000).expect("WM8731 codec init failed");
+
         // Configure ADC pins (analog mode)
         let knob1_pin = gpioc.pc4.into_analog();
         let knob2_pin = gpioc.pc1.into_analog();
@@ -277,7 +302,6 @@ impl AudioBoard {
             gpiob,
             gpiod,
             gpiog,
-            gpioh,
             audio: AudioPeripherals {
                 sai1: dp.SAI1,
                 dma1: dp.DMA1,
@@ -309,8 +333,6 @@ pub struct AudioBoardWithAdc {
     pub gpiod: GpioD,
     /// GPIO Port G pins.
     pub gpiog: GpioG,
-    /// GPIO Port H pins.
-    pub gpioh: GpioH,
     /// Audio peripherals for starting audio.
     pub audio: AudioPeripherals,
     /// Configured ADC1 for knob reading.
