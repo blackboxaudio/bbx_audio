@@ -109,6 +109,18 @@
 # Embedded Development
 
 - [Overview](embedded/overview.md)
+- [Fundamentals]()
+    - [Introduction to Embedded Rust](embedded/fundamentals/intro-embedded-rust.md)
+    - [Hardware Peripherals](embedded/fundamentals/hardware-peripherals.md)
+    - [Memory Model](embedded/fundamentals/memory-model.md)
+- [Compilation & Toolchain]()
+    - [Toolchain & LLVM](embedded/compilation/toolchain.md)
+    - [Linker Scripts](embedded/compilation/linker-scripts.md)
+    - [Binary Formats & Flashing](embedded/compilation/binary-formats.md)
+- [Daisy Hardware]()
+    - [STM32H750 MCU](embedded/daisy-hardware/stm32h750.md)
+    - [Clock Tree](embedded/daisy-hardware/clock-tree.md)
+    - [Audio Interface](embedded/daisy-hardware/audio-interface.md)
 - [Build Process](embedded/build-process.md)
 - [Memory Constraints](embedded/memory.md)
 - [Troubleshooting](embedded/troubleshooting.md)

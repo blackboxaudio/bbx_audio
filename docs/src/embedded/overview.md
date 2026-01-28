@@ -73,8 +73,30 @@ cargo run -p bbx_daisy --example 02_oscillator --release
 dfu-util -a 0 -s 0x08000000:leave -D target/thumbv7em-none-eabihf/release/examples/02_oscillator
 ```
 
-## Next Steps
+## Learning Path
 
+New to embedded development? Follow this recommended reading order:
+
+### 1. Fundamentals
+Start here to understand how embedded Rust differs from desktop Rust:
+- [Introduction to Embedded Rust](fundamentals/intro-embedded-rust.md) - `#![no_std]`, `#![no_main]`, and essential crates
+- [Hardware Peripherals](fundamentals/hardware-peripherals.md) - GPIO, DMA, SAI, I2C explained
+- [Memory Model](fundamentals/memory-model.md) - Stack, static allocation, linker sections
+
+### 2. Compilation & Toolchain
+Understand how your code becomes firmware:
+- [Toolchain & LLVM](compilation/toolchain.md) - Target triples, FPU, cross-compilation
+- [Linker Scripts](compilation/linker-scripts.md) - memory.x and section placement
+- [Binary Formats & Flashing](compilation/binary-formats.md) - ELF, BIN, DFU
+
+### 3. Daisy Hardware
+Deep dive into the STM32H750 and audio subsystem:
+- [STM32H750 MCU](daisy-hardware/stm32h750.md) - Core architecture, memory regions, power domains
+- [Clock Tree](daisy-hardware/clock-tree.md) - PLL configuration for audio
+- [Audio Interface](daisy-hardware/audio-interface.md) - SAI, DMA, codecs
+
+### 4. Practical Guides
+Apply your knowledge:
 - [Build Process](build-process.md) - Detailed toolchain setup and flashing methods
 - [Memory Constraints](memory.md) - STM32H750 memory layout and optimization
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
