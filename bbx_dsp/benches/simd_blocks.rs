@@ -2,6 +2,7 @@
 
 mod common;
 
+use bbx_core::Buffer;
 use bbx_dsp::{
     block::Block,
     blocks::{
@@ -20,7 +21,7 @@ use bbx_dsp::{
         generators::oscillator::OscillatorBlock,
         modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
     },
-    buffer::{AudioBuffer, Buffer},
+    buffer::SampleBuffer,
     sample::Sample,
     waveform::Waveform,
 };
@@ -409,7 +410,7 @@ fn bench_buffer_zeroize<S: Sample>(c: &mut Criterion, type_name: &str) {
         let bench_id = BenchmarkId::from_parameter(buffer_size);
 
         group.bench_with_input(bench_id, buffer_size, |b, &size| {
-            let mut buffer = AudioBuffer::<S>::with_data(vec![S::ONE; size]);
+            let mut buffer = SampleBuffer::<S>::with_data(vec![S::ONE; size]);
 
             b.iter(|| {
                 buffer.zeroize();
@@ -438,7 +439,7 @@ fn bench_buffer_fill<S: Sample>(c: &mut Criterion, type_name: &str) {
         let bench_id = BenchmarkId::from_parameter(buffer_size);
 
         group.bench_with_input(bench_id, buffer_size, |b, &size| {
-            let mut buffer = AudioBuffer::<S>::new(size);
+            let mut buffer = SampleBuffer::<S>::new(size);
             let value = S::from_f64(0.5);
 
             b.iter(|| {

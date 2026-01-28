@@ -32,6 +32,7 @@ Optional SIMD optimizations are available via the `simd` feature flag (requires 
 | Crate | Description |
 |-------|-------------|
 | [`bbx_core`](./bbx_core) | `Sample` trait, `StackVec`, lock-free ring buffers, error types |
+| [`bbx_daisy`](./bbx_daisy) | Electrosmith Daisy embedded audio (no_std, ARM Cortex-M) |
 | [`bbx_dsp`](./bbx_dsp) | Block-graph engine with oscillators, filters, panners, mixers, ambisonics |
 | [`bbx_draw`](./bbx_draw) | Waveforms, spectrum analyzers, graph topology viewers (nannou) |
 | [`bbx_file`](./bbx_file) | Audio file I/O (WAV/MP3) |
@@ -71,6 +72,44 @@ See [`bbx_sandbox/examples/`](./bbx_sandbox/examples/) for working examples, or 
 ```bash
 sudo apt install libasound2-dev libssl-dev pkg-config
 ```
+
+### Embedded (Daisy)
+
+For embedded development with Electrosmith Daisy hardware:
+
+```toml
+[dependencies]
+bbx_daisy = { git = "https://github.com/blackboxaudio/bbx_audio", features = ["seed"] }
+```
+
+```rust
+#![no_std]
+#![no_main]
+
+use bbx_daisy::prelude::*;
+
+struct SineOsc { phase: f32 }
+
+impl AudioProcessor for SineOsc {
+    fn process(&mut self, _input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>) {
+        for i in 0..BLOCK_SIZE {
+            let sample = libm::sinf(self.phase * core::f32::consts::TAU) * 0.5;
+            output.set_frame(i, sample, sample);
+            self.phase = (self.phase + 440.0 / DEFAULT_SAMPLE_RATE).fract();
+        }
+    }
+}
+
+bbx_daisy_audio!(SineOsc, SineOsc { phase: 0.0 });
+```
+
+```bash
+# Build and flash
+cargo build -p bbx_daisy --example 02_oscillator --target thumbv7em-none-eabihf --release
+cargo run -p bbx_daisy --example 02_oscillator --release  # With debug probe
+```
+
+See the [Embedded Development Guide](https://docs.bbx-audio.com/embedded.html) for setup and flashing instructions.
 
 ## Examples
 

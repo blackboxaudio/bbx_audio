@@ -3,7 +3,7 @@
 //! This module provides a C-compatible error enum and a Result type alias
 //! for use across all crates in the workspace.
 
-use std::fmt;
+use core::fmt;
 
 /// Error codes for bbx_audio operations.
 ///
@@ -38,7 +38,8 @@ impl fmt::Display for BbxError {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for BbxError {}
 
 /// Result type alias for bbx_audio operations.
-pub type Result<T> = std::result::Result<T, BbxError>;
+pub type Result<T> = core::result::Result<T, BbxError>;

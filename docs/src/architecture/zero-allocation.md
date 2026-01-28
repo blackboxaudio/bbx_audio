@@ -17,7 +17,7 @@ All memory allocated upfront:
 ```rust
 // Allocated when block is added
 for _ in 0..output_count {
-    self.audio_buffers.push(AudioBuffer::new(self.buffer_size));
+    self.audio_buffers.push(SampleBuffer::new(self.buffer_size));
 }
 
 // During processing - just clear

@@ -3,6 +3,8 @@
 //! Provides a realtime-safe channel for passing MIDI messages between threads,
 //! suitable for MIDI input thread to audio thread communication.
 
+use alloc::vec::Vec;
+
 use bbx_core::spsc::{Consumer, Producer, SpscRingBuffer};
 
 use crate::message::MidiMessage;

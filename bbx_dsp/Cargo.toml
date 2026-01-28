@@ -15,13 +15,15 @@ categories = ["multimedia::audio", "science"]
 bench = false
 
 [features]
-default = []
+default = ["std"]
+std = ["alloc", "bbx_core/std", "bbx_midi/std"]
+alloc = ["bbx_core/alloc", "bbx_midi/alloc"]
 ftz-daz = ["bbx_core/ftz-daz"]
-simd = ["bbx_core/simd"]
+simd = ["std", "bbx_core/simd"]
 
 [dependencies]
 bbx_core.workspace = true
-bbx_midi = { workspace = true, default-features = false }
+bbx_midi.workspace = true
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }

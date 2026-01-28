@@ -3,24 +3,43 @@
 //! This module defines the [`Block`] trait for DSP processing units and
 //! [`BlockType`] for type-erased block storage in the graph.
 
+#[cfg(feature = "alloc")]
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
+
+#[cfg(feature = "alloc")]
+use crate::blocks::effectors::{ambisonic_decoder::AmbisonicDecoderBlock, binaural_decoder::BinauralDecoderBlock};
+#[cfg(feature = "std")]
+use crate::blocks::io::{file_input::FileInputBlock, file_output::FileOutputBlock};
+#[cfg(feature = "alloc")]
+use crate::parameter::Parameter;
 use crate::{
     blocks::{
         effectors::{
-            ambisonic_decoder::AmbisonicDecoderBlock, binaural_decoder::BinauralDecoderBlock,
             channel_merger::ChannelMergerBlock, channel_router::ChannelRouterBlock,
             channel_splitter::ChannelSplitterBlock, dc_blocker::DcBlockerBlock, gain::GainBlock,
             low_pass_filter::LowPassFilterBlock, matrix_mixer::MatrixMixerBlock, mixer::MixerBlock,
             overdrive::OverdriveBlock, panner::PannerBlock, vca::VcaBlock,
         },
         generators::oscillator::OscillatorBlock,
-        io::{file_input::FileInputBlock, file_output::FileOutputBlock, output::OutputBlock},
+        io::output::OutputBlock,
         modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
     },
     channel::ChannelConfig,
     context::DspContext,
-    parameter::{ModulationOutput, Parameter},
+    parameter::ModulationOutput,
     sample::Sample,
 };
+
+/// Maximum number of inputs a block can have (realtime-safe stack allocation).
+/// Set to 16 to support third-order ambisonics (16 channels).
+pub const MAX_BLOCK_INPUTS: usize = 16;
+/// Maximum number of outputs a block can have (realtime-safe stack allocation).
+/// Set to 16 to support third-order ambisonics (16 channels).
+pub const MAX_BLOCK_OUTPUTS: usize = 16;
 
 /// Default input count for `Effector`s.
 pub(crate) const DEFAULT_EFFECTOR_INPUT_COUNT: usize = 1;
@@ -129,8 +148,10 @@ pub trait Block<S: Sample> {
 pub enum BlockType<S: Sample> {
     // I/O
     /// Reads audio from a file via a [`Reader`](crate::reader::Reader).
+    #[cfg(feature = "std")]
     FileInput(FileInputBlock<S>),
     /// Writes audio to a file via a [`Writer`](crate::writer::Writer).
+    #[cfg(feature = "std")]
     FileOutput(FileOutputBlock<S>),
     /// Terminal output block that collects final audio.
     Output(OutputBlock<S>),
@@ -141,8 +162,10 @@ pub enum BlockType<S: Sample> {
 
     // EFFECTORS
     /// Decodes ambisonics B-format to speaker layout.
+    #[cfg(feature = "alloc")]
     AmbisonicDecoder(AmbisonicDecoderBlock<S>),
     /// Decodes ambisonics B-format to stereo for headphones.
+    #[cfg(feature = "alloc")]
     BinauralDecoder(BinauralDecoderBlock<S>),
     /// Merges individual mono inputs into multi-channel output.
     ChannelMerger(ChannelMergerBlock<S>),
@@ -186,7 +209,9 @@ impl<S: Sample> BlockType<S> {
     ) {
         match self {
             // I/O
+            #[cfg(feature = "std")]
             BlockType::FileInput(block) => block.process(inputs, outputs, modulation_values, context),
+            #[cfg(feature = "std")]
             BlockType::FileOutput(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::Output(block) => block.process(inputs, outputs, modulation_values, context),
 
@@ -194,7 +219,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.process(inputs, outputs, modulation_values, context),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.process(inputs, outputs, modulation_values, context),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::ChannelMerger(block) => block.process(inputs, outputs, modulation_values, context),
             BlockType::ChannelRouter(block) => block.process(inputs, outputs, modulation_values, context),
@@ -219,7 +246,9 @@ impl<S: Sample> BlockType<S> {
     pub fn input_count(&self) -> usize {
         match self {
             // I/O
+            #[cfg(feature = "std")]
             BlockType::FileInput(block) => block.input_count(),
+            #[cfg(feature = "std")]
             BlockType::FileOutput(block) => block.input_count(),
             BlockType::Output(block) => block.input_count(),
 
@@ -227,7 +256,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.input_count(),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.input_count(),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.input_count(),
             BlockType::ChannelMerger(block) => block.input_count(),
             BlockType::ChannelRouter(block) => block.input_count(),
@@ -252,7 +283,9 @@ impl<S: Sample> BlockType<S> {
     pub fn output_count(&self) -> usize {
         match self {
             // I/O
+            #[cfg(feature = "std")]
             BlockType::FileInput(block) => block.output_count(),
+            #[cfg(feature = "std")]
             BlockType::FileOutput(block) => block.output_count(),
             BlockType::Output(block) => block.output_count(),
 
@@ -260,7 +293,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.output_count(),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.output_count(),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.output_count(),
             BlockType::ChannelMerger(block) => block.output_count(),
             BlockType::ChannelRouter(block) => block.output_count(),
@@ -285,7 +320,9 @@ impl<S: Sample> BlockType<S> {
     pub fn modulation_outputs(&self) -> &[ModulationOutput] {
         match self {
             // I/O
+            #[cfg(feature = "std")]
             BlockType::FileInput(block) => block.modulation_outputs(),
+            #[cfg(feature = "std")]
             BlockType::FileOutput(block) => block.modulation_outputs(),
             BlockType::Output(block) => block.modulation_outputs(),
 
@@ -293,7 +330,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.modulation_outputs(),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.modulation_outputs(),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.modulation_outputs(),
             BlockType::ChannelMerger(block) => block.modulation_outputs(),
             BlockType::ChannelRouter(block) => block.modulation_outputs(),
@@ -318,7 +357,9 @@ impl<S: Sample> BlockType<S> {
     pub fn channel_config(&self) -> ChannelConfig {
         match self {
             // I/O
+            #[cfg(feature = "std")]
             BlockType::FileInput(block) => block.channel_config(),
+            #[cfg(feature = "std")]
             BlockType::FileOutput(block) => block.channel_config(),
             BlockType::Output(block) => block.channel_config(),
 
@@ -326,7 +367,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.channel_config(),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.channel_config(),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.channel_config(),
             BlockType::ChannelMerger(block) => block.channel_config(),
             BlockType::ChannelRouter(block) => block.channel_config(),
@@ -366,7 +409,9 @@ impl<S: Sample> BlockType<S> {
     pub fn prepare(&mut self, context: &DspContext) {
         match self {
             // I/O
+            #[cfg(feature = "std")]
             BlockType::FileInput(block) => block.prepare(context),
+            #[cfg(feature = "std")]
             BlockType::FileOutput(block) => block.prepare(context),
             BlockType::Output(block) => block.prepare(context),
 
@@ -374,7 +419,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.prepare(context),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.prepare(context),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.prepare(context),
             BlockType::ChannelMerger(block) => block.prepare(context),
             BlockType::ChannelRouter(block) => block.prepare(context),
@@ -401,7 +448,9 @@ impl<S: Sample> BlockType<S> {
     pub fn reset(&mut self) {
         match self {
             // I/O
+            #[cfg(feature = "std")]
             BlockType::FileInput(block) => block.reset(),
+            #[cfg(feature = "std")]
             BlockType::FileOutput(block) => block.reset(),
             BlockType::Output(block) => block.reset(),
 
@@ -409,7 +458,9 @@ impl<S: Sample> BlockType<S> {
             BlockType::Oscillator(block) => block.reset(),
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(block) => block.reset(),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(block) => block.reset(),
             BlockType::ChannelMerger(block) => block.reset(),
             BlockType::ChannelRouter(block) => block.reset(),
@@ -430,12 +481,15 @@ impl<S: Sample> BlockType<S> {
     }
 
     /// Set a given `Parameter` of the underlying `Block`.
+    #[cfg(feature = "alloc")]
     pub fn set_parameter(&mut self, parameter_name: &str, parameter: Parameter<S>) -> Result<(), String> {
         match self {
             // I/O
-            BlockType::FileInput(_) => Err("File input blocks have no modulated parameters".to_string()),
-            BlockType::FileOutput(_) => Err("File output blocks have no modulated parameters".to_string()),
-            BlockType::Output(_) => Err("Output blocks have no modulated parameters".to_string()),
+            #[cfg(feature = "std")]
+            BlockType::FileInput(_) => Err(String::from("File input blocks have no modulated parameters")),
+            #[cfg(feature = "std")]
+            BlockType::FileOutput(_) => Err(String::from("File output blocks have no modulated parameters")),
+            BlockType::Output(_) => Err(String::from("Output blocks have no modulated parameters")),
 
             // GENERATORS
             BlockType::Oscillator(block) => match parameter_name.to_lowercase().as_str() {
@@ -451,7 +505,9 @@ impl<S: Sample> BlockType<S> {
             },
 
             // EFFECTORS
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(_) => Err("Ambisonic decoder has no modulated parameters".to_string()),
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(_) => Err("Binaural decoder has no modulated parameters".to_string()),
             BlockType::ChannelMerger(_) => Err("Channel merger has no modulated parameters".to_string()),
             BlockType::ChannelRouter(_) => Err("Channel router uses direct field access, not Parameter<S>".to_string()),
@@ -548,18 +604,28 @@ impl<S: Sample> BlockType<S> {
     /// Returns `true` if this block is an output-type block (Output or FileOutput).
     #[inline]
     pub fn is_output(&self) -> bool {
-        matches!(self, BlockType::Output(_) | BlockType::FileOutput(_))
+        #[cfg(feature = "std")]
+        if matches!(self, BlockType::FileOutput(_)) {
+            return true;
+        }
+        matches!(self, BlockType::Output(_))
     }
 
     /// Returns the category of this block.
     #[inline]
     pub fn category(&self) -> BlockCategory {
         match self {
-            BlockType::FileInput(_) | BlockType::FileOutput(_) | BlockType::Output(_) => BlockCategory::IO,
+            #[cfg(feature = "std")]
+            BlockType::FileInput(_) => BlockCategory::IO,
+            #[cfg(feature = "std")]
+            BlockType::FileOutput(_) => BlockCategory::IO,
+            BlockType::Output(_) => BlockCategory::IO,
             BlockType::Oscillator(_) => BlockCategory::Generator,
-            BlockType::AmbisonicDecoder(_)
-            | BlockType::BinauralDecoder(_)
-            | BlockType::ChannelMerger(_)
+            #[cfg(feature = "alloc")]
+            BlockType::AmbisonicDecoder(_) => BlockCategory::Effector,
+            #[cfg(feature = "alloc")]
+            BlockType::BinauralDecoder(_) => BlockCategory::Effector,
+            BlockType::ChannelMerger(_)
             | BlockType::ChannelRouter(_)
             | BlockType::ChannelSplitter(_)
             | BlockType::DcBlocker(_)
@@ -578,11 +644,15 @@ impl<S: Sample> BlockType<S> {
     #[inline]
     pub fn name(&self) -> &'static str {
         match self {
+            #[cfg(feature = "std")]
             BlockType::FileInput(_) => "File Input",
+            #[cfg(feature = "std")]
             BlockType::FileOutput(_) => "File Output",
             BlockType::Output(_) => "Output",
             BlockType::Oscillator(_) => "Oscillator",
+            #[cfg(feature = "alloc")]
             BlockType::AmbisonicDecoder(_) => "Ambisonic Decoder",
+            #[cfg(feature = "alloc")]
             BlockType::BinauralDecoder(_) => "Binaural Decoder",
             BlockType::ChannelMerger(_) => "Channel Merger",
             BlockType::ChannelRouter(_) => "Channel Router",
@@ -609,11 +679,16 @@ impl<S: Sample> BlockType<S> {
     ///
     /// This method allocates and is NOT realtime-safe. Only call during
     /// graph setup or from non-audio threads.
+    #[cfg(feature = "alloc")]
     pub fn get_modulated_parameters(&self) -> Vec<(&'static str, BlockId)> {
         let mut result = Vec::new();
 
         match self {
-            BlockType::FileInput(_) | BlockType::FileOutput(_) | BlockType::Output(_) => {}
+            #[cfg(feature = "std")]
+            BlockType::FileInput(_) => {}
+            #[cfg(feature = "std")]
+            BlockType::FileOutput(_) => {}
+            BlockType::Output(_) => {}
 
             BlockType::Oscillator(block) => {
                 if let Parameter::Modulated(id) = &block.frequency {
@@ -624,9 +699,11 @@ impl<S: Sample> BlockType<S> {
                 }
             }
 
-            BlockType::AmbisonicDecoder(_)
-            | BlockType::BinauralDecoder(_)
-            | BlockType::ChannelMerger(_)
+            #[cfg(feature = "alloc")]
+            BlockType::AmbisonicDecoder(_) => {}
+            #[cfg(feature = "alloc")]
+            BlockType::BinauralDecoder(_) => {}
+            BlockType::ChannelMerger(_)
             | BlockType::ChannelRouter(_)
             | BlockType::ChannelSplitter(_)
             | BlockType::DcBlocker(_)
@@ -702,12 +779,14 @@ impl<S: Sample> BlockType<S> {
 // From implementations for ergonomic block addition via GraphBuilder::add()
 
 // I/O
+#[cfg(feature = "std")]
 impl<S: Sample> From<FileInputBlock<S>> for BlockType<S> {
     fn from(block: FileInputBlock<S>) -> Self {
         BlockType::FileInput(block)
     }
 }
 
+#[cfg(feature = "std")]
 impl<S: Sample> From<FileOutputBlock<S>> for BlockType<S> {
     fn from(block: FileOutputBlock<S>) -> Self {
         BlockType::FileOutput(block)
@@ -728,12 +807,14 @@ impl<S: Sample> From<OscillatorBlock<S>> for BlockType<S> {
 }
 
 // Effectors
+#[cfg(feature = "alloc")]
 impl<S: Sample> From<AmbisonicDecoderBlock<S>> for BlockType<S> {
     fn from(block: AmbisonicDecoderBlock<S>) -> Self {
         BlockType::AmbisonicDecoder(block)
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<S: Sample> From<BinauralDecoderBlock<S>> for BlockType<S> {
     fn from(block: BinauralDecoderBlock<S>) -> Self {
         BlockType::BinauralDecoder(block)

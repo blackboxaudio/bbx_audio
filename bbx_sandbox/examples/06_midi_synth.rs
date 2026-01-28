@@ -20,10 +20,11 @@ use std::{
     time::Duration,
 };
 
+use bbx_core::Buffer;
 use bbx_dsp::{
     block::BlockId,
     blocks::{EnvelopeBlock, GainBlock, LowPassFilterBlock, OscillatorBlock, VcaBlock},
-    buffer::{AudioBuffer, Buffer},
+    buffer::SampleBuffer,
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
@@ -59,7 +60,7 @@ impl VoiceState {
 
 struct MidiSynth {
     graph: Graph<f32>,
-    output_buffers: Vec<AudioBuffer<f32>>,
+    output_buffers: Vec<SampleBuffer<f32>>,
     voice_state: VoiceState,
     oscillator_id: BlockId,
     envelope_id: BlockId,
@@ -95,7 +96,7 @@ impl MidiSynth {
 
         let mut output_buffers = Vec::with_capacity(num_channels);
         for _ in 0..num_channels {
-            output_buffers.push(AudioBuffer::new(buffer_size));
+            output_buffers.push(SampleBuffer::new(buffer_size));
         }
 
         Self {

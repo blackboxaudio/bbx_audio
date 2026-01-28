@@ -12,9 +12,14 @@ keywords = ["audio", "dsp", "lock-free", "realtime", "spsc"]
 categories = ["multimedia::audio", "data-structures", "no-std"]
 
 [features]
-default = []
+default = ["std"]
+std = ["alloc"]
+alloc = []
 ftz-daz = []
-simd = []
+simd = ["std"]
+
+[dependencies]
+libm = "0.2"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }
