@@ -25,7 +25,7 @@ use cortex_m::interrupt;
 unsafe fn pre_init() {
     // STM32H7 RCC register addresses
     const RCC_BASE: u32 = 0x5802_4400;
-    const RCC_CR: *mut u32 = (RCC_BASE + 0x00) as *mut u32;
+    const RCC_CR: *mut u32 = RCC_BASE as *mut u32;
     const RCC_CFGR: *mut u32 = (RCC_BASE + 0x10) as *mut u32;
     const RCC_D1CFGR: *mut u32 = (RCC_BASE + 0x18) as *mut u32;
     const RCC_D2CFGR: *mut u32 = (RCC_BASE + 0x1C) as *mut u32;

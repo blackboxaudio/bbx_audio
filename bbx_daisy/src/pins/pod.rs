@@ -101,8 +101,8 @@ pub struct Encoder2Pins {
 /// Knob 1 - ADC input (PC4, ADC1_IN4)
 pub type Knob1Pin = gpio::PC4<Analog>;
 
-/// Knob 2 - ADC input (PC1, ADC1_IN11)
-pub type Knob2Pin = gpio::PC1<Analog>;
+/// Knob 2 - ADC input (PC0, ADC1_IN10)
+pub type Knob2Pin = gpio::PC0<Analog>;
 
 // ============================================================================
 // Toggle Switch Pins
@@ -115,26 +115,26 @@ pub type Switch1Pin = gpio::PG14<Input>;
 pub type Switch2Pin = gpio::PB5<Input>;
 
 // ============================================================================
-// LED Pins
+// LED Pins (Active-Low - Pod LEDs are common anode)
 // ============================================================================
 
-/// LED 1 - Red (PA7)
-pub type Led1Red = gpio::PA7<Output<PushPull>>;
+/// LED 1 - Red (PC1)
+pub type Led1Red = gpio::PC1<Output<PushPull>>;
 
-/// LED 1 - Green (PB4)
-pub type Led1Green = gpio::PB4<Output<PushPull>>;
+/// LED 1 - Green (PA6)
+pub type Led1Green = gpio::PA6<Output<PushPull>>;
 
-/// LED 1 - Blue (PA6)
-pub type Led1Blue = gpio::PA6<Output<PushPull>>;
+/// LED 1 - Blue (PA7)
+pub type Led1Blue = gpio::PA7<Output<PushPull>>;
 
-/// LED 2 - Red (PB12)
-pub type Led2Red = gpio::PB12<Output<PushPull>>;
+/// LED 2 - Red (PB1)
+pub type Led2Red = gpio::PB1<Output<PushPull>>;
 
-/// LED 2 - Green (PC7)
-pub type Led2Green = gpio::PC7<Output<PushPull>>;
+/// LED 2 - Green (PA1)
+pub type Led2Green = gpio::PA1<Output<PushPull>>;
 
-/// LED 2 - Blue (PC6)
-pub type Led2Blue = gpio::PC6<Output<PushPull>>;
+/// LED 2 - Blue (PA4)
+pub type Led2Blue = gpio::PA4<Output<PushPull>>;
 
 /// Collected LED 1 pins (RGB).
 pub struct Led1Pins {

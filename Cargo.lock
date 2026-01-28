@@ -230,6 +230,7 @@ dependencies = [
  "embedded-hal",
  "libm",
  "panic-halt",
+ "stm32-fmc",
  "stm32h7xx-hal",
 ]
 
@@ -3192,6 +3193,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "stm32-fmc"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7f0639399e2307c2446c54d91d4f1596343a1e1d5cab605b9cce11d0ab3858c"
+dependencies = [
+ "embedded-hal",
+]
+
+[[package]]
 name = "stm32h7"
 version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3218,6 +3228,7 @@ dependencies = [
  "fugit",
  "nb 1.1.0",
  "paste",
+ "stm32-fmc",
  "stm32h7",
  "void",
 ]

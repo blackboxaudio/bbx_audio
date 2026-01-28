@@ -2,6 +2,18 @@
 //!
 //! This module provides the [`Board`] struct which handles all hardware
 //! initialization (power, clocks, GPIO ports) in a single call.
+//!
+//! ## Singleton Pattern
+//!
+//! Board uses a singleton pattern to ensure hardware is only initialized once:
+//!
+//! ```ignore
+//! // Safe: returns None if already taken
+//! let board = Board::take().expect("board already taken");
+//!
+//! // Unsafe: bypasses singleton check
+//! let board = unsafe { Board::steal() };
+//! ```
 
 #[cfg(feature = "pod")]
 use stm32h7xx_hal::{
@@ -14,7 +26,8 @@ use stm32h7xx_hal::{
     delay::Delay,
     gpio::{
         gpioa::Parts as GpioA, gpiob::Parts as GpioB, gpioc::Parts as GpioC, gpiod::Parts as GpioD,
-        gpioe::Parts as GpioE, gpiog::Parts as GpioG, gpioh::Parts as GpioH,
+        gpioe::Parts as GpioE, gpiof::Parts as GpioF, gpiog::Parts as GpioG, gpioh::Parts as GpioH,
+        gpioi::Parts as GpioI,
     },
     pac,
     prelude::*,
@@ -27,6 +40,14 @@ use crate::{
     clock::{ClockConfig, SampleRate},
     codec::{Codec, CodecError, Wm8731},
 };
+
+// Singleton marker - prevents taking Board more than once
+// Using no_mangle to prevent linking different versions
+#[unsafe(no_mangle)]
+static BBX_DAISY_BOARD: () = ();
+
+/// Set to `true` when `take` was called to make `Board` a singleton.
+static mut BOARD_TAKEN: bool = false;
 
 /// Board initialization error.
 #[cfg(feature = "pod")]
@@ -81,27 +102,31 @@ impl Default for AdcConfig {
 
 /// Initialized board with all peripherals ready to use.
 ///
-/// Created by calling [`Board::init()`], which handles all the
+/// Created by calling [`Board::take()`] or [`Board::init()`], which handles all the
 /// power, clock, and GPIO initialization automatically.
 ///
-/// # Example
+/// ## Singleton Pattern
+///
+/// Board uses a singleton pattern to ensure hardware is only initialized once:
 ///
 /// ```ignore
-/// #![no_std]
-/// #![no_main]
+/// let board = Board::take().expect("board already taken");
+/// ```
 ///
+/// ## Accessing Peripherals
+///
+/// ```ignore
 /// use bbx_daisy::prelude::*;
 ///
-/// fn app(board: Board) -> ! {
-///     let mut led = Led::new(board.gpioc.pc7.into_push_pull_output());
-///     loop {
-///         led.toggle();
-///         board.delay.delay_ms(500u32);
-///     }
-/// }
+/// let board = Board::take().unwrap();
 ///
-/// bbx_daisy_run!(app);
+/// // Get the user LED
+/// let mut led = UserLed::new(board.gpioc.pc7);
+/// led.toggle();
 /// ```
+///
+/// For flash and SDRAM, see the `flash` and `sdram` modules which provide
+/// high-level initialization functions.
 pub struct Board {
     /// System clocks configuration.
     pub clocks: CoreClocks,
@@ -113,45 +138,89 @@ pub struct Board {
     pub gpiob: GpioB,
     /// GPIO Port C pins (includes user LED on PC7).
     pub gpioc: GpioC,
-    /// GPIO Port D pins.
+    /// GPIO Port D pins (includes SDRAM data pins).
     pub gpiod: GpioD,
-    /// GPIO Port E pins (includes SAI audio pins).
+    /// GPIO Port E pins (includes SAI audio pins, SDRAM data pins).
     pub gpioe: GpioE,
-    /// GPIO Port G pins.
+    /// GPIO Port F pins (includes QSPI flash pins, SDRAM address pins).
+    pub gpiof: GpioF,
+    /// GPIO Port G pins (includes QSPI CS, SDRAM control pins).
     pub gpiog: GpioG,
-    /// GPIO Port H pins (includes I2C4 for codec control).
+    /// GPIO Port H pins (includes I2C4 for codec control, SDRAM data pins).
     pub gpioh: GpioH,
+    /// GPIO Port I pins (includes SDRAM data pins).
+    pub gpioi: GpioI,
 }
 
 impl Board {
-    /// Initialize the board hardware.
+    /// Take the board singleton.
     ///
-    /// This performs all the boilerplate initialization:
-    /// - Takes device and core peripherals
-    /// - Configures power supply
-    /// - Sets up 480 MHz system clock
-    /// - Splits all GPIO ports
-    /// - Initializes SysTick delay timer
+    /// Returns `Some(Board)` on first call, `None` on subsequent calls.
+    /// This is the preferred way to initialize the board.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let board = Board::take().expect("board already taken");
+    /// ```
+    #[inline]
+    pub fn take() -> Option<Self> {
+        cortex_m::interrupt::free(|_| {
+            if unsafe { BOARD_TAKEN } {
+                None
+            } else {
+                Some(unsafe { Board::steal() })
+            }
+        })
+    }
+
+    /// Unsafely take the board, bypassing the singleton check.
+    ///
+    /// # Safety
+    ///
+    /// This bypasses the singleton pattern. The caller must ensure that
+    /// the board is not initialized multiple times, which could cause
+    /// undefined behavior.
+    #[inline]
+    pub unsafe fn steal() -> Self {
+        unsafe { BOARD_TAKEN = true };
+        Self::init_internal()
+    }
+
+    /// Initialize the board hardware (legacy API).
+    ///
+    /// This is equivalent to `Board::take().unwrap()` and is provided for
+    /// backwards compatibility.
     ///
     /// # Panics
     ///
-    /// Panics if peripherals have already been taken.
+    /// Panics if the board has already been taken.
+    #[inline]
     pub fn init() -> Self {
+        Self::take().expect("board peripherals already taken")
+    }
+
+    /// Internal initialization - called by take() or steal().
+    fn init_internal() -> Self {
         let dp = pac::Peripherals::take().expect("device peripherals already taken");
         let cp = cortex_m::Peripherals::take().expect("core peripherals already taken");
 
+        // Configure power without VOS0 (use default VOS1 - high performance mode)
         let pwr = dp.PWR.constrain().freeze();
 
         let rcc = dp.RCC.constrain();
-        let ccdr = rcc.sys_ck(480.MHz()).freeze(pwr, &dp.SYSCFG);
+        // Use 400 MHz which is supported in VOS1 mode without VOS0
+        let ccdr = rcc.sys_ck(400.MHz()).freeze(pwr, &dp.SYSCFG);
 
         let gpioa = dp.GPIOA.split(ccdr.peripheral.GPIOA);
         let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
         let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
         let gpiod = dp.GPIOD.split(ccdr.peripheral.GPIOD);
         let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
+        let gpiof = dp.GPIOF.split(ccdr.peripheral.GPIOF);
         let gpiog = dp.GPIOG.split(ccdr.peripheral.GPIOG);
         let gpioh = dp.GPIOH.split(ccdr.peripheral.GPIOH);
+        let gpioi = dp.GPIOI.split(ccdr.peripheral.GPIOI);
 
         let delay = cp.SYST.delay(ccdr.clocks);
 
@@ -163,8 +232,10 @@ impl Board {
             gpioc,
             gpiod,
             gpioe,
+            gpiof,
             gpiog,
             gpioh,
+            gpioi,
         }
     }
 }
@@ -208,10 +279,8 @@ pub struct AudioBoard<CODEC> {
     pub gpioa: GpioA,
     /// GPIO Port B pins.
     pub gpiob: GpioB,
-    /// GPIO Port C pins (PC4=Knob1, PC1=Knob2, PC7=LED).
+    /// GPIO Port C pins (PC4=Knob1, PC0=Knob2).
     pub gpioc: GpioC,
-    /// GPIO Port D pins.
-    pub gpiod: GpioD,
     /// GPIO Port G pins.
     pub gpiog: GpioG,
     /// Audio peripherals for starting audio.
@@ -235,6 +304,7 @@ impl AudioBoard<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>> {
     /// Returns `BoardError::PeripheralsTaken` if peripherals have already been taken.
     /// Returns `BoardError::CodecInit` if codec initialization fails.
     pub fn init_pod() -> Result<Self, BoardError> {
+        // Minimal init - no debug blinks for now
         let dp = pac::Peripherals::take().ok_or(BoardError::PeripheralsTaken)?;
         let cp = cortex_m::Peripherals::take().ok_or(BoardError::PeripheralsTaken)?;
 
@@ -242,15 +312,10 @@ impl AudioBoard<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>> {
         let clock_config = ClockConfig::new(SampleRate::Rate48000);
         let ccdr = clock_config.configure(dp.PWR, dp.RCC, &dp.SYSCFG);
 
-        // Enable I-cache for better performance
-        let mut cp = cp;
-        cp.SCB.enable_icache();
-
-        // Split GPIO ports
+        // Split GPIO ports (GPIOD skipped - causes crashes on Pod)
         let gpioa = dp.GPIOA.split(ccdr.peripheral.GPIOA);
         let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
         let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
-        let gpiod = dp.GPIOD.split(ccdr.peripheral.GPIOD);
         let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
         let gpiog = dp.GPIOG.split(ccdr.peripheral.GPIOG);
         let gpioh = dp.GPIOH.split(ccdr.peripheral.GPIOH);
@@ -286,7 +351,6 @@ impl AudioBoard<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>> {
             gpioa,
             gpiob,
             gpioc,
-            gpiod,
             gpiog,
             audio: AudioPeripherals {
                 sample_rate: SampleRate::Rate48000,
@@ -332,15 +396,16 @@ impl AudioBoard<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>> {
         let clock_config = ClockConfig::new(SampleRate::Rate48000);
         let ccdr = clock_config.configure(dp.PWR, dp.RCC, &dp.SYSCFG);
 
-        // Enable I-cache for better performance
-        let mut cp = cp;
-        cp.SCB.enable_icache();
+        // NOTE: I-cache disabled - can cause hard faults on STM32H7 if MPU
+        // isn't configured properly. Slight performance hit but safer.
+        // TODO: Re-enable with proper MPU configuration
+        // let mut cp = cp;
+        // cp.SCB.enable_icache();
 
-        // Split GPIO ports
+        // Split GPIO ports (GPIOD skipped - not used on Pod and causes crashes)
         let gpioa = dp.GPIOA.split(ccdr.peripheral.GPIOA);
         let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
         let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
-        let gpiod = dp.GPIOD.split(ccdr.peripheral.GPIOD);
         let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
         let gpiog = dp.GPIOG.split(ccdr.peripheral.GPIOG);
         let gpioh = dp.GPIOH.split(ccdr.peripheral.GPIOH);
@@ -365,7 +430,7 @@ impl AudioBoard<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>> {
 
         // Configure ADC pins (analog mode)
         let knob1_pin = gpioc.pc4.into_analog();
-        let knob2_pin = gpioc.pc1.into_analog();
+        let knob2_pin = gpioc.pc0.into_analog();
 
         // Configure ADC1 with user-specified settings
         let mut delay_local = cp.SYST.delay(ccdr.clocks);
@@ -385,7 +450,6 @@ impl AudioBoard<Wm8731<stm32h7xx_hal::i2c::I2c<pac::I2C4>>> {
             delay: delay_local,
             gpioa,
             gpiob,
-            gpiod,
             gpiog,
             audio: AudioPeripherals {
                 sample_rate: SampleRate::Rate48000,
@@ -425,8 +489,6 @@ pub struct AudioBoardWithAdc<CODEC> {
     pub gpioa: GpioA,
     /// GPIO Port B pins.
     pub gpiob: GpioB,
-    /// GPIO Port D pins.
-    pub gpiod: GpioD,
     /// GPIO Port G pins.
     pub gpiog: GpioG,
     /// Audio peripherals for starting audio.
@@ -435,8 +497,8 @@ pub struct AudioBoardWithAdc<CODEC> {
     pub adc1: Adc<ADC1, adc::Enabled>,
     /// Knob 1 pin (PC4, analog).
     pub knob1_pin: stm32h7xx_hal::gpio::gpioc::PC4<Analog>,
-    /// Knob 2 pin (PC1, analog).
-    pub knob2_pin: stm32h7xx_hal::gpio::gpioc::PC1<Analog>,
+    /// Knob 2 pin (PC0, analog).
+    pub knob2_pin: stm32h7xx_hal::gpio::gpioc::PC0<Analog>,
 }
 
 #[cfg(feature = "pod")]

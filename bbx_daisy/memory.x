@@ -25,6 +25,12 @@ MEMORY
 
     /* Backup SRAM - 4KB (battery-backed, persistent storage) */
     BACKUP (rw) : ORIGIN = 0x38800000, LENGTH = 4K
+
+    /* External SDRAM - 64MB (AS4C16M32MSA) */
+    SDRAM (rwx) : ORIGIN = 0xc0000000, LENGTH = 64M
+
+    /* External QSPI Flash - 8MB (IS25LP064) */
+    QSPIFLASH (rx) : ORIGIN = 0x90000000, LENGTH = 8M
 }
 
 /* Stack configuration - place in DTCM for fast access */
@@ -41,7 +47,19 @@ SECTIONS
         . = ALIGN(4);
     } > SRAM3
 
-    /* Large buffers can go in SRAM1/SRAM2 */
+    /* Large buffers can go in SRAM1/SRAM2 (D2 domain, DMA-accessible) */
+    .sram1_bss (NOLOAD) : ALIGN(4)
+    {
+        . = ALIGN(4);
+        _ssram1_bss = .;
+        PROVIDE(__sram1_bss_start__ = _ssram1_bss);
+        *(.sram1_bss .sram1_bss.*);
+        . = ALIGN(4);
+        _esram1_bss = .;
+        PROVIDE(__sram1_bss_end__ = _esram1_bss);
+    } > SRAM1
+
+    /* Legacy .sram1 section alias */
     .sram1 (NOLOAD) : ALIGN(4)
     {
         *(.sram1 .sram1.*);
@@ -54,4 +72,16 @@ SECTIONS
         *(.backup .backup.*);
         . = ALIGN(4);
     } > BACKUP
+
+    /* External SDRAM section for large buffers */
+    .sdram_bss (NOLOAD) : ALIGN(4)
+    {
+        . = ALIGN(4);
+        _ssdram_bss = .;
+        PROVIDE(__sdram_bss_start = _ssdram_bss);
+        *(.sdram_bss .sdram_bss.*);
+        . = ALIGN(4);
+        _esdram_bss = .;
+        PROVIDE(__sdram_bss_end = _esdram_bss);
+    } > SDRAM
 }

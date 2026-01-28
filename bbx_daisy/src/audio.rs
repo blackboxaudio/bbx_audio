@@ -111,11 +111,19 @@ use stm32h7xx_hal::{
 
 use crate::{buffer::FrameBuffer, clock::SampleRate};
 
-/// Default block size for audio processing (48 samples at ~48kHz = 1ms latency).
+/// Block size for audio processing.
+///
+/// Default is 48 samples (~1ms latency at 48kHz).
+/// Use `--features block_length_64` for 64 samples (~1.33ms latency).
+#[cfg(not(feature = "block_length_64"))]
 pub const BLOCK_SIZE: usize = 48;
 
+/// Block size for audio processing (64 samples when block_length_64 feature is enabled).
+#[cfg(feature = "block_length_64")]
+pub const BLOCK_SIZE: usize = 64;
+
 /// DMA buffer size in samples (double-buffered for ping-pong operation).
-/// Format: [L, R, L, R, ...] with 48 stereo frames * 2 halves = 192 u32 words
+/// Format: [L, R, L, R, ...] with BLOCK_SIZE stereo frames * 2 halves
 const DMA_BUFFER_LENGTH: usize = BLOCK_SIZE * 2 * 2;
 
 /// Audio callback function type.
@@ -558,4 +566,40 @@ pub fn audio_with_rate(sample_rate: SampleRate) -> AudioInterface {
 }
 
 /// Default sample rate as f32 for DSP calculations.
+#[cfg(not(feature = "sampling_rate_96khz"))]
 pub const DEFAULT_SAMPLE_RATE: f32 = 48_000.0;
+
+/// Default sample rate as f32 for DSP calculations (96kHz when sampling_rate_96khz feature is enabled).
+#[cfg(feature = "sampling_rate_96khz")]
+pub const DEFAULT_SAMPLE_RATE: f32 = 96_000.0;
+
+// ============================================================================
+// Cache Line Validation
+// ============================================================================
+
+/// Cache line size for STM32H7 (32 bytes).
+const CACHE_LINE_SIZE: usize = 32;
+
+/// Validate that a DMA buffer is properly aligned for cache operations.
+///
+/// DMA buffers must be cache-line aligned (32 bytes on STM32H7) to avoid
+/// data corruption when invalidating/cleaning cache around DMA transfers.
+///
+/// # Panics
+///
+/// Panics if the buffer is not properly aligned or if its size is not a
+/// multiple of the cache line size.
+#[allow(dead_code)]
+pub(crate) fn validate_dma_buffer<T>(buffer: &[T]) {
+    let ptr = buffer.as_ptr() as usize;
+    let size = core::mem::size_of_val(buffer);
+
+    assert!(
+        ptr % CACHE_LINE_SIZE == 0,
+        "DMA buffer must be cache-line aligned (32 bytes)"
+    );
+    assert!(
+        size % CACHE_LINE_SIZE == 0,
+        "DMA buffer size must be a multiple of cache line size (32 bytes)"
+    );
+}

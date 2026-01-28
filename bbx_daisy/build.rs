@@ -60,11 +60,10 @@ fn validate_product_features() {
 
     if unique_products.len() > 1 {
         panic!(
-            "ERROR: Multiple bbx_daisy product features enabled: {:?}\n\
+            "ERROR: Multiple bbx_daisy product features enabled: {enabled:?}\n\
              Only one product feature can be enabled at a time.\n\
              Use --no-default-features and specify exactly one feature.\n\
-             Valid features: seed, seed_1_1, seed_1_2, pod, patch_sm, patch_init, patch",
-            enabled
+             Valid features: seed, seed_1_1, seed_1_2, pod, patch_sm, patch_init, patch"
         );
     }
 

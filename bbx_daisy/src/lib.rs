@@ -65,8 +65,57 @@
 //! - `pod` - Daisy Pod with WM8731 codec
 //! - `patch_sm` - Patch SM with PCM3060 codec
 //! - `patch_init` - Patch.Init() (uses Patch SM)
+//!
+//! ## Audio Configuration
+//!
+//! - `sampling_rate_96khz` - Use 96kHz sample rate instead of 48kHz
+//! - `block_length_64` - Use 64 sample block size instead of 48
 
 #![no_std]
+
+// Compile-time board validation: ensure exactly one board feature is selected
+#[cfg(all(
+    feature = "seed",
+    any(feature = "seed_1_1", feature = "seed_1_2", feature = "pod", feature = "patch_sm")
+))]
+compile_error!("Only a single board feature must be selected");
+
+#[cfg(all(
+    feature = "seed_1_1",
+    any(feature = "seed", feature = "seed_1_2", feature = "pod", feature = "patch_sm")
+))]
+compile_error!("Only a single board feature must be selected");
+
+#[cfg(all(
+    feature = "seed_1_2",
+    any(feature = "seed", feature = "seed_1_1", feature = "pod", feature = "patch_sm")
+))]
+compile_error!("Only a single board feature must be selected");
+
+#[cfg(all(
+    feature = "pod",
+    any(feature = "seed", feature = "seed_1_1", feature = "seed_1_2", feature = "patch_sm")
+))]
+compile_error!("Only a single board feature must be selected");
+
+#[cfg(all(
+    feature = "patch_sm",
+    any(feature = "seed", feature = "seed_1_1", feature = "seed_1_2", feature = "pod")
+))]
+compile_error!("Only a single board feature must be selected");
+
+#[cfg(all(
+    target_arch = "arm",
+    target_os = "none",
+    not(any(
+        feature = "seed",
+        feature = "seed_1_1",
+        feature = "seed_1_2",
+        feature = "pod",
+        feature = "patch_sm"
+    ))
+))]
+compile_error!("A board feature must be selected: \"seed\" | \"seed_1_1\" | \"seed_1_2\" | \"pod\" | \"patch_sm\"");
 
 // Core buffer types and context (always available)
 pub mod buffer;
@@ -92,7 +141,11 @@ pub mod clock;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub mod codec;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
+pub mod flash;
+#[cfg(all(target_arch = "arm", target_os = "none"))]
 mod init; // Early hardware initialization (FPU setup, etc.)
+#[cfg(all(target_arch = "arm", target_os = "none"))]
+pub mod led;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 mod macros;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
@@ -101,7 +154,10 @@ pub mod peripherals;
 pub mod pins;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub mod processor;
+#[cfg(all(target_arch = "arm", target_os = "none"))]
+pub mod sdram;
 
+// Internal HAL re-export for use within crate modules
 // Re-exports at crate root
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use board::Board;
@@ -111,7 +167,15 @@ pub use buffer::{FrameBuffer, StaticSampleBuffer};
 pub use context::EmbeddedDspContext;
 pub use controls::Controls;
 #[cfg(all(target_arch = "arm", target_os = "none"))]
+pub use flash::Flash;
+#[cfg(all(target_arch = "arm", target_os = "none"))]
+pub use led::UserLed;
+#[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use processor::AudioProcessor;
+#[cfg(all(target_arch = "arm", target_os = "none"))]
+pub use sdram::Sdram;
+#[cfg(all(target_arch = "arm", target_os = "none"))]
+pub(crate) use stm32h7xx_hal as hal;
 
 /// Internal re-exports for macros.
 ///

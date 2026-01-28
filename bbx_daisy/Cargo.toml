@@ -26,7 +26,8 @@ libm = "0.2"
 [target.'cfg(all(target_arch = "arm", target_os = "none"))'.dependencies]
 cortex-m = "0.7"
 cortex-m-rt = "0.7"
-stm32h7xx-hal = { version = "0.16", features = ["stm32h750v", "rt"] }
+stm32h7xx-hal = { version = "0.16", features = ["stm32h750v", "rt", "xspi", "fmc"] }
+stm32-fmc = "0.3"
 panic-halt = "1.0"
 
 [[example]]
@@ -63,3 +64,7 @@ patch = ["patch_sm"]       # Alias for Patch SM
 
 # Field (not yet implemented)
 field = []
+
+# Audio configuration
+sampling_rate_96khz = []  # Use 96kHz sample rate instead of default 48kHz
+block_length_64 = []      # Use 64 sample block size instead of default 48

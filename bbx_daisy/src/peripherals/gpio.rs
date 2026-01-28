@@ -12,36 +12,59 @@ use embedded_hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin, Toggleab
 /// LED wrapper providing convenient control methods.
 ///
 /// Works with any pin implementing `OutputPin` and `StatefulOutputPin`.
+/// Supports both active-high (default) and active-low (common anode) LEDs.
 ///
 /// # Example
 ///
 /// ```ignore
 /// use bbx_daisy::peripherals::gpio::Led;
 ///
+/// // Active-high LED (default)
 /// let mut led = Led::new(user_led_pin);
 /// led.on();
 /// led.toggle();
+///
+/// // Active-low LED (e.g., Daisy Pod RGB LEDs)
+/// let mut led = Led::new_active_low(pod_led_pin);
+/// led.on();  // Sets pin LOW to turn LED on
 /// ```
 pub struct Led<P> {
     pin: P,
+    inverted: bool,
 }
 
 impl<P: OutputPin> Led<P> {
-    /// Create a new LED wrapper around an output pin.
+    /// Create a new LED wrapper around an output pin (active-high).
     pub fn new(pin: P) -> Self {
-        Self { pin }
+        Self { pin, inverted: false }
+    }
+
+    /// Create a new active-low LED wrapper (for common anode LEDs).
+    ///
+    /// Active-low LEDs turn on when the pin is LOW and off when HIGH.
+    /// This is common for RGB LEDs with a shared anode, like on the Daisy Pod.
+    pub fn new_active_low(pin: P) -> Self {
+        Self { pin, inverted: true }
     }
 
     /// Turn the LED on.
     #[inline]
     pub fn on(&mut self) {
-        let _ = self.pin.set_high();
+        if self.inverted {
+            let _ = self.pin.set_low();
+        } else {
+            let _ = self.pin.set_high();
+        }
     }
 
     /// Turn the LED off.
     #[inline]
     pub fn off(&mut self) {
-        let _ = self.pin.set_low();
+        if self.inverted {
+            let _ = self.pin.set_high();
+        } else {
+            let _ = self.pin.set_low();
+        }
     }
 
     /// Set the LED state (true = on, false = off).
@@ -72,7 +95,8 @@ impl<P: StatefulOutputPin> Led<P> {
     /// Check if the LED is currently on.
     #[inline]
     pub fn is_on(&self) -> bool {
-        self.pin.is_set_high().unwrap_or(false)
+        let pin_high = self.pin.is_set_high().unwrap_or(false);
+        if self.inverted { !pin_high } else { pin_high }
     }
 }
 
@@ -176,11 +200,7 @@ impl<P: InputPin> Button<P> {
         let current = self.is_pressed_raw();
         let was_released = !self.stable_state;
 
-        if current && was_released && self.debounce_count >= self.debounce_threshold {
-            true
-        } else {
-            false
-        }
+        current && was_released && self.debounce_count >= self.debounce_threshold
     }
 
     /// Release the underlying pin.
