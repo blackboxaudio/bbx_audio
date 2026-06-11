@@ -23,7 +23,7 @@ The STM32H750 on Daisy boards has a complex memory architecture with multiple re
 
 **SRAM1/SRAM2**: D2 domain memory accessible by DMA1/DMA2. Use for large audio buffers that need DMA transfer.
 
-**SRAM3**: Ideal for audio DMA buffers. The SAI peripheral uses DMA to transfer samples here.
+**SRAM3**: Ideal for audio DMA buffers. The SAI peripheral uses DMA to transfer samples here. By default the CPU D-cache is off, so these buffers are coherent between the CPU and DMA with no maintenance. The optional `dcache` feature enables the caches *and* the matching invalidate/clean maintenance together (they must not be split) — see the [bbx_daisy README](https://github.com/blackboxaudio/bbx_audio/tree/HEAD/bbx_daisy#cpu-caches-dcache-feature) for if/when to turn it on.
 
 **SRAM4/Backup**: Battery-backed memory that persists across resets. Use for storing presets or calibration data.
 

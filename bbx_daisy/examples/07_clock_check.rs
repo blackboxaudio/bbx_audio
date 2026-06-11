@@ -3,10 +3,10 @@
 //! Runs the **full audio clock configuration** (VOS0 + PLL3 for the SAI MCLK) — the same
 //! one `init_audio` uses — then blinks the onboard LED (PC7) **fast (~5 Hz)**.
 //!
-//! - **LED blinks fast** → the audio clock (PLL3 / VOS0) came up fine; the silence is
-//!   downstream (SAI / DMA / codec), not the clock.
-//! - **LED stays dark** → the audio clock `freeze()` is hanging (PLL lock / VOS0). That's
-//!   the bug — execution never reaches the audio loop.
+//! - **LED blinks fast** → the audio clock (PLL3 / VOS0) came up fine; the silence is downstream (SAI / DMA / codec),
+//!   not the clock.
+//! - **LED stays dark** → the audio clock `freeze()` is hanging (PLL lock / VOS0). That's the bug — execution never
+//!   reaches the audio loop.
 //!
 //! Compare with `01_blink` (slow ~1 Hz, simpler non-audio 400 MHz clock) which works.
 //!
@@ -24,9 +24,11 @@ fn main() {}
 
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 mod app {
-    use bbx_daisy::__internal::panic_halt as _;
-    use bbx_daisy::clock::{ClockConfig, SampleRate};
-    use bbx_daisy::prelude::*;
+    use bbx_daisy::{
+        __internal::panic_halt as _,
+        clock::{ClockConfig, SampleRate},
+        prelude::*,
+    };
     use stm32h7xx_hal::pac;
 
     #[bbx_daisy::__internal::entry]

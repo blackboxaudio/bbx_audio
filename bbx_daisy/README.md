@@ -198,6 +198,35 @@ cargo build --no-default-features --features patch_sm --release
 # cargo build --features "seed,pod"  # ERROR: Multiple features enabled
 ```
 
+## CPU caches (`dcache` feature)
+
+By default the Cortex-M7 instruction and data caches are **off**. The audio DMA buffers
+live in D2 SRAM and are accessed directly by both the CPU and the DMA, so they stay
+coherent with no maintenance — this is the hardware-verified default.
+
+The optional `dcache` feature turns the caches **on** and adds the matching DMA-buffer
+cache maintenance to the audio interrupt (invalidate the RX buffer before reading, clean
+the TX buffer after writing). The two are flipped together by this single flag, and they
+have to be: running the maintenance ops with the D-cache disabled raises a `BusFault`,
+while enabling the D-cache without maintenance feeds the codec stale data.
+
+**Enable it when your DSP is CPU-bound and you need more headroom.** The caches are a
+large speedup on the STM32H750 — the instruction cache especially, since flash has several
+wait states at 400+ MHz — and the data cache helps data-heavy work (big wavetables, long
+delay lines). If the default already keeps up, leave it off: it's the simpler, verified path.
+
+```toml
+bbx_daisy = { version = "0.4.3", default-features = false, features = ["seed", "dcache"] }
+```
+
+**Before shipping with it on:**
+
+- Listen to the audio first — only the cache-off default is hardware-verified here. The
+  cached path follows the reference daisy/libDaisy design, but confirm there are no glitches.
+- Any DMA _you_ add while the D-cache is on is yours to keep coherent: invalidate before the
+  CPU reads DMA-written data, clean after the CPU writes data the DMA reads, and keep those
+  buffers 32-byte (cache-line) aligned. Only the built-in audio buffers are handled for you.
+
 ## Flashing to Hardware
 
 Patches flash over USB DFU using `dfu-util` — no debug probe required. The build

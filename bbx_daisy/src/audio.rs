@@ -207,35 +207,6 @@ type DmaTxTransfer = Transfer<
 /// returns. The ISR never touches it; it only needs to not be dropped.
 static mut DMA_TX_TRANSFER: MaybeUninit<DmaTxTransfer> = MaybeUninit::uninit();
 
-/// Diagnostic latch for the DMA1 stream-1 interrupt-status flags captured on the **first**
-/// `DMA1_STR1` IRQ (opt-in via the `diag_isr_oneshot` feature). Read by the `09_isr_oneshot`
-/// example to tell an interrupt storm apart from a per-call hang in `process_audio_buffer`.
-#[cfg(feature = "diag_isr_oneshot")]
-pub static DIAG_DMA_FLAGS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
-
-/// Diagnostic counter incremented on every `DMA1_STR1` IRQ (opt-in via `diag_irq_rate`, which
-/// also skips `process_audio_buffer`). The `10_irq_rate` example samples this over a 1 s window
-/// to measure the DMA interrupt rate — distinguishing a too-fast SAI clock (rate ≫ ~1000/s)
-/// from a too-slow `process_audio_buffer` (rate ≈ ~1000/s).
-#[cfg(feature = "diag_irq_rate")]
-pub static DIAG_IRQ_COUNT: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
-
-/// Diagnostic latch for the cycle count of one `process_audio_buffer` call (opt-in via
-/// `diag_process_time`). The `11_process_time` example converts this to microseconds to see
-/// whether `process` is genuinely too slow (≥ the inter-IRQ period) or fast (paradox).
-#[cfg(feature = "diag_process_time")]
-pub static DIAG_PROCESS_CYCLES: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
-
-/// Diagnostic: bitwise-OR of every sample the DMA has written into the RX buffer. Nonzero means
-/// the codec's ADC is delivering data — i.e. the codec is powered, out of reset, and receiving a
-/// usable MCLK. All-zero suggests the codec isn't running (no MCLK / still in reset). Opt-in via
-/// `diag_peek`.
-#[cfg(feature = "diag_peek")]
-pub fn diag_rx_accumulate() -> u32 {
-    let rx = unsafe { (*ptr::addr_of!(RX_BUFFER)).assume_init_ref() };
-    rx.iter().fold(0u32, |acc, &s| acc | s)
-}
-
 // ============================================================================
 // Public API
 // ============================================================================
@@ -353,19 +324,6 @@ pub fn init_and_start(
         let mut cp = cortex_m::Peripherals::steal();
         cp.SCB.enable_icache();
         cp.SCB.enable_dcache(&mut cp.CPUID);
-    }
-
-    // Diagnostic: enable GPIOC clock + set PC7 as output so the DMA ISR can blink it
-    // (opt-in via the `diag_led` feature). Raw register access keeps it independent of the
-    // audio path's peripheral ownership. RCC_AHB4ENR.GPIOCEN (bit 2), GPIOC MODER pin 7.
-    #[cfg(feature = "diag_led")]
-    unsafe {
-        const RCC_AHB4ENR: *mut u32 = 0x5802_44E0 as *mut u32;
-        const GPIOC_MODER: *mut u32 = 0x5802_0800 as *mut u32;
-        RCC_AHB4ENR.write_volatile(RCC_AHB4ENR.read_volatile() | (1 << 2));
-        let _ = RCC_AHB4ENR.read_volatile();
-        let moder = GPIOC_MODER.read_volatile();
-        GPIOC_MODER.write_volatile((moder & !(0b11 << 14)) | (0b01 << 14));
     }
 
     // Initialize DMA buffers to zero using raw pointers
@@ -541,17 +499,6 @@ pub fn init_and_start(
 /// Must only be called from the DMA interrupt handler.
 #[inline(always)]
 unsafe fn process_audio_buffer(buffer_half: usize) {
-    // Diagnostic heartbeat: toggle PC7 every ~250 buffers (~4 Hz) so we can see the audio
-    // ISR is actually firing (i.e. SAI/DMA is streaming). Opt-in via the `diag_led` feature.
-    #[cfg(feature = "diag_led")]
-    {
-        static DIAG: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
-        if DIAG.fetch_add(1, Ordering::Relaxed) % 250 == 0 {
-            const GPIOC_ODR: *mut u32 = 0x5802_0814 as *mut u32;
-            unsafe { GPIOC_ODR.write_volatile(GPIOC_ODR.read_volatile() ^ (1 << 7)) };
-        }
-    }
-
     // Access buffers via raw pointers
     let tx_ptr = ptr::addr_of_mut!(TX_BUFFER);
     let rx_ptr = ptr::addr_of_mut!(RX_BUFFER);
@@ -649,25 +596,6 @@ fn f32_to_i32(sample: f32) -> i32 {
 /// DMA1 Stream 1 interrupt handler (SAI1 RX half/complete).
 #[interrupt]
 fn DMA1_STR1() {
-    // One-shot DMA diagnostic (opt-in): on the very first IRQ, latch the stream-1 interrupt
-    // flags, then mask DMA1_STR1 so it can never re-fire. If `main` springs back to life
-    // afterwards, the silence was an interrupt storm (now suppressed) and `process_audio_buffer`
-    // is fine; if `main` stays frozen, `process_audio_buffer` hangs on its first call. Masking
-    // here (not after processing) guarantees suppression even if the else-branch is taken.
-    #[cfg(feature = "diag_isr_oneshot")]
-    unsafe {
-        const DMA1_LISR: *const u32 = 0x4002_0000 as *const u32;
-        let lisr = DMA1_LISR.read_volatile();
-        // Stream-1 flags: FEIF1=6, DMEIF1=8, TEIF1=9, HTIF1=10, TCIF1=11 (mask 0xF40).
-        DIAG_DMA_FLAGS.store(lisr & 0xF40, Ordering::SeqCst);
-        cortex_m::peripheral::NVIC::mask(pac::Interrupt::DMA1_STR1);
-    }
-
-    // Count every IRQ entry (opt-in) so `main` can measure the DMA interrupt rate and tell a
-    // too-fast SAI clock apart from a too-slow process_audio_buffer.
-    #[cfg(feature = "diag_irq_rate")]
-    DIAG_IRQ_COUNT.fetch_add(1, Ordering::Relaxed);
-
     // Safety: We only access this from the interrupt handler
     let transfer_ptr = ptr::addr_of_mut!(DMA_RX_TRANSFER);
     let transfer = unsafe { (*transfer_ptr).assume_init_mut() };
@@ -684,29 +612,10 @@ fn DMA1_STR1() {
         };
 
         // Process audio in the half that was just filled
-        // (we write to the other half that's currently being DMA'd). The `diag_skip_process`
-        // feature skips this so we can tell whether the IRQ itself storms (free-running DMA)
-        // or whether process_audio_buffer is just too slow to finish within the IRQ period.
-        #[cfg(not(any(
-            feature = "diag_skip_process",
-            feature = "diag_irq_rate",
-            feature = "diag_process_time"
-        )))]
+        // (we write to the other half that's currently being DMA'd).
         unsafe {
             process_audio_buffer(buffer_half);
         }
-        // Time one process call with DWT.CYCCNT, latch it, then mask so `main` can report.
-        #[cfg(feature = "diag_process_time")]
-        unsafe {
-            const DWT_CYCCNT: *const u32 = 0xE000_1004 as *const u32;
-            let start = DWT_CYCCNT.read_volatile();
-            process_audio_buffer(buffer_half);
-            let end = DWT_CYCCNT.read_volatile();
-            DIAG_PROCESS_CYCLES.store(end.wrapping_sub(start), Ordering::SeqCst);
-            cortex_m::peripheral::NVIC::mask(pac::Interrupt::DMA1_STR1);
-        }
-        #[cfg(any(feature = "diag_skip_process", feature = "diag_irq_rate"))]
-        let _ = buffer_half;
     }
 }
 
