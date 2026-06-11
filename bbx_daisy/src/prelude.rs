@@ -16,7 +16,7 @@ pub use libm::{ceilf, cosf, expf, fabsf, floorf, log10f, logf, powf, sinf, sqrtf
 pub use stm32h7xx_hal::prelude::*;
 
 #[cfg(all(target_arch = "arm", target_os = "none", feature = "pod"))]
-pub use crate::board::{AudioBoard, AudioBoardWithAdc, AudioPeripherals};
+pub use crate::board::{AudioBoardWithAdc, AudioPeripherals};
 // High-level peripheral types
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use crate::flash::Flash;

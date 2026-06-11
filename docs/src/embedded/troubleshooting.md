@@ -56,6 +56,9 @@ cargo build --target thumbv7em-none-eabi    # Wrong (software float)
 
 ## Flashing Issues
 
+The default flashing path is **DFU** (`cargo run` runs `dfu-util`). The "no probe"
+items below only apply if you've switched the runner to a debug probe.
+
 ### "no probe was found"
 
 probe-rs can't detect your debug probe.
@@ -145,15 +148,24 @@ Another program is using the USB device.
 
 ## Debugging Techniques
 
-### Using defmt/RTT
+### Using defmt/RTT (requires a debug probe)
 
-Add debug output without UART:
+`defmt`/RTT logging is **not configured by default** — the DFU workflow has no probe
+to carry RTT, and the default panic handler is `panic-halt`. To enable it: add
+`defmt`, `defmt-rtt`, and a `defmt` panic handler to `Cargo.toml`, add
+`-C link-arg=-Tdefmt.x` to the linker args, and switch the runner to
+`probe-rs run --chip STM32H750VBTx`. Then you can log from the audio callback:
 
 ```rust
 use defmt::info;
 
 impl AudioProcessor for MyProcessor {
-    fn process(&mut self, input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>) {
+    fn process(
+        &mut self,
+        input: &FrameBuffer<BLOCK_SIZE>,
+        output: &mut FrameBuffer<BLOCK_SIZE>,
+        controls: &Controls,
+    ) {
         info!("Processing block, first sample: {}", input.left(0));
         // ...
     }
@@ -194,7 +206,7 @@ dwt.enable_cycle_counter();
 let start = DWT::cycle_count();
 // ... do work ...
 let cycles = DWT::cycle_count().wrapping_sub(start);
-defmt::info!("Cycles: {}", cycles);
+// Inspect `cycles` with a debugger, or log it with defmt (see above).
 ```
 
 ## Getting Help

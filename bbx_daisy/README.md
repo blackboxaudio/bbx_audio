@@ -178,15 +178,21 @@ ctx.advance();
 # Install ARM target
 rustup target add thumbv7em-none-eabihf
 
+# Run cargo from this directory so .cargo/config.toml applies (it selects the
+# thumbv7em-none-eabihf target and the dfu-util flash runner).
+cd bbx_daisy
+
 # Build for Daisy Seed (default)
-cargo build -p bbx_daisy --target thumbv7em-none-eabihf --release
+cargo build --release
+
+# Build an example (the in-repo patches; examples require the `seed` feature)
+cargo build --example 01_blink --release
 
 # Build for other variants (use --no-default-features to avoid feature conflicts)
-cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --features pod --release
-cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --features seed_1_1 --release
-cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --features seed_1_2 --release
-cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --features patch_sm --release
-cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --features patch --release
+cargo build --no-default-features --features pod --release
+cargo build --no-default-features --features seed_1_1 --release
+cargo build --no-default-features --features seed_1_2 --release
+cargo build --no-default-features --features patch_sm --release
 
 # The build system enforces mutual exclusivity - this will fail:
 # cargo build --features "seed,pod"  # ERROR: Multiple features enabled
@@ -194,48 +200,26 @@ cargo build -p bbx_daisy --target thumbv7em-none-eabihf --no-default-features --
 
 ## Flashing to Hardware
 
+Patches flash over USB DFU using `dfu-util` — no debug probe required. The build
+targets internal flash (`0x08000000`), so programs up to 128 KB run directly
+without the Daisy bootloader. (The examples are ~10–20 KB.)
+
 ### Prerequisites
 
-Install probe-rs for flashing and debugging:
+Install `dfu-util` and the ARM GNU toolchain (for `arm-none-eabi-objcopy`):
 
 ```bash
-cargo install probe-rs-tools
+# macOS
+brew install dfu-util arm-none-eabi-binutils
+
+# Ubuntu/Debian
+sudo apt install dfu-util binutils-arm-none-eabi
+
+# Arch
+sudo pacman -S dfu-util arm-none-eabi-binutils
 ```
 
-You'll need one of the following debug probes:
-- **ST-Link V2/V3** (included with STM32 Nucleo/Discovery boards)
-- **J-Link** (Segger)
-- **DAPLink** / **CMSIS-DAP** compatible probes
-
-Alternatively, you can flash via USB bootloader (DFU) without a debug probe.
-
-### Flashing with probe-rs (Recommended)
-
-The crate is pre-configured with probe-rs as the cargo runner. Connect your debug probe to the Daisy's SWD pins and run:
-
-```bash
-# Flash and run an example (probe-rs is the configured runner)
-cargo run --example 01_blink --release
-
-# Or specify the target explicitly
-cargo run --example 02_oscillator --target thumbv7em-none-eabihf --release
-```
-
-For pre-built binaries, use probe-rs directly:
-
-```bash
-probe-rs run --chip STM32H750VBTx target/thumbv7em-none-eabihf/release/examples/01_blink
-```
-
-**SWD Pin Connections:**
-| Debug Probe | Daisy Seed Pin |
-|-------------|----------------|
-| SWDIO       | Pin 30 (PA13)  |
-| SWCLK       | Pin 29 (PA14)  |
-| GND         | GND            |
-| 3.3V        | 3V3 (optional) |
-
-### Flashing with DFU (No Debug Probe)
+### Enter DFU mode
 
 The STM32H750 has a built-in USB bootloader. To enter DFU mode:
 
@@ -243,49 +227,70 @@ The STM32H750 has a built-in USB bootloader. To enter DFU mode:
 2. Tap the **RESET** button (or power cycle)
 3. Release **BOOT**
 
-The Daisy will enumerate as a DFU device (VID: 0x0483, PID: 0xDF11).
+The Daisy enumerates as a DFU device (VID: `0x0483`, PID: `0xDF11`).
 
-Install dfu-util:
+### Flash with `cargo run`
+
+`dfu-util` is wired up as the cargo runner via `scripts/flash-dfu.sh`. Run cargo
+from this directory; `cargo run` builds the example, converts the ELF to a raw
+`.bin`, and flashes it:
 
 ```bash
-# macOS
-brew install dfu-util
-
-# Ubuntu/Debian
-sudo apt install dfu-util
-
-# Arch
-sudo pacman -S dfu-util
+cd bbx_daisy
+cargo run --example 01_blink --release
+cargo run --example 02_oscillator --release
 ```
 
-Convert and flash:
+### Flash a prebuilt binary
+
+Run the script directly with any built ELF:
 
 ```bash
-# Convert ELF to BIN
-llvm-objcopy -O binary \
-    target/thumbv7em-none-eabihf/release/examples/01_blink \
+./scripts/flash-dfu.sh ../target/thumbv7em-none-eabihf/release/examples/01_blink
+```
+
+Or do it by hand:
+
+```bash
+arm-none-eabi-objcopy -O binary \
+    ../target/thumbv7em-none-eabihf/release/examples/01_blink \
     01_blink.bin
-
-# Flash via DFU (address 0x08000000 is internal flash)
-dfu-util -a 0 -s 0x08000000:leave -D 01_blink.bin
+dfu-util -a 0 -s 0x08000000:leave -D 01_blink.bin -d ,0483:df11
 ```
+
+### Using a debug probe instead (optional)
+
+If you have an ST-Link/J-Link wired to the Daisy's SWD pads, you can use
+[probe-rs](https://probe.rs) instead of DFU:
+
+```bash
+cargo install probe-rs-tools
+probe-rs run --chip STM32H750VBTx ../target/thumbv7em-none-eabihf/release/examples/01_blink
+```
+
+To make `cargo run` use it, set the runner in `.cargo/config.toml` to
+`runner = "probe-rs run --chip STM32H750VBTx"`.
+
+| SWD signal | Daisy Seed pin |
+|------------|----------------|
+| SWDIO      | Pin 30 (PA13)  |
+| SWCLK      | Pin 29 (PA14)  |
+| GND        | GND            |
 
 ### Troubleshooting
 
-**"No probe found"**
-- Verify USB connection and that the probe is powered
-- On Linux, you may need udev rules. Create `/etc/udev/rules.d/99-probe-rs.rules`:
-  ```
-  # ST-Link
-  ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374*", MODE="0666"
-  # J-Link
-  ATTRS{idVendor}=="1366", ATTRS{idProduct}=="*", MODE="0666"
-  ```
-  Then run `sudo udevadm control --reload-rules && sudo udevadm trigger`
+**`dfu-util: No DFU capable USB device available`**
+- The Daisy isn't in DFU mode — hold BOOT, tap RESET, release BOOT, then retry.
+- Make sure the USB cable carries data (not charge-only).
 
-**"Target not found" or "Chip not detected"**
-- Ensure the chip is `STM32H750VBTx` (verify in `.cargo/config.toml`)
-- Check SWD connections and that the Daisy is powered
+**Build "succeeds" but the device does nothing, or `cargo run` can't find the runner**
+- Run cargo from the `bbx_daisy/` directory. Cargo reads `.cargo/config.toml`
+  from the current directory upward, so building from the workspace root skips the
+  ARM target and the flash runner.
+
+**Program too large to flash**
+- Internal flash is 128 KB. Trim the patch, or move to a QSPI/bootloader memory
+  layout (not currently configured).
 
 **DFU device not detected**
 - Ensure you entered DFU mode correctly (LED should not blink)

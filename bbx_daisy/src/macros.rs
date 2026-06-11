@@ -88,27 +88,26 @@ macro_rules! bbx_daisy_audio {
                 __BBX_PROCESSOR.write($processor_init);
             }
 
-            // Initialize board with audio support
-            #[cfg(feature = "pod")]
-            let board = $crate::board::AudioBoard::init().expect("Failed to initialize audio board");
+            // Initialize the board's audio hardware (clocks, codec, SAI pins).
+            let audio = $crate::board::init_audio().expect("Failed to initialize audio hardware");
 
-            // Set the audio callback
-            $crate::audio::set_callback(__bbx_audio_callback);
-
-            // Start audio processing
-            #[cfg(feature = "pod")]
-            {
-                let audio = board.audio;
-                $crate::audio::init_and_start(
-                    audio.sample_rate,
-                    audio.sai1,
-                    audio.dma1,
-                    audio.dma1_rec,
-                    audio.sai1_pins,
-                    audio.sai1_rec,
-                    &audio.clocks,
-                );
+            // Let the processor precompute sample-rate-dependent state before streaming.
+            unsafe {
+                let processor = __BBX_PROCESSOR.assume_init_mut();
+                $crate::AudioProcessor::prepare(processor, $crate::audio::DEFAULT_SAMPLE_RATE);
             }
+
+            // Register the audio callback and start SAI + DMA streaming.
+            $crate::audio::set_callback(__bbx_audio_callback);
+            $crate::audio::init_and_start(
+                audio.sample_rate,
+                audio.sai1,
+                audio.dma1,
+                audio.dma1_rec,
+                audio.sai1_pins,
+                audio.sai1_rec,
+                &audio.clocks,
+            );
 
             loop {
                 $crate::__internal::wfi();
@@ -180,8 +179,14 @@ macro_rules! bbx_daisy_audio_with_controls {
                 __BBX_PROCESSOR.write($processor_init);
             }
 
-            // Initialize board with ADC for knob reading
-            let board = $crate::board::AudioBoard::init_with_adc().expect("Failed to initialize audio board with ADC");
+            // Initialize board with ADC for knob reading (codec auto-detected at runtime)
+            let board = $crate::board::init_audio_with_adc().expect("Failed to initialize audio board with ADC");
+
+            // Let the processor precompute sample-rate-dependent state before streaming.
+            unsafe {
+                let processor = __BBX_PROCESSOR.assume_init_mut();
+                $crate::AudioProcessor::prepare(processor, $crate::audio::DEFAULT_SAMPLE_RATE);
+            }
 
             // Set the audio callback
             $crate::audio::set_callback(__bbx_audio_callback);
@@ -192,8 +197,6 @@ macro_rules! bbx_daisy_audio_with_controls {
                 mut adc1,
                 mut knob1_pin,
                 mut knob2_pin,
-                codec: _codec, // Codec handle available here if needed
-                ..
             } = board;
 
             // Start audio processing (consumes audio peripherals)

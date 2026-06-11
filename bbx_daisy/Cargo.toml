@@ -11,6 +11,11 @@ readme = "README.md"
 keywords = ["audio", "dsp", "embedded", "daisy", "stm32"]
 categories = ["embedded", "hardware-support", "no-std"]
 
+# Exclude dev-only embedded tooling from the published package: .cargo/config.toml pins the
+# ARM target, which would hijack the host-side `cargo publish` verify build; scripts/ is
+# repo-local flashing. memory.x and build.rs MUST stay (build.rs does include_bytes!("memory.x")).
+exclude = [".cargo/", "scripts/"]
+
 [dependencies]
 bbx_core = { workspace = true }
 bbx_dsp = { workspace = true, default-features = false }
@@ -46,6 +51,54 @@ required-features = ["seed"]
 name = "04_simple_synth"
 required-features = ["seed"]
 
+[[example]]
+name = "05_pod_synth"
+required-features = ["pod"]
+
+[[example]]
+name = "06_board_id"
+required-features = ["seed"]
+
+[[example]]
+name = "07_clock_check"
+required-features = ["seed"]
+
+[[example]]
+name = "08_audio_heartbeat"
+required-features = ["seed"]
+
+[[example]]
+name = "09_isr_oneshot"
+required-features = ["seed", "diag_isr_oneshot"]
+
+[[example]]
+name = "10_irq_rate"
+required-features = ["seed", "diag_irq_rate"]
+
+[[example]]
+name = "11_process_time"
+required-features = ["seed", "diag_process_time"]
+
+[[example]]
+name = "12_faultcheck"
+required-features = ["seed"]
+
+[[example]]
+name = "13_busfault"
+required-features = ["seed"]
+
+[[example]]
+name = "14_busfault_precise"
+required-features = ["seed"]
+
+[[example]]
+name = "15_beep"
+required-features = ["seed"]
+
+[[example]]
+name = "16_codec_check"
+required-features = ["seed", "diag_peek"]
+
 [features]
 default = ["seed"]
 
@@ -68,3 +121,17 @@ field = []
 # Audio configuration
 sampling_rate_96khz = []  # Use 96kHz sample rate instead of default 48kHz
 block_length_64 = []      # Use 64 sample block size instead of default 48
+
+# Enable the CPU I/D caches and the DMA-buffer cache maintenance (invalidate/clean) in the audio
+# path, matching the reference daisy crate. OFF by default: the D-cache stays disabled and the
+# DMA buffers are coherent without maintenance. These MUST be toggled together — running the
+# cache-maintenance ops with the D-cache disabled raises an imprecise BusFault on the STM32H750.
+dcache = []
+
+# Diagnostics
+diag_led = []  # Blink the onboard LED (PC7) from the DMA audio interrupt to confirm streaming
+diag_isr_oneshot = []  # Mask DMA1_STR1 after the first IRQ + latch its flags (storm vs hang triage)
+diag_skip_process = []  # Skip process_audio_buffer in the DMA ISR (free-running DMA vs process-bound triage)
+diag_irq_rate = []  # Count DMA1_STR1 IRQs (skips process) so main can measure the interrupt rate
+diag_process_time = []  # Time one process_audio_buffer call (DWT cycles) then mask; main reports µs
+diag_peek = []  # Expose diag_rx_accumulate() to check whether the codec ADC is delivering data

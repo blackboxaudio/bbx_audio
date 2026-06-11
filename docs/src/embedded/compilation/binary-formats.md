@@ -163,17 +163,28 @@ STM32H750 has multiple flash locations:
 
 ## Flashing Methods
 
-### Method 1: Debug Probe (probe-rs)
+### Method 1: DFU (USB Bootloader) — default
 
-Fastest and most reliable. Uses SWD (Serial Wire Debug) interface.
+No debug probe needed — just USB. This is the configured `cargo run` runner
+(`scripts/flash-dfu.sh`), which converts the ELF to `.bin` and flashes it. See
+[Method 2](#method-2-dfu-usb-bootloader) below for the dfu-util details.
 
 ```bash
-# Flash and reset
-probe-rs run --chip STM32H750VBTx target/thumbv7em-none-eabihf/release/my_app
-
-# Or use cargo runner (configured in .cargo/config.toml)
-cargo run --release
+cd bbx_daisy
+cargo run --example 02_oscillator --release
 ```
+
+### Method 1b: Debug Probe (probe-rs)
+
+Uses the SWD (Serial Wire Debug) interface; supports flash + debug + profiling.
+
+```bash
+# Flash and reset (requires probe-rs installed and a probe connected)
+probe-rs run --chip STM32H750VBTx target/thumbv7em-none-eabihf/release/my_app
+```
+
+To wire this into `cargo run`, set `runner = "probe-rs run --chip STM32H750VBTx"`
+in `.cargo/config.toml` (the default runner is dfu-util).
 
 **Probe Types**:
 - ST-Link (built into Nucleo boards)

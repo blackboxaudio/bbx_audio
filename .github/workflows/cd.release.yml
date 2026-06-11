@@ -206,6 +206,9 @@ jobs:
       - name: Publish bbx_draw
         run: cargo publish -p bbx_draw --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+      - name: Publish bbx_daisy
+        run: cargo publish -p bbx_daisy --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
   publish-npm:
     name: Publish to NPM
     runs-on: ubuntu-latest

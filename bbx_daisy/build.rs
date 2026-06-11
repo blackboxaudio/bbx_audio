@@ -17,6 +17,15 @@ fn main() {
         fs::write(out_dir.join("memory.x"), memory_x).expect("Failed to write memory.x");
 
         println!("cargo:rustc-link-search={}", out_dir.display());
+
+        // Apply the cortex-m-rt linker script to examples here rather than via
+        // rustflags in .cargo/config.toml. Building from the workspace root does not
+        // read bbx_daisy/.cargo/config.toml, so a config-based -Tlink.x is silently
+        // dropped and the linker emits an empty binary (no vector table, entry 0x0).
+        // Emitting it from the build script applies it regardless of the invocation
+        // directory, as long as the ARM target is selected.
+        println!("cargo:rustc-link-arg-examples=-Tlink.x");
+
         println!("cargo:rerun-if-changed=memory.x");
         println!("cargo:rerun-if-changed=build.rs");
     }

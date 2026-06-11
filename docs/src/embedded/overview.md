@@ -23,8 +23,9 @@ All boards use the STM32H750 microcontroller with:
 
 1. **Rust nightly toolchain** (already configured via `rust-toolchain.toml`)
 2. **ARM target**: `rustup target add thumbv7em-none-eabihf`
-3. **Debug probe** (recommended): ST-Link, J-Link, or CMSIS-DAP
-4. **Or DFU utility**: `dfu-util` for USB flashing without a probe
+3. **dfu-util** for USB flashing: `brew install dfu-util` (or `sudo apt install dfu-util`)
+4. **ARM binutils** for `arm-none-eabi-objcopy`: `brew install arm-none-eabi-binutils`
+5. **Debug probe** (optional): ST-Link, J-Link, or CMSIS-DAP for SWD flashing + RTT logging
 
 ## Quick Start
 
@@ -48,7 +49,12 @@ struct SineOsc {
 }
 
 impl AudioProcessor for SineOsc {
-    fn process(&mut self, _input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>) {
+    fn process(
+        &mut self,
+        _input: &FrameBuffer<BLOCK_SIZE>,
+        output: &mut FrameBuffer<BLOCK_SIZE>,
+        _controls: &Controls,
+    ) {
         for i in 0..BLOCK_SIZE {
             let sample = libm::sinf(self.phase * core::f32::consts::TAU) * 0.5;
             output.set_frame(i, sample, sample);
@@ -60,18 +66,19 @@ impl AudioProcessor for SineOsc {
 bbx_daisy_audio!(SineOsc, SineOsc { phase: 0.0 });
 ```
 
-Build and flash:
+Build and flash (run cargo from the `bbx_daisy/` directory so `.cargo/config.toml` applies):
 
 ```bash
+cd bbx_daisy
+
 # Build for ARM
-cargo build -p bbx_daisy --example 02_oscillator --target thumbv7em-none-eabihf --release
+cargo build --example 02_oscillator --release
 
-# Flash with probe-rs (recommended)
-cargo run -p bbx_daisy --example 02_oscillator --release
-
-# Or flash via DFU
-dfu-util -a 0 -s 0x08000000:leave -D target/thumbv7em-none-eabihf/release/examples/02_oscillator
+# Flash via DFU: enter DFU mode first (hold BOOT, tap RESET, release BOOT), then:
+cargo run --example 02_oscillator --release
 ```
+
+See [Build Process](build-process.md) for prebuilt-binary flashing and the optional debug-probe workflow.
 
 ## Learning Path
 

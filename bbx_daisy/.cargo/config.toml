@@ -1,17 +1,17 @@
-# Cargo configuration for embedded ARM Cortex-M7 targets (STM32H750)
+# Cargo configuration for embedded ARM Cortex-M7 targets (STM32H750).
+#
+# This file is only read when cargo is invoked from within the bbx_daisy/
+# directory (cargo discovers config from the CWD upward, not from the package
+# being built). Build Daisy examples with the bbx_daisy/ directory as your CWD.
+#
+# The cortex-m-rt linker script (-Tlink.x) is applied from build.rs via
+# `cargo:rustc-link-arg-examples`, not here, so the link still succeeds when
+# building from the workspace root with an explicit --target.
 
 [build]
 target = "thumbv7em-none-eabihf"
 
 [target.thumbv7em-none-eabihf]
-# Use probe-rs for flashing and debugging
-runner = "probe-rs run --chip STM32H750VBTx"
-
-# Linker configuration
-rustflags = [
-    "-C", "link-arg=-Tlink.x",
-    "-C", "link-arg=-Tdefmt.x",
-]
-
-[env]
-DEFMT_LOG = "debug"
+# Flash via DFU using dfu-util. Put the Daisy in DFU mode first:
+# hold BOOT, tap RESET, release BOOT (enumerates as USB 0483:df11).
+runner = "./scripts/flash-dfu.sh"
