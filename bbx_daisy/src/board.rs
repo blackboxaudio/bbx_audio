@@ -15,7 +15,7 @@
 //! let board = unsafe { Board::steal() };
 //! ```
 
-#[cfg(feature = "pod")]
+#[cfg(any(feature = "pod", feature = "patch_sm"))]
 use stm32h7xx_hal::{
     adc::{self, Adc},
     gpio::Analog,
@@ -67,7 +67,7 @@ pub enum BoardError {
 }
 
 /// ADC configuration for control inputs.
-#[cfg(feature = "pod")]
+#[cfg(any(feature = "pod", feature = "patch_sm"))]
 #[derive(Debug, Clone, Copy)]
 pub struct AdcConfig {
     /// ADC resolution (12-bit or 16-bit).
@@ -76,7 +76,7 @@ pub struct AdcConfig {
     pub sample_time: adc::AdcSampleTime,
 }
 
-#[cfg(feature = "pod")]
+#[cfg(any(feature = "pod", feature = "patch_sm"))]
 impl AdcConfig {
     /// Default configuration for knobs: 12-bit resolution, T_64 sample time.
     ///
@@ -100,7 +100,7 @@ impl AdcConfig {
     }
 }
 
-#[cfg(feature = "pod")]
+#[cfg(any(feature = "pod", feature = "patch_sm"))]
 impl Default for AdcConfig {
     fn default() -> Self {
         Self::default_knobs()
@@ -479,4 +479,107 @@ impl AudioBoardWithAdc {
     pub fn read_knob2(&mut self) -> u32 {
         self.adc1.read(&mut self.knob2_pin).unwrap_or(0)
     }
+}
+
+/// Initialize the audio hardware **and** ADC1 for the Patch.Init CV inputs + B8 switch.
+///
+/// Configures the PCM3060 codec over I2C4 (as in [`init_audio`]), then ADC1 to read the four
+/// Patch.Init CV inputs (CV_1=PC0, CV_2=PA3, CV_3=PB1, CV_4=PA7) and the B8 toggle
+/// (PB9, pull-up, read active-low). Returns the audio peripherals plus the enabled ADC, the four
+/// CV pins, and the switch pin.
+///
+/// # Errors
+///
+/// Returns [`BoardError::PeripheralsTaken`] if peripherals were already taken, or
+/// [`BoardError::CodecInit`] if codec configuration fails.
+#[cfg(feature = "patch_sm")]
+pub fn init_audio_with_cv() -> Result<AudioBoardWithCv, BoardError> {
+    let dp = pac::Peripherals::take().ok_or(BoardError::PeripheralsTaken)?;
+    let cp = cortex_m::Peripherals::take().ok_or(BoardError::PeripheralsTaken)?;
+
+    let sample_rate = SampleRate::Rate48000;
+    let ccdr = ClockConfig::new(sample_rate).configure(dp.PWR, dp.RCC, &dp.SYSCFG);
+
+    // SAI1 pins (PE2/PE5/PE4/PE6/PE3, AF6).
+    let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
+    let sai1_pins: Sai1Pins = (
+        gpioe.pe2.into_alternate(),
+        gpioe.pe5.into_alternate(),
+        gpioe.pe4.into_alternate(),
+        gpioe.pe6.into_alternate(),
+        Some(gpioe.pe3.into_alternate()),
+    );
+
+    // PCM3060 codec over I2C4 (SCL=PH11, SDA=PH12).
+    let gpioh = dp.GPIOH.split(ccdr.peripheral.GPIOH);
+    let scl = gpioh.ph11.into_alternate().set_open_drain();
+    let sda = gpioh.ph12.into_alternate().set_open_drain();
+    let i2c4 = dp.I2C4.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C4, &ccdr.clocks);
+    let mut codec = Pcm3060::with_default_address(i2c4);
+    codec.init(sample_rate).map_err(BoardError::CodecInit)?;
+
+    // CV inputs (analog) + B8 toggle (pull-up input).
+    let gpioa = dp.GPIOA.split(ccdr.peripheral.GPIOA);
+    let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
+    let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
+    let cv1_pin = gpioc.pc0.into_analog(); // CV_1
+    let cv2_pin = gpioa.pa3.into_analog(); // CV_2
+    let cv3_pin = gpiob.pb1.into_analog(); // CV_3
+    let cv4_pin = gpioa.pa7.into_analog(); // CV_4
+    let switch_pin = gpiob.pb9.into_pull_up_input(); // B8 toggle (active-low)
+
+    // ADC1 (12-bit) for the CV inputs.
+    let mut delay = cp.SYST.delay(ccdr.clocks);
+    let adc_config = AdcConfig::default_knobs();
+    let mut adc1: Adc<ADC1, adc::Disabled> =
+        Adc::adc1(dp.ADC1, 4.MHz(), &mut delay, ccdr.peripheral.ADC12, &ccdr.clocks);
+    adc1.set_sample_time(adc_config.sample_time);
+    adc1.set_resolution(adc_config.resolution);
+    let adc1 = adc1.enable();
+
+    let sai1_rec = ccdr
+        .peripheral
+        .SAI1
+        .kernel_clk_mux(stm32h7xx_hal::rcc::rec::Sai1ClkSel::Pll3P);
+    let dma1_rec = ccdr.peripheral.DMA1;
+
+    Ok(AudioBoardWithCv {
+        audio: AudioPeripherals {
+            sample_rate,
+            sai1: dp.SAI1,
+            dma1: dp.DMA1,
+            dma1_rec,
+            sai1_pins,
+            sai1_rec,
+            clocks: ccdr.clocks,
+        },
+        adc1,
+        cv1_pin,
+        cv2_pin,
+        cv3_pin,
+        cv4_pin,
+        switch_pin,
+    })
+}
+
+/// Board with ADC + switch initialized for Patch.Init control reading.
+///
+/// Returned by [`init_audio_with_cv`]; provides the audio peripherals plus the enabled ADC,
+/// the four CV input pins, and the B8 switch pin.
+#[cfg(feature = "patch_sm")]
+pub struct AudioBoardWithCv {
+    /// Audio peripherals for starting audio.
+    pub audio: AudioPeripherals,
+    /// Configured ADC1 for CV reading.
+    pub adc1: Adc<ADC1, adc::Enabled>,
+    /// CV_1 pin (PC0, analog).
+    pub cv1_pin: stm32h7xx_hal::gpio::gpioc::PC0<Analog>,
+    /// CV_2 pin (PA3, analog).
+    pub cv2_pin: stm32h7xx_hal::gpio::gpioa::PA3<Analog>,
+    /// CV_3 pin (PB1, analog).
+    pub cv3_pin: stm32h7xx_hal::gpio::gpiob::PB1<Analog>,
+    /// CV_4 pin (PA7, analog).
+    pub cv4_pin: stm32h7xx_hal::gpio::gpioa::PA7<Analog>,
+    /// B8 toggle pin (PB9, pull-up input, active-low).
+    pub switch_pin: stm32h7xx_hal::gpio::gpiob::PB9<stm32h7xx_hal::gpio::Input>,
 }

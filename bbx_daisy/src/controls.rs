@@ -34,24 +34,48 @@ pub struct Controls {
     ///
     /// On Pod: Physical knob 2 (PC1)
     pub knob2: f32,
+    /// CV / knob inputs, normalized to 0.0-1.0 and smoothed.
+    ///
+    /// On Patch.Init (patch_sm): `cv[0]`=CV_1 (PC0), `cv[1]`=CV_2 (PA3),
+    /// `cv[2]`=CV_3 (PB1), `cv[3]`=CV_4 (PA7). Unused on Pod/Seed.
+    pub cv: [f32; 4],
+    /// Toggle / button state (`true` = active).
+    ///
+    /// On Patch.Init (patch_sm): the B8 switch (PB9), read active-low. Unused on Pod/Seed.
+    pub switch: bool,
 }
 
 impl Controls {
     /// Create controls with default center values (0.5).
     #[inline]
     pub const fn new() -> Self {
-        Self { knob1: 0.5, knob2: 0.5 }
+        Self {
+            knob1: 0.5,
+            knob2: 0.5,
+            cv: [0.5; 4],
+            switch: false,
+        }
     }
 
     /// Create controls with zero values.
     #[inline]
     pub const fn zero() -> Self {
-        Self { knob1: 0.0, knob2: 0.0 }
+        Self {
+            knob1: 0.0,
+            knob2: 0.0,
+            cv: [0.0; 4],
+            switch: false,
+        }
     }
 
-    /// Create controls with specific initial values.
+    /// Create controls with specific initial knob values (CVs centered, switch off).
     #[inline]
     pub const fn with_values(knob1: f32, knob2: f32) -> Self {
-        Self { knob1, knob2 }
+        Self {
+            knob1,
+            knob2,
+            cv: [0.5; 4],
+            switch: false,
+        }
     }
 }

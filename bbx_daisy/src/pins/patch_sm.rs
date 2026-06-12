@@ -142,6 +142,16 @@ pub type GateOut2 = gpio::PB7<Output<PushPull>>;
 pub type MidiRx = gpio::PD6<Alternate<7>>;
 
 // ============================================================================
+// User Switch / Button
+// ============================================================================
+
+/// B8 toggle/switch pin (PB9) - pull-up input, read active-low.
+///
+/// Header pin "B8" on the Patch SM (PB9, also I2C1 SDA). Used as the toggle input
+/// by the `kudzu` and `lotus` patches.
+pub type SwitchB8 = gpio::PB9<Input>;
+
+// ============================================================================
 // User LED
 // ============================================================================
 

@@ -233,6 +233,111 @@ macro_rules! bbx_daisy_audio_with_controls {
     };
 }
 
+/// Patch.Init (`patch_sm`) variant of [`bbx_daisy_audio_with_controls`].
+///
+/// Initializes ADC1 for the four CV inputs (CV_1=PC0, CV_2=PA3, CV_3=PB1, CV_4=PA7) and the
+/// B8 toggle (PB9, active-low), then in the main loop populates `controls.cv[0..4]` (smoothed)
+/// and `controls.switch` for use in [`AudioProcessor::process`](crate::AudioProcessor::process).
+///
+/// Same macro name as the Pod variant; only one is compiled because exactly one board feature
+/// is ever active.
+#[cfg(feature = "patch_sm")]
+#[macro_export]
+macro_rules! bbx_daisy_audio_with_controls {
+    ($processor_type:ty, $processor_init:expr) => {
+        use $crate::__internal::panic_halt as _;
+
+        static mut __BBX_PROCESSOR: core::mem::MaybeUninit<$processor_type> = core::mem::MaybeUninit::uninit();
+        static mut __BBX_CONTROLS: $crate::controls::Controls = $crate::controls::Controls::new();
+        static mut __BBX_CV1: $crate::peripherals::Knob = $crate::peripherals::Knob::default_smoothing_const();
+        static mut __BBX_CV2: $crate::peripherals::Knob = $crate::peripherals::Knob::default_smoothing_const();
+        static mut __BBX_CV3: $crate::peripherals::Knob = $crate::peripherals::Knob::default_smoothing_const();
+        static mut __BBX_CV4: $crate::peripherals::Knob = $crate::peripherals::Knob::default_smoothing_const();
+
+        fn __bbx_audio_callback(
+            input: &$crate::FrameBuffer<{ $crate::audio::BLOCK_SIZE }>,
+            output: &mut $crate::FrameBuffer<{ $crate::audio::BLOCK_SIZE }>,
+        ) {
+            unsafe {
+                let controls_ptr = core::ptr::addr_of!(__BBX_CONTROLS);
+                let processor = __BBX_PROCESSOR.assume_init_mut();
+                $crate::AudioProcessor::process(processor, input, output, &*controls_ptr);
+            }
+        }
+
+        #[$crate::__internal::entry]
+        fn main() -> ! {
+            unsafe {
+                __BBX_PROCESSOR.write($processor_init);
+            }
+
+            // Initialize the board with ADC for the four CV inputs and the B8 switch.
+            let board = $crate::board::init_audio_with_cv().expect("Failed to initialize audio board with CV");
+
+            // Let the processor precompute sample-rate-dependent state before streaming.
+            unsafe {
+                let processor = __BBX_PROCESSOR.assume_init_mut();
+                $crate::AudioProcessor::prepare(processor, $crate::audio::DEFAULT_SAMPLE_RATE);
+            }
+
+            // Set the audio callback.
+            $crate::audio::set_callback(__bbx_audio_callback);
+
+            // Destructure board to extract audio peripherals, ADC, CV pins, and switch.
+            let $crate::board::AudioBoardWithCv {
+                audio,
+                mut adc1,
+                mut cv1_pin,
+                mut cv2_pin,
+                mut cv3_pin,
+                mut cv4_pin,
+                switch_pin,
+            } = board;
+
+            // Wrap the B8 toggle in a debounced, active-low button.
+            let mut switch = $crate::peripherals::Button::new_active_low(switch_pin);
+
+            // Start audio processing (consumes audio peripherals).
+            $crate::audio::init_and_start(
+                audio.sample_rate,
+                audio.sai1,
+                audio.dma1,
+                audio.dma1_rec,
+                audio.sai1_pins,
+                audio.sai1_rec,
+                &audio.clocks,
+            );
+
+            // Main loop: read CVs + switch and update controls.
+            loop {
+                // ADC returns u32; shift down to 12-bit range for processing.
+                let raw1 = (adc1.read(&mut cv1_pin).unwrap_or(0_u32) >> 4) as u16;
+                let raw2 = (adc1.read(&mut cv2_pin).unwrap_or(0_u32) >> 4) as u16;
+                let raw3 = (adc1.read(&mut cv3_pin).unwrap_or(0_u32) >> 4) as u16;
+                let raw4 = (adc1.read(&mut cv4_pin).unwrap_or(0_u32) >> 4) as u16;
+                let switch_state = switch.update();
+
+                unsafe {
+                    let cv1_ptr = core::ptr::addr_of_mut!(__BBX_CV1);
+                    let cv2_ptr = core::ptr::addr_of_mut!(__BBX_CV2);
+                    let cv3_ptr = core::ptr::addr_of_mut!(__BBX_CV3);
+                    let cv4_ptr = core::ptr::addr_of_mut!(__BBX_CV4);
+                    let controls_ptr = core::ptr::addr_of_mut!(__BBX_CONTROLS);
+
+                    // Process raw ADC values through smoothing filters.
+                    (*controls_ptr).cv[0] = (*cv1_ptr).process_u12(raw1);
+                    (*controls_ptr).cv[1] = (*cv2_ptr).process_u12(raw2);
+                    (*controls_ptr).cv[2] = (*cv3_ptr).process_u12(raw3);
+                    (*controls_ptr).cv[3] = (*cv4_ptr).process_u12(raw4);
+                    (*controls_ptr).switch = switch_state;
+                }
+
+                $crate::__internal::wfi();
+            }
+        }
+    };
+}
+
 /// Entry point macro for general (non-audio) applications.
 ///
 /// This macro creates a complete entry point for Daisy applications that
