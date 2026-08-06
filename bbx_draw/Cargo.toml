@@ -9,9 +9,9 @@ rust-version.workspace = true
 description = "Audio visualization primitives for nannou sketches"
 
 [dependencies]
-bbx_core.workspace = true
-bbx_dsp.workspace = true
-bbx_midi = { workspace = true, default-features = false }
+bbx_core = { workspace = true, features = ["std"] }
+bbx_dsp = { workspace = true, features = ["std"] }
+bbx_midi = { workspace = true, default-features = false, features = ["std"] }
 
 nannou = "0.19.0"
 rustfft = "6.4.1"
