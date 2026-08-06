@@ -1,6 +1,6 @@
 //! Terminal output block for DSP graphs.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{block::Block, context::DspContext, parameter::ModulationOutput, sample::Sample};
 

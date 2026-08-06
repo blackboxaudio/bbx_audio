@@ -93,3 +93,99 @@ Audio DSP and bbx_audio terminology.
 ## W
 
 **Waveform**: The shape of a periodic signal (sine, square, saw, triangle).
+
+---
+
+## Embedded Development Terms
+
+### A
+
+**ADC (Analog-to-Digital Converter)**: Hardware that converts analog voltages (knobs, CV inputs) to digital values.
+
+### B
+
+**BDMA (Basic DMA)**: DMA controller in the D3 power domain for low-power peripherals.
+
+### C
+
+**Cortex-M7**: ARM processor core used in the STM32H750. High-performance with FPU and DSP instructions.
+
+### D
+
+**DFU (Device Firmware Update)**: USB protocol for flashing firmware without a debug probe. Enter by holding BOOT during reset.
+
+**DMA (Direct Memory Access)**: Hardware that transfers data between peripherals and memory without CPU intervention. Essential for audio streaming.
+
+**DTCM (Data Tightly Coupled Memory)**: Fastest RAM region (128KB), zero wait states, but not DMA accessible.
+
+### E
+
+**EABI (Embedded ABI)**: Application Binary Interface for embedded ARM. Defines calling conventions and data layout.
+
+### F
+
+**FMC (Flexible Memory Controller)**: Peripheral that interfaces with external SDRAM.
+
+**FPU (Floating Point Unit)**: Hardware for fast floating-point math. STM32H750 has single-precision FPU.
+
+### G
+
+**GPIO (General Purpose Input/Output)**: Pins that can be configured as digital inputs or outputs.
+
+### H
+
+**HAL (Hardware Abstraction Layer)**: Library providing ergonomic API over raw hardware registers.
+
+**HSE (High-Speed External)**: External crystal oscillator (16 MHz on Daisy) used as clock source.
+
+### I
+
+**I2C (Inter-Integrated Circuit)**: Two-wire serial protocol for configuring codecs and peripherals.
+
+**I2S (Inter-IC Sound)**: Serial protocol for digital audio between MCU and codec.
+
+**ISR (Interrupt Service Routine)**: Function that runs in response to hardware events.
+
+### L
+
+**LLVM**: Compiler infrastructure used by Rust for code generation and optimization.
+
+### M
+
+**MCLK (Master Clock)**: Audio master clock, typically 256× the sample rate.
+
+### N
+
+**NVIC (Nested Vectored Interrupt Controller)**: ARM peripheral managing interrupt priorities and delivery.
+
+### P
+
+**PAC (Peripheral Access Crate)**: Auto-generated Rust crate providing raw register access.
+
+**PLL (Phase-Locked Loop)**: Circuit that multiplies input frequency. Used to generate system and audio clocks.
+
+### Q
+
+**QSPI (Quad SPI)**: Four-line SPI interface for external flash memory (8MB on Daisy).
+
+### R
+
+**RTT (Real-Time Transfer)**: Debug channel for printf-style output via debug probe.
+
+### S
+
+**SAI (Serial Audio Interface)**: STM32H750 peripheral for I2S and other audio protocols.
+
+**SDRAM**: External synchronous dynamic RAM (64MB on Daisy) for large buffers.
+
+**SRAM**: Static RAM internal to the MCU. Multiple regions with different characteristics.
+
+**SWD (Serial Wire Debug)**: Two-wire debug interface used by debug probes.
+
+### T
+
+**Thumb**: ARM instruction set used by Cortex-M processors. Mix of 16-bit and 32-bit instructions.
+
+### V
+
+**VCO (Voltage-Controlled Oscillator)**: Core of PLL that generates high-frequency clock.

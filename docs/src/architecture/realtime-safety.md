@@ -69,7 +69,7 @@ All audio buffers allocated upfront:
 
 ```rust
 // During add_block()
-self.audio_buffers.push(AudioBuffer::new(self.buffer_size));
+self.audio_buffers.push(SampleBuffer::new(self.buffer_size));
 
 // During process - just clear
 buffer.zeroize();

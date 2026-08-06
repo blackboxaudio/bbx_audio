@@ -27,7 +27,7 @@ pub fn add_block(&mut self, block: BlockType<S>) -> BlockId {
     // Allocate buffers for each output
     let output_count = self.blocks[block_id.0].output_count();
     for _ in 0..output_count {
-        self.audio_buffers.push(AudioBuffer::new(self.buffer_size));
+        self.audio_buffers.push(SampleBuffer::new(self.buffer_size));
     }
 
     block_id

@@ -4,12 +4,12 @@
 //! suitable for audio thread to I/O thread communication where
 //! blocking is unacceptable.
 
-use core::{cell::UnsafeCell, mem::MaybeUninit};
 #[cfg(not(loom))]
-use std::sync::{
-    Arc,
-    atomic::{AtomicUsize, Ordering},
-};
+use alloc::sync::Arc;
+use alloc::{boxed::Box, vec::Vec};
+#[cfg(not(loom))]
+use core::sync::atomic::{AtomicUsize, Ordering};
+use core::{cell::UnsafeCell, mem::MaybeUninit};
 
 #[cfg(loom)]
 use loom::sync::{

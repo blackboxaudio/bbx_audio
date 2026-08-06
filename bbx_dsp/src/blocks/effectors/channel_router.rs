@@ -1,6 +1,6 @@
 //! Channel routing and manipulation for stereo signals.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{block::Block, channel::ChannelConfig, context::DspContext, parameter::ModulationOutput, sample::Sample};
 

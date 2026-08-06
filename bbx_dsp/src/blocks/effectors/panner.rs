@@ -8,10 +8,10 @@ use std::simd::{StdFloat, f64x4, num::SimdFloat};
 #[cfg(feature = "simd")]
 use crate::sample::SIMD_LANES;
 use crate::{
-    block::Block,
+    block::{Block, MAX_BLOCK_OUTPUTS},
     channel::{ChannelConfig, ChannelLayout},
     context::DspContext,
-    graph::MAX_BLOCK_OUTPUTS,
+    math,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
     smoothing::LinearSmoothedValue,
@@ -171,8 +171,8 @@ impl<S: Sample> PannerBlock<S> {
         let normalized = normalized.clamp(0.0, 1.0);
 
         let angle = normalized * S::FRAC_PI_2.to_f64();
-        let left_gain = angle.cos();
-        let right_gain = angle.sin();
+        let left_gain = math::cos(angle);
+        let right_gain = math::sin(angle);
 
         (left_gain, right_gain)
     }
@@ -180,7 +180,7 @@ impl<S: Sample> PannerBlock<S> {
     /// Calculate VBAP gains for surround panning.
     fn calculate_vbap_gains(&self, azimuth_deg: f64, _elevation_deg: f64, gains: &mut [f64; MAX_BLOCK_OUTPUTS]) {
         let num_speakers = self.output_layout.channel_count();
-        let azimuth_rad = azimuth_deg.to_radians();
+        let azimuth_rad = math::radians(azimuth_deg);
 
         for (i, gain) in gains.iter_mut().enumerate().take(num_speakers) {
             if i == 3
@@ -193,17 +193,17 @@ impl<S: Sample> PannerBlock<S> {
                 continue;
             }
 
-            let speaker_rad = self.speaker_azimuths[i].to_radians();
-            let angle_diff = (azimuth_rad - speaker_rad).abs();
-            let angle_diff = if angle_diff > std::f64::consts::PI {
-                2.0 * std::f64::consts::PI - angle_diff
+            let speaker_rad = math::radians(self.speaker_azimuths[i]);
+            let angle_diff = math::abs(azimuth_rad - speaker_rad);
+            let angle_diff = if angle_diff > core::f64::consts::PI {
+                2.0 * core::f64::consts::PI - angle_diff
             } else {
                 angle_diff
             };
 
-            let spread = std::f64::consts::FRAC_PI_2;
+            let spread = core::f64::consts::FRAC_PI_2;
             if angle_diff < spread {
-                *gain = ((spread - angle_diff) / spread * std::f64::consts::FRAC_PI_2).cos();
+                *gain = math::cos((spread - angle_diff) / spread * core::f64::consts::FRAC_PI_2);
                 *gain = gain.max(0.0);
             } else {
                 *gain = 0.0;
@@ -212,7 +212,7 @@ impl<S: Sample> PannerBlock<S> {
 
         let sum_sq: f64 = gains.iter().take(num_speakers).map(|g| g * g).sum();
         if sum_sq > 1e-10 {
-            let norm = 1.0 / sum_sq.sqrt();
+            let norm = 1.0 / math::sqrt(sum_sq);
             for gain in gains.iter_mut().take(num_speakers) {
                 *gain *= norm;
             }
@@ -221,13 +221,13 @@ impl<S: Sample> PannerBlock<S> {
 
     /// Calculate SN3D normalized spherical harmonic coefficients for ambisonic encoding.
     fn calculate_ambisonic_gains(&self, azimuth_deg: f64, elevation_deg: f64, gains: &mut [f64; MAX_BLOCK_OUTPUTS]) {
-        let az = azimuth_deg.to_radians();
-        let el = elevation_deg.to_radians();
+        let az = math::radians(azimuth_deg);
+        let el = math::radians(elevation_deg);
 
-        let cos_el = el.cos();
-        let sin_el = el.sin();
-        let cos_az = az.cos();
-        let sin_az = az.sin();
+        let cos_el = math::cos(el);
+        let sin_el = math::sin(el);
+        let cos_az = math::cos(az);
+        let sin_az = math::sin(az);
 
         let order = self.output_layout.ambisonic_order().unwrap_or(1);
 
@@ -243,9 +243,9 @@ impl<S: Sample> PannerBlock<S> {
 
         if order >= 2 {
             // Order 2: ACN 4-8
-            let cos_2az = (2.0 * az).cos();
-            let sin_2az = (2.0 * az).sin();
-            let sin_2el = (2.0 * el).sin();
+            let cos_2az = math::cos(2.0 * az);
+            let sin_2az = math::sin(2.0 * az);
+            let sin_2el = math::sin(2.0 * el);
             let cos_el_sq = cos_el * cos_el;
 
             gains[4] = 0.8660254037844386 * cos_el_sq * sin_2az; // V
@@ -257,18 +257,18 @@ impl<S: Sample> PannerBlock<S> {
 
         if order >= 3 {
             // Order 3: ACN 9-15
-            let cos_3az = (3.0 * az).cos();
-            let sin_3az = (3.0 * az).sin();
+            let cos_3az = math::cos(3.0 * az);
+            let sin_3az = math::sin(3.0 * az);
             let cos_el_sq = cos_el * cos_el;
             let cos_el_cu = cos_el_sq * cos_el;
             let sin_el_sq = sin_el * sin_el;
 
             gains[9] = 0.7905694150420949 * cos_el_cu * sin_3az; // Q
-            gains[10] = 1.9364916731037085 * cos_el_sq * sin_el * (2.0 * az).sin(); // O
+            gains[10] = 1.9364916731037085 * cos_el_sq * sin_el * math::sin(2.0 * az); // O
             gains[11] = 0.6123724356957945 * cos_el * (5.0 * sin_el_sq - 1.0) * sin_az; // M
             gains[12] = 0.5 * sin_el * (5.0 * sin_el_sq - 3.0); // K
             gains[13] = 0.6123724356957945 * cos_el * (5.0 * sin_el_sq - 1.0) * cos_az; // L
-            gains[14] = 1.9364916731037085 * cos_el_sq * sin_el * (2.0 * az).cos(); // N
+            gains[14] = 1.9364916731037085 * cos_el_sq * sin_el * math::cos(2.0 * az); // N
             gains[15] = 0.7905694150420949 * cos_el_cu * cos_3az; // P
         }
     }
@@ -514,7 +514,7 @@ mod tests {
 
         panner.process(&inputs, &mut outputs, &[], &context);
 
-        let expected_gain = (std::f32::consts::FRAC_PI_4).cos();
+        let expected_gain = (core::f32::consts::FRAC_PI_4).cos();
         for i in 0..4 {
             assert!((left_out[i] - expected_gain).abs() < 0.01);
             assert!((right_out[i] - expected_gain).abs() < 0.01);

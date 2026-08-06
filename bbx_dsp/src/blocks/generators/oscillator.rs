@@ -9,6 +9,7 @@ use crate::waveform::generate_waveform_samples_simd;
 use crate::{
     block::{Block, DEFAULT_GENERATOR_INPUT_COUNT, DEFAULT_GENERATOR_OUTPUT_COUNT},
     context::DspContext,
+    math,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
     waveform::{Waveform, process_waveform_scalar},
@@ -83,7 +84,7 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
         };
 
         let freq = if pitch_offset_semitones != S::ZERO {
-            let multiplier = S::from_f64(2.0f64.powf(pitch_offset_semitones.to_f64() / 12.0));
+            let multiplier = S::from_f64(math::powf(2.0f64, pitch_offset_semitones.to_f64() / 12.0));
             freq_hz * multiplier
         } else {
             freq_hz

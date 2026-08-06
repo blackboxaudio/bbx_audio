@@ -23,7 +23,7 @@ pub struct Graph<S: Sample> {
     connections: Vec<Connection>,         // Block connections
     execution_order: Vec<BlockId>,        // Sorted processing order
     output_block: Option<BlockId>,        // Final output
-    audio_buffers: Vec<AudioBuffer<S>>,   // Pre-allocated buffers
+    audio_buffers: Vec<SampleBuffer<S>>,   // Pre-allocated buffers
     modulation_values: Vec<S>,            // Per-block modulation
 }
 ```

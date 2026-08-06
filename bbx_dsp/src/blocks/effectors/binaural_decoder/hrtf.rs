@@ -7,7 +7,7 @@ use super::{
     hrir_data::{HRIR_LENGTH, get_hrir_for_azimuth},
     virtual_speaker::{MAX_HRIR_LENGTH, MAX_VIRTUAL_SPEAKERS, VirtualSpeaker, layouts},
 };
-use crate::{graph::MAX_BLOCK_INPUTS, sample::Sample};
+use crate::{block::MAX_BLOCK_INPUTS, math, sample::Sample};
 
 /// HRTF convolution engine with pre-allocated buffers.
 ///
@@ -180,7 +180,7 @@ impl HrtfConvolver {
         self.buffer_pos = (self.buffer_pos + 1) % self.hrir_length;
 
         // Normalize by number of speakers to prevent clipping
-        let normalization = 1.0 / (self.num_speakers as f64).sqrt();
+        let normalization = 1.0 / math::sqrt(self.num_speakers as f64);
         (left_sum * normalization, right_sum * normalization)
     }
 

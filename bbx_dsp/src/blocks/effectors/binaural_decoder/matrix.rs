@@ -1,6 +1,6 @@
 //! Matrix-based binaural decoder using ILD (Interaural Level Difference) approximation.
 
-use crate::graph::MAX_BLOCK_INPUTS;
+use crate::{block::MAX_BLOCK_INPUTS, math};
 
 /// Compute matrix decoder coefficients for the given ambisonic order.
 ///
@@ -87,7 +87,7 @@ fn compute_toa_matrix(matrix: &mut [[f64; MAX_BLOCK_INPUTS]; 2]) {
 }
 
 fn normalize_matrix(matrix: &mut [[f64; MAX_BLOCK_INPUTS]; 2], order: usize) {
-    let energy_scale = 1.0 / 2.0_f64.sqrt();
+    let energy_scale = 1.0 / math::sqrt(2.0_f64);
     let num_channels = (order + 1) * (order + 1);
 
     for ear_coeffs in matrix.iter_mut() {
@@ -102,7 +102,7 @@ mod tests {
     use super::*;
 
     const EPSILON: f64 = 1e-10;
-    const ENERGY_SCALE: f64 = 0.7071067811865476; // 1/sqrt(2)
+    const ENERGY_SCALE: f64 = core::f64::consts::FRAC_1_SQRT_2;
 
     // ==================== FOA (order 1) tests ====================
 

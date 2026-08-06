@@ -3,7 +3,8 @@
 //! This module provides SIMD-accelerated operations for common DSP tasks.
 //! Requires the `simd` feature and nightly Rust.
 
-use std::simd::{StdFloat, f32x4, f64x4};
+use core::simd::{f32x4, f64x4};
+use std::simd::StdFloat;
 
 use crate::sample::{SIMD_LANES, Sample};
 
@@ -178,7 +179,7 @@ pub fn fill<S: Sample>(slice: &mut [S], value: S) {
 #[inline]
 pub fn apply_gain<S: Sample>(input: &[S], output: &mut [S], gain: S)
 where
-    S::Simd: std::ops::Mul<Output = S::Simd>,
+    S::Simd: core::ops::Mul<Output = S::Simd>,
 {
     debug_assert!(input.len() <= output.len());
 
@@ -203,7 +204,7 @@ where
 #[inline]
 pub fn multiply_add<S: Sample>(a: &[S], b: &[S], output: &mut [S])
 where
-    S::Simd: std::ops::Mul<Output = S::Simd>,
+    S::Simd: core::ops::Mul<Output = S::Simd>,
 {
     debug_assert!(a.len() == b.len());
     debug_assert!(a.len() <= output.len());
@@ -321,8 +322,8 @@ mod tests {
     fn test_fill_f32_edge_sizes() {
         for size in [0, 1, 2, 3, 5, 7, 9, 15] {
             let mut buffer = vec![0.0f32; size];
-            fill_f32(&mut buffer, 3.14);
-            assert!(buffer.iter().all(|&x| x == 3.14), "Failed for size {}", size);
+            fill_f32(&mut buffer, 1.25);
+            assert!(buffer.iter().all(|&x| x == 1.25), "Failed for size {}", size);
         }
     }
 
@@ -330,8 +331,8 @@ mod tests {
     fn test_fill_f64_edge_sizes() {
         for size in [0, 1, 2, 3, 5, 7, 9, 15] {
             let mut buffer = vec![0.0f64; size];
-            fill_f64(&mut buffer, 3.14);
-            assert!(buffer.iter().all(|&x| x == 3.14), "Failed for size {}", size);
+            fill_f64(&mut buffer, 1.25);
+            assert!(buffer.iter().all(|&x| x == 1.25), "Failed for size {}", size);
         }
     }
 
@@ -448,15 +449,15 @@ mod tests {
         for size in [0, 1, 2, 3, 5, 7, 9, 15] {
             let mut buffer_f32 = vec![0.0f32; size];
             let mut buffer_f64 = vec![0.0f64; size];
-            fill::<f32>(&mut buffer_f32, 3.14);
-            fill::<f64>(&mut buffer_f64, 3.14);
+            fill::<f32>(&mut buffer_f32, 1.25);
+            fill::<f64>(&mut buffer_f64, 1.25);
             assert!(
-                buffer_f32.iter().all(|&x| (x - 3.14).abs() < 1e-6),
+                buffer_f32.iter().all(|&x| (x - 1.25).abs() < 1e-6),
                 "f32 failed for size {}",
                 size
             );
             assert!(
-                buffer_f64.iter().all(|&x| (x - 3.14).abs() < 1e-10),
+                buffer_f64.iter().all(|&x| (x - 1.25).abs() < 1e-10),
                 "f64 failed for size {}",
                 size
             );

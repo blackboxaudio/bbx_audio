@@ -28,7 +28,7 @@ pub fn flush_denormal_f64(x: f64) -> f64 {
 #[cfg(feature = "simd")]
 #[inline]
 pub fn flush_denormals_f64_batch(buffer: &mut [f64]) {
-    use std::simd::{cmp::SimdPartialOrd, f64x4, num::SimdFloat};
+    use core::simd::{cmp::SimdPartialOrd, f64x4, num::SimdFloat};
 
     let threshold = f64x4::splat(DENORMAL_THRESHOLD_F64);
     let zero = f64x4::splat(0.0);
@@ -63,7 +63,7 @@ pub fn flush_denormal_f32(x: f32) -> f32 {
 #[cfg(feature = "simd")]
 #[inline]
 pub fn flush_denormals_f32_batch(buffer: &mut [f32]) {
-    use std::simd::{cmp::SimdPartialOrd, f32x4, num::SimdFloat};
+    use core::simd::{cmp::SimdPartialOrd, f32x4, num::SimdFloat};
 
     let threshold = f32x4::splat(DENORMAL_THRESHOLD_F32);
     let zero = f32x4::splat(0.0);
@@ -104,7 +104,7 @@ pub fn flush_denormals_f32_batch(buffer: &mut [f32]) {
 /// of any audio processing thread.
 #[cfg(all(feature = "ftz-daz", any(target_arch = "x86", target_arch = "x86_64")))]
 pub fn enable_ftz_daz() {
-    use std::arch::asm;
+    use core::arch::asm;
 
     const FTZ_BIT: u32 = 1 << 15;
     const DAZ_BIT: u32 = 1 << 6;
@@ -135,7 +135,7 @@ pub fn enable_ftz_daz() {
 /// Use `flush_denormal_f64/f32` in feedback paths for full coverage.
 #[cfg(all(feature = "ftz-daz", target_arch = "aarch64"))]
 pub fn enable_ftz_daz() {
-    use std::arch::asm;
+    use core::arch::asm;
 
     const FZ_BIT: u64 = 1 << 24;
 

@@ -4,11 +4,11 @@
 //! avoiding audible clicks when parameters change abruptly. Supports both
 //! [`Linear`] and [`Multiplicative`] (exponential) smoothing strategies.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use bbx_core::flush_denormal_f64;
 
-use crate::sample::Sample;
+use crate::{math, sample::Sample};
 
 const INV_1000: f64 = 1.0 / 1000.0;
 
@@ -84,7 +84,7 @@ impl SmoothingStrategy for Multiplicative {
         let current_f64 = current.to_f64();
         let target_f64 = target.to_f64();
         if current_f64 > 0.0 && target_f64 > 0.0 {
-            (target_f64 / current_f64).ln() / num_samples
+            math::ln(target_f64 / current_f64) / num_samples
         } else {
             0.0
         }
@@ -92,12 +92,12 @@ impl SmoothingStrategy for Multiplicative {
 
     #[inline]
     fn apply_increment<S: Sample>(current: S, increment: f64) -> S {
-        S::from_f64(current.to_f64() * increment.exp())
+        S::from_f64(current.to_f64() * math::exp(increment))
     }
 
     #[inline]
     fn apply_increment_n<S: Sample>(current: S, increment: f64, n: i32) -> S {
-        S::from_f64(current.to_f64() * (increment * n as f64).exp())
+        S::from_f64(current.to_f64() * math::exp(increment * n as f64))
     }
 
     #[inline]

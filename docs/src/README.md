@@ -10,17 +10,18 @@ bbx_audio is a collection of Rust crates designed for real-time audio digital si
 
 ## Crates
 
-| Crate | Description |
-|-------|-------------|
-| [`bbx_core`](crates/bbx-core.md) | Error types and foundational utilities |
-| [`bbx_draw`](crates/bbx-draw.md) | Audio visualization primitives for nannou |
-| [`bbx_dsp`](crates/bbx-dsp.md) | DSP graph system, blocks, and `PluginDsp` trait |
-| [`bbx_file`](crates/bbx-file.md) | Audio file I/O (WAV) |
-| [`bbx_midi`](crates/bbx-midi.md) | MIDI message parsing and streaming |
-| [`bbx_net`](crates/bbx-net.md) | OSC and WebSocket for network audio control |
+| Crate                               | Description |
+|-------------------------------------|-------------|
+| [`bbx_core`](crates/bbx-core.md)    | Error types and foundational utilities |
+| [`bbx_daisy`](crates/bbx-daisy.md)  | Electrosmith Daisy embedded audio (no_std, ARM Cortex-M) |
+| [`bbx_draw`](crates/bbx-draw.md)    | Audio visualization primitives for nannou |
+| [`bbx_dsp`](crates/bbx-dsp.md)      | DSP graph system, blocks, and `PluginDsp` trait |
+| [`bbx_file`](crates/bbx-file.md)    | Audio file I/O (WAV) |
+| [`bbx_midi`](crates/bbx-midi.md)    | MIDI message parsing and streaming |
+| [`bbx_net`](crates/bbx-net.md)      | OSC and WebSocket for network audio control |
 | [`bbx_player`](crates/bbx-player.md) | Audio playback with rodio (default) or cpal backends |
 | [`bbx_plugin`](crates/bbx-plugin.md) | C FFI bindings for JUCE integration |
-| `bbx_sandbox` | Examples and testing playground |
+| `bbx_sandbox`                       | Examples and testing playground |
 
 ## Architecture Overview
 
@@ -93,16 +94,16 @@ If you want to contribute to bbx_audio or understand its internals:
 ## Quick Example
 
 ```rust
-use bbx_dsp::{GraphBuilder, blocks::*};
+use bbx_dsp::{blocks::{GainBlock, OscillatorBlock}, graph::GraphBuilder, waveform::Waveform};
 
 // Build a simple oscillator -> gain -> output chain
-let graph = GraphBuilder::new()
-    .add_block(OscillatorBlock::new(440.0, Waveform::Sine))
-    .add_block(GainBlock::new(-6.0, None))
-    .add_block(OutputBlock::new(2))
-    .connect(0, 0, 1, 0)?  // Oscillator -> Gain
-    .connect(1, 0, 2, 0)?  // Gain -> Output
-    .build()?;
+let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
+
+let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
+let gain = builder.add(GainBlock::new(-6.0, None));
+builder.connect(osc, 0, gain, 0);
+
+let graph = builder.build();
 ```
 
 ## License

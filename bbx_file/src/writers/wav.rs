@@ -2,12 +2,8 @@
 
 use std::{error::Error, fs::File, io::BufWriter, path::Path};
 
-use bbx_dsp::{
-    buffer::{AudioBuffer, Buffer},
-    context::DEFAULT_SAMPLE_RATE,
-    sample::Sample,
-    writer::Writer,
-};
+use bbx_core::Buffer;
+use bbx_dsp::{buffer::SampleBuffer, context::DEFAULT_SAMPLE_RATE, sample::Sample, writer::Writer};
 use hound::{SampleFormat, WavSpec, WavWriter};
 
 const BIT_DEPTH: u16 = 32;
@@ -21,7 +17,7 @@ pub struct WavFileWriter<S: Sample> {
     sample_rate: f64,
     num_channels: usize,
     samples_written: usize,
-    channel_buffers: Vec<AudioBuffer<S>>,
+    channel_buffers: Vec<SampleBuffer<S>>,
 }
 
 impl<S: Sample> WavFileWriter<S> {
@@ -42,7 +38,7 @@ impl<S: Sample> WavFileWriter<S> {
             sample_rate,
             num_channels,
             samples_written: 0,
-            channel_buffers: vec![AudioBuffer::new(DEFAULT_SAMPLE_RATE as usize); num_channels],
+            channel_buffers: vec![SampleBuffer::new(DEFAULT_SAMPLE_RATE as usize); num_channels],
         })
     }
 }
