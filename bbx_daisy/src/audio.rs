@@ -500,10 +500,22 @@ pub fn init_and_start(
     dma1_str0.start(|sai1_rb| {
         sai1.enable_dma(tx_channel);
 
-        // Bounded wait until SAI1's FIFO starts to receive data. Unbounded,
-        // a dead clock tree or wrong pin config would hang boot silently.
+        // Bounded wait until the TRANSMITTING channel's FIFO starts to receive
+        // data from DMA. The TX channel differs by board (A on seed/seed_1_2,
+        // B on seed_1_1/pod/patch_sm), and polling the wrong one can never
+        // succeed: the receiving channel's FIFO only fills after the SAI is
+        // enabled below. Unbounded, a dead clock tree or wrong pin config
+        // would hang boot silently.
         let mut spins: u32 = 0;
-        while sai1_rb.cha().sr.read().flvl().is_empty() {
+        loop {
+            #[cfg(not(any(feature = "seed_1_1", feature = "pod", feature = "patch_sm")))]
+            let tx_fifo_empty = sai1_rb.cha().sr.read().flvl().is_empty();
+            #[cfg(any(feature = "seed_1_1", feature = "pod", feature = "patch_sm"))]
+            let tx_fifo_empty = sai1_rb.chb().sr.read().flvl().is_empty();
+
+            if !tx_fifo_empty {
+                break;
+            }
             spins += 1;
             if spins > SAI_FIFO_TIMEOUT_SPINS {
                 fifo_timed_out = true;
