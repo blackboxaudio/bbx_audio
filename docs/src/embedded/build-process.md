@@ -44,15 +44,21 @@ cargo runner:
 target = "thumbv7em-none-eabihf"
 
 [target.thumbv7em-none-eabihf]
+# Enable the STM32H750's double-precision FPU (FPv5-D16). Without this the
+# target defaults to single-precision FPv4 and all f64 math becomes slow
+# software-float (__aeabi_d*) calls.
+rustflags = ["-C", "target-cpu=cortex-m7"]
 runner = "./scripts/flash-dfu.sh"
 ```
 
 > **Run cargo from the `bbx_daisy/` directory.** Cargo discovers `.cargo/config.toml`
 > from the current directory upward — not from the package being built — so building
-> from the workspace root skips both the target and the runner. The cortex-m-rt
-> linker script (`-Tlink.x`) is applied from `build.rs` (`cargo:rustc-link-arg-examples`)
-> so linking still succeeds if you do build from the root with an explicit
-> `--target thumbv7em-none-eabihf`.
+> from the workspace root skips the target, the runner, *and* the `target-cpu`
+> rustflags. The cortex-m-rt linker script (`-Tlink.x`) is applied from `build.rs`
+> (`cargo:rustc-link-arg-examples`) so linking still succeeds if you do build from
+> the root with an explicit `--target thumbv7em-none-eabihf` — but set
+> `RUSTFLAGS="-C target-cpu=cortex-m7"` yourself in that case (CI does exactly
+> this), or f64 DSP code silently falls back to software floats.
 
 ## Feature Flag Selection
 

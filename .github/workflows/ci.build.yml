@@ -34,6 +34,11 @@ jobs:
     embedded:
         name: Build (Embedded)
         runs-on: ubuntu-latest
+        env:
+            # Match bbx_daisy/.cargo/config.toml: enable the STM32H750's
+            # double-precision FPU (FPv5-D16). From-root builds don't read that
+            # config file, so CI must set the flag explicitly.
+            RUSTFLAGS: -C target-cpu=cortex-m7
         steps:
             - name: Checkout Repository
               uses: actions/checkout@v4
