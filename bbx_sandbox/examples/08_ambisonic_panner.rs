@@ -50,6 +50,9 @@ fn create_graph() -> Graph<f32> {
     builder.modulate(lfo1_az, enc1, "azimuth");
     builder.modulate(lfo1_el, enc1, "elevation");
 
+    // The `0/1/2 * num_ambi_channels` pattern is deliberate: it keeps the
+    // layer→mixer-input mapping visually parallel across the three layers.
+    #[allow(clippy::erasing_op, clippy::identity_op)]
     for ch in 0..num_ambi_channels {
         builder.connect(enc1, ch, mixer_id, 0 * num_ambi_channels + ch);
     }
@@ -66,6 +69,7 @@ fn create_graph() -> Graph<f32> {
     builder.modulate(lfo2_az, enc2, "azimuth");
     builder.modulate(lfo2_el, enc2, "elevation");
 
+    #[allow(clippy::identity_op)]
     for ch in 0..num_ambi_channels {
         builder.connect(enc2, ch, mixer_id, 1 * num_ambi_channels + ch);
     }

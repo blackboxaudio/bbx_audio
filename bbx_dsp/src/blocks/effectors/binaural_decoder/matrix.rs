@@ -102,7 +102,7 @@ mod tests {
     use super::*;
 
     const EPSILON: f64 = 1e-10;
-    const ENERGY_SCALE: f64 = 0.7071067811865476; // 1/sqrt(2)
+    const ENERGY_SCALE: f64 = core::f64::consts::FRAC_1_SQRT_2;
 
     // ==================== FOA (order 1) tests ====================
 
