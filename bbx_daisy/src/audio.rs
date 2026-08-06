@@ -45,7 +45,7 @@
 //! DMA audio buffers are placed in SRAM3 (D2 domain) which is:
 //! - DMA-accessible by DMA1/DMA2
 //! - Non-cached by default (no cache coherency issues)
-//! - 4-byte aligned via linker script
+//! - 32-byte (cache-line) aligned via `repr(align(32))` on the buffer type
 //!
 //! ## SAI Pin Configuration
 //!
@@ -59,15 +59,18 @@
 //!
 //! ## Interrupt Priority
 //!
-//! DMA1_STR1 interrupt priority is left at default. For custom priority,
-//! set it before calling `init_and_start()` using `cortex_m::peripheral::Peripherals::take()`.
+//! `init_and_start` sets DMA1_STR1 to mid priority 0x80 (H7 implements the
+//! upper 4 bits; lower value = higher priority), leaving 0x00-0x70 free for
+//! short, urgent user ISRs. To customize, set the priority again after
+//! `init_and_start()` returns.
 //!
 //! ## Sample Format Conversion
 //!
-//! The codec uses unsigned 24-bit (u24) format:
-//! - **I2S to f32**: `i32_to_f32()` converts u24 (0x000000-0xFFFFFF) to [-1.0, 1.0] via offset and normalization
-//! - **f32 to I2S**: `f32_to_i32()` converts [-1.0, 1.0] to u24 format (0x000000 = -1.0, 0x800000 = 0.0, 0xFFFFFF =
-//!   ~1.0)
+//! The codec speaks signed 24-bit two's-complement PCM in the low 24 bits of
+//! each 32-bit slot:
+//! - **I2S to f32**: `i32_to_f32()` sign-decodes the 24-bit word branchlessly (add 0x800000, mask, recenter) and
+//!   normalizes to [-1.0, 1.0)
+//! - **f32 to I2S**: `f32_to_i32()` scales, saturates, and truncates to the low 24 bits (two's complement)
 //! - This matches the reference daisy crate and libDaisy implementation
 //!
 //! # Usage
@@ -85,8 +88,9 @@
 //!
 //! fn main() {
 //!     // ... initialize hardware ...
-//!     audio::set_callback(audio_callback);
-//!     audio::start();
+//!     audio::set_callback(audio_callback).expect("audio already running");
+//!     // audio::init_and_start(...) with the SAI/DMA peripherals — or use the
+//!     // `bbx_daisy_audio!` macro, which wires all of this up for you.
 //! }
 //! ```
 
@@ -140,6 +144,21 @@ fn default_callback(input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BL
     }
 }
 
+/// Errors surfaced by the audio interface API.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AudioError {
+    /// [`set_callback`] was called while audio is running.
+    AlreadyRunning,
+    /// The SAI FIFO never signalled readiness during [`init_and_start`] —
+    /// typically a dead audio clock tree (PLL3) or wrong pin configuration.
+    Timeout,
+}
+
+/// Iteration cap for the SAI-FIFO readiness spin in [`init_and_start`].
+/// One audio frame (~20µs) suffices when the clocks are alive; this cap is
+/// millisecond-scale at 480MHz, so hitting it means the clock tree is dead.
+const SAI_FIFO_TIMEOUT_SPINS: u32 = 1_000_000;
+
 // ============================================================================
 // Global State (interrupt-safe)
 // ============================================================================
@@ -150,14 +169,28 @@ static AUDIO_CALLBACK: AtomicPtr<()> = AtomicPtr::new(default_callback as *mut (
 /// Flag indicating audio is running.
 static AUDIO_RUNNING: AtomicBool = AtomicBool::new(false);
 
-/// DMA transmit buffer (placed in DMA-accessible SRAM3, D2 domain). Cache-line (32-byte)
-/// aligned by the linker so the optional `dcache` maintenance ops operate on whole lines.
+/// DMA buffer storage, cache-line aligned by construction.
+///
+/// The 32-byte alignment must NOT depend on what else the linker happens to
+/// place in `.sram3`: the `dcache` maintenance ops round outward to whole
+/// cache lines, and a misaligned buffer would let them discard or write back
+/// *adjacent* data mid-ISR. `repr(align(32))` guarantees the start address;
+/// the const assert below guarantees the length.
+#[repr(C, align(32))]
+struct DmaBuffer([u32; DMA_BUFFER_LENGTH]);
+
+const _: () = assert!(
+    (DMA_BUFFER_LENGTH * core::mem::size_of::<u32>()) % 32 == 0,
+    "DMA buffer size must be a whole number of 32-byte cache lines"
+);
+
+/// DMA transmit buffer (placed in DMA-accessible SRAM3, D2 domain).
 #[unsafe(link_section = ".sram3")]
-static mut TX_BUFFER: MaybeUninit<[u32; DMA_BUFFER_LENGTH]> = MaybeUninit::uninit();
+static mut TX_BUFFER: MaybeUninit<DmaBuffer> = MaybeUninit::uninit();
 
 /// DMA receive buffer (placed in DMA-accessible SRAM3, D2 domain).
 #[unsafe(link_section = ".sram3")]
-static mut RX_BUFFER: MaybeUninit<[u32; DMA_BUFFER_LENGTH]> = MaybeUninit::uninit();
+static mut RX_BUFFER: MaybeUninit<DmaBuffer> = MaybeUninit::uninit();
 
 /// Type alias for the DMA RX transfer.
 #[cfg(not(any(feature = "seed_1_1", feature = "pod", feature = "patch_sm")))]
@@ -213,15 +246,19 @@ static mut DMA_TX_TRANSFER: MaybeUninit<DmaTxTransfer> = MaybeUninit::uninit();
 
 /// Set the audio callback function.
 ///
-/// # Safety
+/// Must be called before audio is started; the callback must be
+/// realtime-safe (no allocations, no blocking).
 ///
-/// Must be called before `start()` or while audio is stopped.
-/// The callback must be realtime-safe (no allocations, no blocking).
-pub fn set_callback(callback: AudioCallback) {
-    // Safety: Only safe to call when audio is not running
-    if !AUDIO_RUNNING.load(Ordering::SeqCst) {
-        AUDIO_CALLBACK.store(callback as *mut (), Ordering::SeqCst);
+/// # Errors
+///
+/// Returns [`AudioError::AlreadyRunning`] (without changing the callback) if
+/// audio is already streaming.
+pub fn set_callback(callback: AudioCallback) -> Result<(), AudioError> {
+    if AUDIO_RUNNING.load(Ordering::SeqCst) {
+        return Err(AudioError::AlreadyRunning);
     }
+    AUDIO_CALLBACK.store(callback as *mut (), Ordering::SeqCst);
+    Ok(())
 }
 
 /// Check if audio is currently running.
@@ -301,6 +338,11 @@ impl AudioInterface {
 /// differs by Seed revision, so the board feature must match the hardware:
 /// - TX on channel A (codec DAC on SD_A): AK4556 (`seed`), PCM3060 (`seed_1_2`)
 /// - TX on channel B (codec DAC on SD_B): WM8731 (`seed_1_1`, `pod`), Patch SM (`patch_sm`)
+///
+/// # Errors
+///
+/// Returns [`AudioError::Timeout`] if the SAI FIFO never signals readiness —
+/// typically a dead audio clock tree (PLL3) or wrong pin configuration.
 pub fn init_and_start(
     sample_rate: SampleRate,
     sai1: SAI1,
@@ -309,7 +351,7 @@ pub fn init_and_start(
     sai1_pins: Sai1Pins,
     sai1_rec: rec::Sai1,
     clocks: &CoreClocks,
-) {
+) -> Result<(), AudioError> {
     // Optionally enable the CPU caches. The reference daisy crate (and libDaisy) run the audio
     // path with the D-cache ON, which is why `process_audio_buffer` invalidates/cleans the DMA
     // buffers — that maintenance is what keeps the cached CPU view coherent with DMA. It is gated
@@ -329,16 +371,21 @@ pub fn init_and_start(
     // Initialize DMA buffers to zero using raw pointers
     let tx_buffer: &'static mut [u32; DMA_BUFFER_LENGTH] = unsafe {
         let tx_ptr = ptr::addr_of_mut!(TX_BUFFER);
-        let buf = (*tx_ptr).assume_init_mut();
+        let buf = &mut (*tx_ptr).assume_init_mut().0;
         buf.fill(0);
         buf
     };
     let rx_buffer: &'static mut [u32; DMA_BUFFER_LENGTH] = unsafe {
         let rx_ptr = ptr::addr_of_mut!(RX_BUFFER);
-        let buf = (*rx_ptr).assume_init_mut();
+        let buf = &mut (*rx_ptr).assume_init_mut().0;
         buf.fill(0);
         buf
     };
+
+    // Enforce the cache-line contract at runtime too (init-time, panics into
+    // panic_halt before audio ever starts if the layout is broken).
+    validate_dma_buffer(&tx_buffer[..]);
+    validate_dma_buffer(&rx_buffer[..]);
 
     // Initialize global transfer holder using raw pointer
     unsafe {
@@ -433,15 +480,8 @@ pub fn init_and_start(
         sai1_users,
     );
 
-    // Enable DMA1 Stream 1 interrupt with high priority
-    // Priority 0 = highest priority, prevents preemption by lower-priority interrupts
-    // This ensures audio processing is not interrupted, reducing risk of buffer underruns
-    unsafe {
-        cortex_m::peripheral::NVIC::unmask(pac::Interrupt::DMA1_STR1);
-    }
-    // Note: Priority setting requires mutable NVIC peripheral which is not available in this context.
-    // The default priority is sufficient for most use cases. For custom priority, users can set it
-    // before calling init_and_start() using cortex_m::peripheral::Peripherals::take().
+    // NOTE: the DMA1_STR1 interrupt is NOT unmasked here. It is unmasked at the
+    // end of this function, after the transfer handles are stored — see below.
 
     // Determine which channels to enable based on the board's codec wiring (compile-time).
     #[cfg(not(any(feature = "seed_1_1", feature = "pod", feature = "patch_sm")))]
@@ -456,11 +496,20 @@ pub fn init_and_start(
     });
 
     // Start TX DMA and enable SAI
+    let mut fifo_timed_out = false;
     dma1_str0.start(|sai1_rb| {
         sai1.enable_dma(tx_channel);
 
-        // Wait until SAI1's FIFO starts to receive data
-        while sai1_rb.cha().sr.read().flvl().is_empty() {}
+        // Bounded wait until SAI1's FIFO starts to receive data. Unbounded,
+        // a dead clock tree or wrong pin config would hang boot silently.
+        let mut spins: u32 = 0;
+        while sai1_rb.cha().sr.read().flvl().is_empty() {
+            spins += 1;
+            if spins > SAI_FIFO_TIMEOUT_SPINS {
+                fifo_timed_out = true;
+                return;
+            }
+        }
 
         sai1.enable();
 
@@ -469,6 +518,9 @@ pub fn init_and_start(
         use stm32h7xx_hal::traits::i2s::FullDuplex;
         let _ = sai1.try_send(0, 0);
     });
+    if fifo_timed_out {
+        return Err(AudioError::Timeout);
+    }
 
     // Park the TX transfer so it is never dropped (its Drop disables the DMA stream, which would
     // silence the codec). Nothing reads it back — it just has to stay alive.
@@ -477,13 +529,36 @@ pub fn init_and_start(
         (*tx_ptr).write(dma1_str0);
     }
 
-    // Store the RX transfer handle for interrupt use
+    // Store the RX transfer handle for interrupt use. This MUST happen before
+    // the NVIC unmask below: DMA HT/TC events latch while the interrupt is
+    // masked and are serviced immediately on unmask — but an ISR that ran
+    // before this store would find `None` (see the defensive branch in
+    // `DMA1_STR1` for why that formerly meant a livelock).
     unsafe {
         let transfer_ptr = ptr::addr_of_mut!(DMA_RX_TRANSFER);
         (*transfer_ptr).write(Some(dma1_str1));
     }
 
+    // Make the handle stores visible before the interrupt can observe them.
+    core::sync::atomic::compiler_fence(Ordering::SeqCst);
+
+    // Set an explicit mid priority for the audio interrupt, then unmask it.
+    // The H7 implements the upper 4 priority bits (16 levels; lower value =
+    // higher priority). 0x80 keeps audio above default-priority interrupts
+    // while leaving 0x00-0x70 free for short, truly urgent ISRs a user may
+    // add (UART RX, encoders) — at reset priority 0 the ~1ms audio callback
+    // would starve everything else for a full block period.
+    // Init-time steal(): single-threaded, pre-audio — same pattern as the
+    // dcache setup above.
+    unsafe {
+        let mut cp = cortex_m::Peripherals::steal();
+        cp.NVIC.set_priority(pac::Interrupt::DMA1_STR1, 0x80);
+        cortex_m::peripheral::NVIC::unmask(pac::Interrupt::DMA1_STR1);
+    }
+
     AUDIO_RUNNING.store(true, Ordering::SeqCst);
+
+    Ok(())
 }
 
 // ============================================================================
@@ -503,8 +578,8 @@ unsafe fn process_audio_buffer(buffer_half: usize) {
     let tx_ptr = ptr::addr_of_mut!(TX_BUFFER);
     let rx_ptr = ptr::addr_of_mut!(RX_BUFFER);
 
-    let tx_buffer = unsafe { (*tx_ptr).assume_init_mut() };
-    let rx_buffer = unsafe { (*rx_ptr).assume_init_mut() };
+    let tx_buffer = unsafe { &mut (*tx_ptr).assume_init_mut().0 };
+    let rx_buffer = unsafe { &mut (*rx_ptr).assume_init_mut().0 };
 
     // Invalidate D-cache for RX buffer before reading so we see the DMA's writes, not stale
     // cached data. Only needed (and only safe) when the D-cache is enabled — see `dcache` in
@@ -551,12 +626,12 @@ unsafe fn process_audio_buffer(buffer_half: usize) {
     }
 }
 
-/// Convert 24-bit I2S sample (unsigned u24 format in u32) to f32 [-1.0, 1.0].
+/// Convert a 24-bit I2S sample (signed two's complement in the low 24 bits)
+/// to f32 in [-1.0, 1.0).
 ///
-/// The codec uses unsigned 24-bit format where:
-/// - 0x000000 represents -1.0 (minimum)
-/// - 0x800000 represents 0.0 (center)
-/// - 0xFFFFFF represents ~1.0 (maximum)
+/// The `+0x800000` / mask / `-1.0` sequence is a branchless sign-decode: it
+/// maps 0x000000..=0x7FFFFF to [0.0, 1.0) and 0x800000..=0xFFFFFF (negative
+/// two's-complement values) to [-1.0, 0.0) — equivalent to sign extension.
 ///
 /// This matches the reference daisy crate and libDaisy implementation.
 #[inline(always)]
@@ -571,12 +646,11 @@ fn i32_to_f32(sample: i32) -> f32 {
     (y as f32 / 8_388_608.0) - 1.0
 }
 
-/// Convert f32 [-1.0, 1.0] to 24-bit I2S sample (unsigned u24 format in u32).
+/// Convert f32 [-1.0, 1.0] to a 24-bit I2S sample (signed two's complement).
 ///
-/// The codec expects unsigned 24-bit format where:
-/// - 0x000000 represents -1.0 (minimum)
-/// - 0x800000 represents 0.0 (center)
-/// - 0xFFFFFF represents ~1.0 (maximum)
+/// Scales to the 24-bit range and saturates (Rust float→int casts saturate;
+/// NaN becomes 0). The SAI transmits only the low 24 bits of the word, which
+/// are the correct two's-complement representation for all in-range values.
 ///
 /// This matches the reference daisy crate and libDaisy implementation.
 #[inline(always)]
@@ -585,8 +659,7 @@ fn f32_to_i32(sample: f32) -> i32 {
     let scaled = sample * 8_388_607.0;
     let clamped = scaled.clamp(-8_388_608.0, 8_388_607.0);
 
-    // Convert to unsigned 24-bit format (cast to i32 then to u32)
-    (clamped as i32) as u32 as i32
+    clamped as i32
 }
 
 // ============================================================================
@@ -616,6 +689,23 @@ fn DMA1_STR1() {
         unsafe {
             process_audio_buffer(buffer_half);
         }
+    } else {
+        // Defensive: with the handle stored before the NVIC unmask this branch
+        // should be unreachable — but if it ever runs, clear the stream-1
+        // flags so a latched event cannot re-enter the ISR forever (livelock).
+        let dma1 = unsafe { &*DMA1::ptr() };
+        dma1.lifcr.write(|w| {
+            w.cfeif1()
+                .set_bit()
+                .cdmeif1()
+                .set_bit()
+                .cteif1()
+                .set_bit()
+                .chtif1()
+                .set_bit()
+                .ctcif1()
+                .set_bit()
+        });
     }
 }
 
@@ -657,7 +747,6 @@ const CACHE_LINE_SIZE: usize = 32;
 ///
 /// Panics if the buffer is not properly aligned or if its size is not a
 /// multiple of the cache line size.
-#[allow(dead_code)]
 pub(crate) fn validate_dma_buffer<T>(buffer: &[T]) {
     let ptr = buffer.as_ptr() as usize;
     let size = core::mem::size_of_val(buffer);

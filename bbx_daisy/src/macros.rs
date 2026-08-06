@@ -66,19 +66,19 @@ macro_rules! bbx_daisy_audio {
         use $crate::__internal::panic_halt as _;
 
         static mut __BBX_PROCESSOR: core::mem::MaybeUninit<$processor_type> = core::mem::MaybeUninit::uninit();
-        static mut __BBX_CONTROLS: $crate::controls::Controls = $crate::controls::Controls::new();
+        static __BBX_CONTROLS: $crate::controls::AtomicControls = $crate::controls::AtomicControls::new();
 
         fn __bbx_audio_callback(
             input: &$crate::FrameBuffer<{ $crate::audio::BLOCK_SIZE }>,
             output: &mut $crate::FrameBuffer<{ $crate::audio::BLOCK_SIZE }>,
         ) {
-            unsafe {
-                // Get controls (updated by main loop or ADC interrupt)
-                let controls_ptr = core::ptr::addr_of!(__BBX_CONTROLS);
+            // Race-free snapshot of the control state (main loop is the writer).
+            let controls = __BBX_CONTROLS.load();
 
+            unsafe {
                 // Call user's audio processor with controls
                 let processor = __BBX_PROCESSOR.assume_init_mut();
-                $crate::AudioProcessor::process(processor, input, output, &*controls_ptr);
+                $crate::AudioProcessor::process(processor, input, output, &controls);
             }
         }
 
@@ -98,7 +98,7 @@ macro_rules! bbx_daisy_audio {
             }
 
             // Register the audio callback and start SAI + DMA streaming.
-            $crate::audio::set_callback(__bbx_audio_callback);
+            $crate::audio::set_callback(__bbx_audio_callback).expect("audio already running");
             $crate::audio::init_and_start(
                 audio.sample_rate,
                 audio.sai1,
@@ -107,7 +107,8 @@ macro_rules! bbx_daisy_audio {
                 audio.sai1_pins,
                 audio.sai1_rec,
                 &audio.clocks,
-            );
+            )
+            .expect("Failed to start audio streaming");
 
             loop {
                 $crate::__internal::wfi();
@@ -155,21 +156,19 @@ macro_rules! bbx_daisy_audio_with_controls {
         use $crate::__internal::panic_halt as _;
 
         static mut __BBX_PROCESSOR: core::mem::MaybeUninit<$processor_type> = core::mem::MaybeUninit::uninit();
-        static mut __BBX_CONTROLS: $crate::controls::Controls = $crate::controls::Controls::new();
-        static mut __BBX_KNOB1: $crate::peripherals::Knob = $crate::peripherals::Knob::default_smoothing_const();
-        static mut __BBX_KNOB2: $crate::peripherals::Knob = $crate::peripherals::Knob::default_smoothing_const();
+        static __BBX_CONTROLS: $crate::controls::AtomicControls = $crate::controls::AtomicControls::new();
 
         fn __bbx_audio_callback(
             input: &$crate::FrameBuffer<{ $crate::audio::BLOCK_SIZE }>,
             output: &mut $crate::FrameBuffer<{ $crate::audio::BLOCK_SIZE }>,
         ) {
-            unsafe {
-                // Get controls pointer
-                let controls_ptr = core::ptr::addr_of!(__BBX_CONTROLS);
+            // Race-free snapshot of the control state (main loop is the writer).
+            let controls = __BBX_CONTROLS.load();
 
+            unsafe {
                 // Call user's audio processor with controls
                 let processor = __BBX_PROCESSOR.assume_init_mut();
-                $crate::AudioProcessor::process(processor, input, output, &*controls_ptr);
+                $crate::AudioProcessor::process(processor, input, output, &controls);
             }
         }
 
@@ -189,7 +188,7 @@ macro_rules! bbx_daisy_audio_with_controls {
             }
 
             // Set the audio callback
-            $crate::audio::set_callback(__bbx_audio_callback);
+            $crate::audio::set_callback(__bbx_audio_callback).expect("audio already running");
 
             // Destructure board to extract audio peripherals and ADC components
             let $crate::board::AudioBoardWithAdc {
@@ -208,7 +207,13 @@ macro_rules! bbx_daisy_audio_with_controls {
                 audio.sai1_pins,
                 audio.sai1_rec,
                 &audio.clocks,
-            );
+            )
+            .expect("Failed to start audio streaming");
+
+            // Knob smoothing state lives in the main loop — only the atomic
+            // controls store is shared with the ISR.
+            let mut knob1 = $crate::peripherals::Knob::default_smoothing_const();
+            let mut knob2 = $crate::peripherals::Knob::default_smoothing_const();
 
             // Main loop: read ADC and update controls
             loop {
@@ -217,15 +222,9 @@ macro_rules! bbx_daisy_audio_with_controls {
                 let raw1 = (adc1.read(&mut knob1_pin).unwrap_or(0_u32) >> 4) as u16;
                 let raw2 = (adc1.read(&mut knob2_pin).unwrap_or(0_u32) >> 4) as u16;
 
-                unsafe {
-                    let knob1_ptr = core::ptr::addr_of_mut!(__BBX_KNOB1);
-                    let knob2_ptr = core::ptr::addr_of_mut!(__BBX_KNOB2);
-                    let controls_ptr = core::ptr::addr_of_mut!(__BBX_CONTROLS);
-
-                    // Process raw ADC values through smoothing filters
-                    (*controls_ptr).knob1 = (*knob1_ptr).process_u12(raw1);
-                    (*controls_ptr).knob2 = (*knob2_ptr).process_u12(raw2);
-                }
+                // Smooth and publish to the ISR-visible atomic store.
+                __BBX_CONTROLS.set_knob1(knob1.process_u12(raw1));
+                __BBX_CONTROLS.set_knob2(knob2.process_u12(raw2));
 
                 $crate::__internal::wfi();
             }
@@ -248,20 +247,18 @@ macro_rules! bbx_daisy_audio_with_controls {
         use $crate::__internal::panic_halt as _;
 
         static mut __BBX_PROCESSOR: core::mem::MaybeUninit<$processor_type> = core::mem::MaybeUninit::uninit();
-        static mut __BBX_CONTROLS: $crate::controls::Controls = $crate::controls::Controls::new();
-        static mut __BBX_CV1: $crate::peripherals::Knob = $crate::peripherals::Knob::default_smoothing_const();
-        static mut __BBX_CV2: $crate::peripherals::Knob = $crate::peripherals::Knob::default_smoothing_const();
-        static mut __BBX_CV3: $crate::peripherals::Knob = $crate::peripherals::Knob::default_smoothing_const();
-        static mut __BBX_CV4: $crate::peripherals::Knob = $crate::peripherals::Knob::default_smoothing_const();
+        static __BBX_CONTROLS: $crate::controls::AtomicControls = $crate::controls::AtomicControls::new();
 
         fn __bbx_audio_callback(
             input: &$crate::FrameBuffer<{ $crate::audio::BLOCK_SIZE }>,
             output: &mut $crate::FrameBuffer<{ $crate::audio::BLOCK_SIZE }>,
         ) {
+            // Race-free snapshot of the control state (main loop is the writer).
+            let controls = __BBX_CONTROLS.load();
+
             unsafe {
-                let controls_ptr = core::ptr::addr_of!(__BBX_CONTROLS);
                 let processor = __BBX_PROCESSOR.assume_init_mut();
-                $crate::AudioProcessor::process(processor, input, output, &*controls_ptr);
+                $crate::AudioProcessor::process(processor, input, output, &controls);
             }
         }
 
@@ -281,7 +278,7 @@ macro_rules! bbx_daisy_audio_with_controls {
             }
 
             // Set the audio callback.
-            $crate::audio::set_callback(__bbx_audio_callback);
+            $crate::audio::set_callback(__bbx_audio_callback).expect("audio already running");
 
             // Destructure board to extract audio peripherals, ADC, CV pins, and switch.
             let $crate::board::AudioBoardWithCv {
@@ -297,6 +294,13 @@ macro_rules! bbx_daisy_audio_with_controls {
             // Wrap the B8 toggle in a debounced, active-low button.
             let mut switch = $crate::peripherals::Button::new_active_low(switch_pin);
 
+            // CV smoothing state lives in the main loop — only the atomic
+            // controls store is shared with the ISR.
+            let mut cv1 = $crate::peripherals::Knob::default_smoothing_const();
+            let mut cv2 = $crate::peripherals::Knob::default_smoothing_const();
+            let mut cv3 = $crate::peripherals::Knob::default_smoothing_const();
+            let mut cv4 = $crate::peripherals::Knob::default_smoothing_const();
+
             // Start audio processing (consumes audio peripherals).
             $crate::audio::init_and_start(
                 audio.sample_rate,
@@ -306,7 +310,8 @@ macro_rules! bbx_daisy_audio_with_controls {
                 audio.sai1_pins,
                 audio.sai1_rec,
                 &audio.clocks,
-            );
+            )
+            .expect("Failed to start audio streaming");
 
             // Main loop: read CVs + switch and update controls.
             loop {
@@ -317,20 +322,12 @@ macro_rules! bbx_daisy_audio_with_controls {
                 let raw4 = (adc1.read(&mut cv4_pin).unwrap_or(0_u32) >> 4) as u16;
                 let switch_state = switch.update();
 
-                unsafe {
-                    let cv1_ptr = core::ptr::addr_of_mut!(__BBX_CV1);
-                    let cv2_ptr = core::ptr::addr_of_mut!(__BBX_CV2);
-                    let cv3_ptr = core::ptr::addr_of_mut!(__BBX_CV3);
-                    let cv4_ptr = core::ptr::addr_of_mut!(__BBX_CV4);
-                    let controls_ptr = core::ptr::addr_of_mut!(__BBX_CONTROLS);
-
-                    // Process raw ADC values through smoothing filters.
-                    (*controls_ptr).cv[0] = (*cv1_ptr).process_u12(raw1);
-                    (*controls_ptr).cv[1] = (*cv2_ptr).process_u12(raw2);
-                    (*controls_ptr).cv[2] = (*cv3_ptr).process_u12(raw3);
-                    (*controls_ptr).cv[3] = (*cv4_ptr).process_u12(raw4);
-                    (*controls_ptr).switch = switch_state;
-                }
+                // Smooth and publish to the ISR-visible atomic store.
+                __BBX_CONTROLS.set_cv(0, cv1.process_u12(raw1));
+                __BBX_CONTROLS.set_cv(1, cv2.process_u12(raw2));
+                __BBX_CONTROLS.set_cv(2, cv3.process_u12(raw3));
+                __BBX_CONTROLS.set_cv(3, cv4.process_u12(raw4));
+                __BBX_CONTROLS.set_switch(switch_state);
 
                 $crate::__internal::wfi();
             }

@@ -178,15 +178,41 @@ impl<const N: usize, const C: usize, S: Sample> FrameBuffer<N, C, S> {
     }
 
     /// Get a reference to a frame by index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index >= N`. Inside the audio ISR a panic means
+    /// `panic_halt` at audio priority: the output freezes on the last DMA
+    /// buffer contents with no diagnostics. Prefer [`get`](Self::get) when
+    /// the index is computed rather than a loop counter bounded by `N`.
     #[inline]
     pub fn frame(&self, index: usize) -> &[S; C] {
         &self.data[index]
     }
 
     /// Get a mutable reference to a frame by index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index >= N` — see [`frame`](Self::frame) for why that is
+    /// especially bad inside the audio ISR. Prefer
+    /// [`get_mut`](Self::get_mut) for computed indices.
     #[inline]
     pub fn frame_mut(&mut self, index: usize) -> &mut [S; C] {
         &mut self.data[index]
+    }
+
+    /// Get a reference to a frame, or `None` if `index >= N`. Never panics.
+    #[inline]
+    pub fn get(&self, index: usize) -> Option<&[S; C]> {
+        self.data.get(index)
+    }
+
+    /// Get a mutable reference to a frame, or `None` if `index >= N`.
+    /// Never panics.
+    #[inline]
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut [S; C]> {
+        self.data.get_mut(index)
     }
 
     /// Set a stereo frame (convenience method for C=2).

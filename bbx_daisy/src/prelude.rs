@@ -33,7 +33,9 @@ pub use crate::peripherals::{
 pub use crate::sdram::Sdram;
 // Audio processing
 #[cfg(all(target_arch = "arm", target_os = "none"))]
-pub use crate::{audio::BLOCK_SIZE, audio::DEFAULT_SAMPLE_RATE, board::Board, processor::AudioProcessor};
+pub use crate::{
+    audio::AudioError, audio::BLOCK_SIZE, audio::DEFAULT_SAMPLE_RATE, board::Board, processor::AudioProcessor,
+};
 pub use crate::{
     buffer::{FrameBuffer, StaticSampleBuffer},
     context::EmbeddedDspContext,
