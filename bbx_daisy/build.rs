@@ -6,9 +6,8 @@
 use std::{env, fs, path::PathBuf};
 
 fn main() {
-    validate_product_features();
-
     let target = env::var("TARGET").unwrap_or_default();
+    validate_product_features(target.starts_with("thumbv7em"));
 
     if target.starts_with("thumbv7em") {
         let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -31,7 +30,7 @@ fn main() {
     }
 }
 
-fn validate_product_features() {
+fn validate_product_features(is_embedded_target: bool) {
     // Validate only one product feature is enabled
     let product_features = [
         ("seed", cfg!(feature = "seed")),
@@ -71,12 +70,16 @@ fn validate_product_features() {
         panic!(
             "ERROR: Multiple bbx_daisy product features enabled: {enabled:?}\n\
              Only one product feature can be enabled at a time.\n\
-             Use --no-default-features and specify exactly one feature.\n\
+             Enable exactly one board feature (e.g. --features pod). If a\n\
+             dependency or default feature enabled a second one, add\n\
+             --no-default-features.\n\
              Valid features: seed, seed_1_1, seed_1_2, pod, patch_sm, patch_init, patch"
         );
     }
 
-    if enabled.is_empty() {
+    // Host builds (workspace tests, docs, publish verify) need no board;
+    // firmware builds must pick exactly one.
+    if is_embedded_target && enabled.is_empty() {
         panic!(
             "ERROR: No bbx_daisy product feature enabled.\n\
              Specify one of: seed, seed_1_1, seed_1_2, pod, patch_sm, patch_init, patch\n\

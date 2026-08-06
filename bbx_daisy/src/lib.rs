@@ -64,7 +64,7 @@
 //!
 //! Use feature flags to select your target hardware:
 //!
-//! - `seed` (default) - Daisy Seed with AK4556 codec
+//! - `seed` - Daisy Seed with AK4556 codec
 //! - `seed_1_1` - Daisy Seed 1.1 with WM8731 codec
 //! - `seed_1_2` - Daisy Seed 1.2 with PCM3060 codec
 //! - `pod` - Daisy Pod with WM8731 codec

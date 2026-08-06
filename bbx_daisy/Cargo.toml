@@ -72,7 +72,10 @@ name = "09_cycle_check_pod"
 required-features = ["pod"]
 
 [features]
-default = ["seed"]
+# No default board feature: board features are mutually exclusive, and a
+# default would turn a plain `--features pod` into a seed+pod conflict.
+# Always pick exactly one board feature explicitly.
+default = []
 
 # Daisy Seed variants
 seed = []

@@ -66,29 +66,29 @@ Select your board variant via feature flags:
 
 | Board | Feature | Cargo Flag |
 |-------|---------|------------|
-| Daisy Seed | `seed` | `--features seed` (default) |
+| Daisy Seed | `seed` | `--features seed` |
 | Daisy Seed 1.1 | `seed_1_1` | `--features seed_1_1` |
 | Daisy Seed 1.2 | `seed_1_2` | `--features seed_1_2` |
 | Daisy Pod | `pod` | `--features pod` |
 | Patch SM | `patch_sm` | `--features patch_sm` |
 | Patch.Init() | `patch_init` | `--features patch_init` |
 
-Only one board feature should be enabled at a time. Use `--no-default-features`
-when selecting a non-`seed` variant to avoid enabling `seed` as well.
+Board features are mutually exclusive and there is **no default** — always
+enable exactly one. (Host-side builds, like workspace tests, need none.)
 
 ## Building
 
 ```bash
 cd bbx_daisy
 
-# Build the crate (default: seed)
-cargo build --release
+# Build the crate for a board (no default — always name exactly one)
+cargo build --features seed --release
 
 # Build a specific example
-cargo build --example 02_oscillator --release
+cargo build --example 02_oscillator --features seed --release
 
 # Build for another variant
-cargo build --no-default-features --features patch_sm --release
+cargo build --features patch_sm --release
 ```
 
 Always use `--release` for production builds to enable optimizations critical for realtime audio.
@@ -108,7 +108,7 @@ Always use `--release` for production builds to enable optimizations critical fo
 
    ```bash
    cd bbx_daisy
-   cargo run --example 02_oscillator --release
+   cargo run --example 02_oscillator --features seed --release
    ```
 
    The runner (`scripts/flash-dfu.sh`) converts the ELF to a raw `.bin` with

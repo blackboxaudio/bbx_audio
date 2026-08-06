@@ -103,10 +103,10 @@ output.set_frame(0, left_sample, right_sample);
 rustup target add thumbv7em-none-eabihf
 
 # Build
-cargo build -p bbx_daisy --example 02_oscillator --target thumbv7em-none-eabihf --release
+cargo build -p bbx_daisy --example 02_oscillator --features seed --target thumbv7em-none-eabihf --release
 
 # Flash with probe-rs (recommended)
-cargo run -p bbx_daisy --example 02_oscillator --release
+cargo run -p bbx_daisy --example 02_oscillator --features seed --release
 
 # Flash via DFU (hold BOOT, tap RESET, release BOOT first)
 dfu-util -a 0 -s 0x08000000:leave -D target/thumbv7em-none-eabihf/release/examples/02_oscillator

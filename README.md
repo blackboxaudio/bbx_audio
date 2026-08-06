@@ -113,8 +113,8 @@ bbx_daisy_audio!(SineOsc, SineOsc { phase: 0.0 });
 
 ```bash
 # Build and flash
-cargo build -p bbx_daisy --example 02_oscillator --target thumbv7em-none-eabihf --release
-cargo run -p bbx_daisy --example 02_oscillator --release  # With debug probe
+cargo build -p bbx_daisy --example 02_oscillator --features seed --target thumbv7em-none-eabihf --release
+cargo run -p bbx_daisy --example 02_oscillator --features seed --release  # With debug probe
 ```
 
 See the [Embedded Development Guide](https://docs.bbx-audio.com/embedded.html) for setup and flashing instructions.

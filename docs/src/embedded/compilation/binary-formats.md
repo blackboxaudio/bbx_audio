@@ -171,7 +171,7 @@ No debug probe needed — just USB. This is the configured `cargo run` runner
 
 ```bash
 cd bbx_daisy
-cargo run --example 02_oscillator --release
+cargo run --example 02_oscillator --features seed --release
 ```
 
 ### Method 1b: Debug Probe (probe-rs)

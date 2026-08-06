@@ -72,10 +72,10 @@ Build and flash (run cargo from the `bbx_daisy/` directory so `.cargo/config.tom
 cd bbx_daisy
 
 # Build for ARM
-cargo build --example 02_oscillator --release
+cargo build --example 02_oscillator --features seed --release
 
 # Flash via DFU: enter DFU mode first (hold BOOT, tap RESET, release BOOT), then:
-cargo run --example 02_oscillator --release
+cargo run --example 02_oscillator --features seed --release
 ```
 
 See [Build Process](build-process.md) for prebuilt-binary flashing and the optional debug-probe workflow.

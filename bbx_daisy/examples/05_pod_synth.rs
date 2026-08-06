@@ -20,7 +20,7 @@
 //! ```bash
 //! cd bbx_daisy
 //! # Put the Pod in DFU mode (hold BOOT, tap RESET, release BOOT), then:
-//! cargo run --no-default-features --features pod --example 05_pod_synth --release
+//! cargo run --example 05_pod_synth --features pod --release
 //! ```
 
 #![cfg_attr(all(target_arch = "arm", target_os = "none"), no_std, no_main)]

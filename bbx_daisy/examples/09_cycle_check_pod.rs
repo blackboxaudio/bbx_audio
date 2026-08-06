@@ -24,7 +24,7 @@
 //! ```bash
 //! cd bbx_daisy
 //! # Put the Daisy in DFU mode (hold BOOT, tap RESET, release BOOT), then:
-//! cargo run --example 09_cycle_check_pod --no-default-features --features pod --release
+//! cargo run --example 09_cycle_check_pod --features pod --release
 //! ```
 
 #![cfg_attr(all(target_arch = "arm", target_os = "none"), no_std, no_main)]

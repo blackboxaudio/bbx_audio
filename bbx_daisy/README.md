@@ -19,7 +19,7 @@ This crate provides stack-allocated buffer types and hardware abstractions for r
 
 | Board | Feature Flag | Codec | SAI Config | DMA Config | Status |
 |-------|--------------|-------|------------|------------|--------|
-| Daisy Seed | `seed` (default) | AK4556 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Verified |
+| Daisy Seed | `seed` | AK4556 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Verified |
 | Daisy Seed 1.1 | `seed_1_1` | WM8731 | CH_B TX (slave) | Stream 0→B, Stream 1→A | ✓ Verified |
 | Daisy Seed 1.2 | `seed_1_2` | PCM3060 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Verified |
 | Daisy Pod | `pod` | WM8731 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Verified |
@@ -187,17 +187,17 @@ rustup target add thumbv7em-none-eabihf
 # thumbv7em-none-eabihf target and the dfu-util flash runner).
 cd bbx_daisy
 
-# Build for Daisy Seed (default)
-cargo build --release
+# Build for Daisy Seed (there is no default board — always pick exactly one)
+cargo build --features seed --release
 
-# Build an example (the in-repo patches; examples require the `seed` feature)
-cargo build --example 01_blink --release
+# Build an example (the in-repo patches; seed examples require the `seed` feature)
+cargo build --example 01_blink --features seed --release
 
-# Build for other variants (use --no-default-features to avoid feature conflicts)
-cargo build --no-default-features --features pod --release
-cargo build --no-default-features --features seed_1_1 --release
-cargo build --no-default-features --features seed_1_2 --release
-cargo build --no-default-features --features patch_sm --release
+# Build for other variants
+cargo build --features pod --release
+cargo build --features seed_1_1 --release
+cargo build --features seed_1_2 --release
+cargo build --features patch_sm --release
 
 # The build system enforces mutual exclusivity - this will fail:
 # cargo build --features "seed,pod"  # ERROR: Multiple features enabled
@@ -271,8 +271,8 @@ from this directory; `cargo run` builds the example, converts the ELF to a raw
 
 ```bash
 cd bbx_daisy
-cargo run --example 01_blink --release
-cargo run --example 02_oscillator --release
+cargo run --example 01_blink --features seed --release
+cargo run --example 02_oscillator --features seed --release
 ```
 
 ### Flash a prebuilt binary
