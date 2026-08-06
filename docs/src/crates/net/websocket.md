@@ -12,7 +12,7 @@ Add bbx_net with the `websocket` feature:
 
 ```toml
 [dependencies]
-bbx_net = { version = "0.4", features = ["websocket"] }
+bbx_net = { version = "0.5", features = ["websocket"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 

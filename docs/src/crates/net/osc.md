@@ -12,7 +12,7 @@ Add bbx_net with the `osc` feature:
 
 ```toml
 [dependencies]
-bbx_net = { version = "0.4", features = ["osc"] }
+bbx_net = { version = "0.5", features = ["osc"] }
 ```
 
 ## Basic Usage

@@ -13,9 +13,9 @@ Enable protocols via feature flags:
 
 ```toml
 [dependencies]
-bbx_net = { version = "0.4", features = ["osc"] }        # OSC only
-bbx_net = { version = "0.4", features = ["websocket"] }  # WebSocket only
-bbx_net = { version = "0.4", features = ["full"] }       # Both protocols
+bbx_net = { version = "0.5", features = ["osc"] }        # OSC only
+bbx_net = { version = "0.5", features = ["websocket"] }  # WebSocket only
+bbx_net = { version = "0.5", features = ["full"] }       # Both protocols
 ```
 
 ## Quick Start
