@@ -38,7 +38,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bbx_daisy = { version = "0.4.3", default-features = false, features = ["seed"] }
+bbx_daisy = { version = "0.5.0", default-features = false, features = ["seed"] }
 ```
 
 ### Audio Processing
@@ -221,7 +221,7 @@ wait states at 400+ MHz — and the data cache helps data-heavy work (big waveta
 delay lines). If the default already keeps up, leave it off: it's the simpler, verified path.
 
 ```toml
-bbx_daisy = { version = "0.4.3", default-features = false, features = ["seed", "dcache"] }
+bbx_daisy = { version = "0.5.0", default-features = false, features = ["seed", "dcache"] }
 ```
 
 **Before shipping with it on:**

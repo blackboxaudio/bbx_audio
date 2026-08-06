@@ -2,6 +2,29 @@
 
 All notable changes to bbx_audio will be documented in this file.
 
+## [0.5.0] - 2026-08-06
+
+### Features
+
+- Add Electrosmith Daisy hardware support: new no_std `bbx_daisy` crate with SAI/DMA audio, board init macros, codec drivers, and on-device examples (#116) ([#116](https://github.com/blackboxaudio/bbx_audio/pull/116))
+- Add `no_std` support to `bbx_core`, `bbx_dsp`, and `bbx_midi` via a `std`/`alloc` feature lattice (#116) ([#116](https://github.com/blackboxaudio/bbx_audio/pull/116))
+- Route all DSP math through `libm` (`bbx_core::math::Real`) for bit-identical results across std and no_std builds (#116) ([#116](https://github.com/blackboxaudio/bbx_audio/pull/116))
+- Add `Source` trait to `bbx_player` for playback abstractions
+- Enable the STM32H750 double-precision FPU in embedded builds (`-C target-cpu=cortex-m7`)
+- Add `08_cycle_check` example measuring on-device DSP cost with the DWT cycle counter
+
+### Bug Fixes
+
+- Add `prepare`/`reset` methods to handle DSP context changes (#112) ([#112](https://github.com/blackboxaudio/bbx_audio/pull/112))
+- Add a `std` feature (default) to `bbx_plugin` so it builds without `simd`
+- Harden the Daisy audio ISR: startup ordering vs NVIC unmask, explicit interrupt priority, atomic control sharing, cache-line-guaranteed DMA buffers, bounded SAI startup wait
+
+### Breaking Changes
+
+- Rename `AudioBuffer` to `SampleBuffer`; move the `Buffer` trait to `bbx_core` (#116) ([#116](https://github.com/blackboxaudio/bbx_audio/pull/116))
+- Combine `Graph` prepare methods (#114) ([#114](https://github.com/blackboxaudio/bbx_audio/pull/114))
+- `bbx_daisy`'s `set_callback` and `init_and_start` now return `Result<(), AudioError>`
+
 ## [0.4.3] - 2026-01-15
 
 ### Bug Fixes

@@ -15,7 +15,7 @@ bbx_daisy provides:
 
 ```toml
 [dependencies]
-bbx_daisy = { version = "0.4", features = ["seed"] }
+bbx_daisy = { version = "0.5", features = ["seed"] }
 ```
 
 ## Features

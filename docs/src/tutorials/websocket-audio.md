@@ -25,8 +25,8 @@ Add WebSocket support to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bbx_net = { version = "0.4", features = ["websocket"] }
-bbx_dsp = "0.4"
+bbx_net = { version = "0.5", features = ["websocket"] }
+bbx_dsp = "0.5"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 

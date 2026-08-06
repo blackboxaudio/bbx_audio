@@ -25,8 +25,8 @@ Add OSC support to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bbx_net = { version = "0.4", features = ["osc"] }
-bbx_dsp = "0.4"
+bbx_net = { version = "0.5", features = ["osc"] }
+bbx_dsp = "0.5"
 ```
 
 ## Core Concepts

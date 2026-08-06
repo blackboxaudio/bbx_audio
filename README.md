@@ -2,7 +2,7 @@
 
 [![Test](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.test.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.test.yml)
 [![Clippy](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml)
-[![Version: v0.4.3](https://img.shields.io/badge/Version-v0.4.3-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
+[![Version: v0.5.0](https://img.shields.io/badge/Version-v0.5.0-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](https://github.com/blackboxaudio/bbx_audio/blob/develop/LICENSE)
 
 A modular, real-time safe audio toolkit in Rust.

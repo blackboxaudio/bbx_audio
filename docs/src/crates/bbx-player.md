@@ -15,8 +15,8 @@ bbx_player provides:
 
 ```toml
 [dependencies]
-bbx_player = "0.4"              # Default rodio backend
-bbx_player = { version = "0.4", features = ["cpal"], default-features = false }  # cpal only
+bbx_player = "0.5"              # Default rodio backend
+bbx_player = { version = "0.5", features = ["cpal"], default-features = false }  # cpal only
 ```
 
 ## Features
