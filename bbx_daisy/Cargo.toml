@@ -67,6 +67,10 @@ required-features = ["seed"]
 name = "08_cycle_check"
 required-features = ["seed"]
 
+[[example]]
+name = "09_cycle_check_pod"
+required-features = ["pod"]
+
 [features]
 default = ["seed"]
 
