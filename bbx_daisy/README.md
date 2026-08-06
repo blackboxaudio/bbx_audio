@@ -19,12 +19,19 @@ This crate provides stack-allocated buffer types and hardware abstractions for r
 
 | Board | Feature Flag | Codec | SAI Config | DMA Config | Status |
 |-------|--------------|-------|------------|------------|--------|
-| Daisy Seed | `seed` | AK4556 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Verified |
-| Daisy Seed 1.1 | `seed_1_1` | WM8731 | CH_B TX (slave) | Stream 0→B, Stream 1→A | ✓ Verified |
-| Daisy Seed 1.2 | `seed_1_2` | PCM3060 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Verified |
-| Daisy Pod | `pod` | WM8731 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Verified |
-| Patch SM | `patch_sm` | PCM3060 | CH_B TX (slave) | Stream 0→B, Stream 1→A | ✓ Verified |
-| Patch.Init() | `patch_init` | PCM3060 | CH_B TX (slave)* | Stream 0→B, Stream 1→A | ✓ Verified |
+| Daisy Seed | `seed` | AK4556 | CH_A TX (master) | Stream 0→A, Stream 1→B | ✓ Hardware-verified |
+| Daisy Seed 1.1 | `seed_1_1` | WM8731 | CH_B TX (slave) | Stream 0→B, Stream 1→A | Builds; hardware-unverified |
+| Daisy Seed 1.2 | `seed_1_2` | PCM3060 | CH_A TX (master) | Stream 0→A, Stream 1→B | Builds; hardware-unverified |
+| Daisy Pod | `pod` | WM8731 | CH_B TX (slave) | Stream 0→B, Stream 1→A | Builds; hardware-unverified |
+| Patch SM | `patch_sm` | PCM3060 | CH_B TX (slave) | Stream 0→B, Stream 1→A | Builds; hardware-unverified |
+| Patch.Init() | `patch_init` | PCM3060 | CH_B TX (slave)* | Stream 0→B, Stream 1→A | Builds; hardware-unverified |
+
+> **Pod owners:** the codec lives on the *Seed* seated in the Pod carrier, and the
+> `pod` feature assumes a Seed 1.1 (WM8731). A Pod holding an original AK4556
+> Seed must build with `--features seed` — the carrier's audio jacks route the
+> Seed's codec either way (verified on hardware). Carrier controls (knobs,
+> encoder) currently require the `pod` feature; decoupling carrier from Seed
+> revision is planned.
 | Patch (alias) | `patch` | PCM3060 | CH_B TX (slave)* | Stream 0→B, Stream 1→A | ✓ Verified |
 | Daisy Field | `field` | - | - | - | ✗ Not Implemented |
 

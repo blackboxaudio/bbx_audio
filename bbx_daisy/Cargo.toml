@@ -82,7 +82,9 @@ seed = []
 seed_1_1 = []
 seed_1_2 = []
 
-# Daisy Pod
+# Daisy Pod. NOTE: assumes the carrier seats a Seed 1.1 (WM8731 codec, SAI TX
+# on Channel B). A Pod holding an original AK4556 Seed must build with
+# `--features seed` instead (the carrier's jacks route the Seed's codec).
 pod = []
 
 # Patch family

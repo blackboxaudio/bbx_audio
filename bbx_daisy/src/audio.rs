@@ -18,15 +18,15 @@
 //! ## SAI Configuration
 //!
 //! Board-specific channel configurations:
-//! - **seed/seed_1_2/pod**: TX on Channel A (master), RX on Channel B (slave)
-//! - **seed_1_1/patch_sm**: TX on Channel B (slave), RX on Channel A (master)
+//! - **seed/seed_1_2**: TX on Channel A (master), RX on Channel B (slave)
+//! - **seed_1_1/pod/patch_sm**: TX on Channel B (slave), RX on Channel A (master)
 //! - **Format**: 24-bit samples, MSB-justified, left-justified in 32-bit words
 //!
 //! ## DMA Configuration
 //!
 //! DMA stream assignment follows the SAI channel configuration:
-//! - **seed/seed_1_2/pod**: Stream 0 → Channel A (TX), Stream 1 → Channel B (RX)
-//! - **seed_1_1/patch_sm**: Stream 0 → Channel B (TX), Stream 1 → Channel A (RX)
+//! - **seed/seed_1_2**: Stream 0 → Channel A (TX), Stream 1 → Channel B (RX)
+//! - **seed_1_1/pod/patch_sm**: Stream 0 → Channel B (TX), Stream 1 → Channel A (RX)
 //!
 //! The DMA channels must match the SAI master/slave configuration to ensure audio
 //! data flows correctly between memory buffers and the codec.
@@ -54,8 +54,8 @@
 //! | PE2  | MCLK     | Master clock (12.288/24.576 MHz)               |
 //! | PE4  | FS       | Frame sync (48/96 kHz)                         |
 //! | PE5  | SCK      | Serial clock (3.072/6.144 MHz)                 |
-//! | PE6  | SD_A     | Data A (TX: seed/seed_1_2/pod, RX: seed_1_1/patch_sm) |
-//! | PE3  | SD_B     | Data B (RX: seed/seed_1_2/pod, TX: seed_1_1/patch_sm) |
+//! | PE6  | SD_A     | Data A (TX: seed/seed_1_2, RX: seed_1_1/pod/patch_sm) |
+//! | PE3  | SD_B     | Data B (RX: seed/seed_1_2, TX: seed_1_1/pod/patch_sm) |
 //!
 //! ## Interrupt Priority
 //!
