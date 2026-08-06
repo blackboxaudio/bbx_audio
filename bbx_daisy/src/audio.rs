@@ -368,18 +368,18 @@ pub fn init_and_start(
         cp.SCB.enable_dcache(&mut cp.CPUID);
     }
 
-    // Initialize DMA buffers to zero using raw pointers
+    // Zero the NOLOAD buffer memory through raw pointers BEFORE creating any
+    // reference: MaybeUninit's contract requires the value to be initialized
+    // when assume_init_* runs.
     let tx_buffer: &'static mut [u32; DMA_BUFFER_LENGTH] = unsafe {
         let tx_ptr = ptr::addr_of_mut!(TX_BUFFER);
-        let buf = &mut (*tx_ptr).assume_init_mut().0;
-        buf.fill(0);
-        buf
+        core::ptr::write_bytes((*tx_ptr).as_mut_ptr(), 0, 1);
+        &mut (*tx_ptr).assume_init_mut().0
     };
     let rx_buffer: &'static mut [u32; DMA_BUFFER_LENGTH] = unsafe {
         let rx_ptr = ptr::addr_of_mut!(RX_BUFFER);
-        let buf = &mut (*rx_ptr).assume_init_mut().0;
-        buf.fill(0);
-        buf
+        core::ptr::write_bytes((*rx_ptr).as_mut_ptr(), 0, 1);
+        &mut (*rx_ptr).assume_init_mut().0
     };
 
     // Enforce the cache-line contract at runtime too (init-time, panics into
