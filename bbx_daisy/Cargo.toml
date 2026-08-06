@@ -63,6 +63,10 @@ required-features = ["seed"]
 name = "07_clock_check"
 required-features = ["seed"]
 
+[[example]]
+name = "08_cycle_check"
+required-features = ["seed"]
+
 [features]
 default = ["seed"]
 
