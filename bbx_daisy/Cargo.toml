@@ -83,7 +83,7 @@ patch = ["patch_sm"]       # Alias for Patch SM
 field = []
 
 # Audio configuration
-sampling_rate_96khz = []  # Use 96kHz sample rate instead of default 48kHz
+sampling_rate_96khz = []  # Use 96kHz instead of default 48kHz (unverified on hardware for the I2C codecs — see codec.rs)
 block_length_64 = []      # Use 64 sample block size instead of default 48
 
 # Enable the CPU I/D caches and the DMA-buffer cache maintenance (invalidate/clean) in the audio

@@ -3,7 +3,12 @@
 //! This module provides [`EmbeddedDspContext`], a memory-optimized version
 //! of `bbx_dsp::DspContext` designed for embedded targets.
 
-/// Default buffer size for embedded DSP (32 samples for low latency).
+/// Default buffer size for `EmbeddedDspContext` (const-generic default).
+///
+/// NOTE: this is independent of the audio driver's DMA block size —
+/// `audio::BLOCK_SIZE` is 48 by default (64 with `block_length_64`). When the
+/// context describes the audio callback, pass the driver's block size as the
+/// const generic: `EmbeddedDspContext<{ audio::BLOCK_SIZE }>`.
 pub const DEFAULT_BUFFER_SIZE: usize = 32;
 
 /// Default sample rate for Daisy hardware (48000 Hz).

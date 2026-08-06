@@ -66,7 +66,12 @@ impl SineOscillator {
 }
 
 impl AudioProcessor for SineOscillator {
-    fn process(&mut self, _input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>) {
+    fn process(
+        &mut self,
+        _input: &FrameBuffer<BLOCK_SIZE>,
+        output: &mut FrameBuffer<BLOCK_SIZE>,
+        _controls: &Controls,
+    ) {
         for i in 0..BLOCK_SIZE {
             let sample = sinf(self.phase * 2.0 * PI) * 0.5;
             output.set_frame(i, sample, sample);

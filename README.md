@@ -91,11 +91,19 @@ use bbx_daisy::prelude::*;
 struct SineOsc { phase: f32 }
 
 impl AudioProcessor for SineOsc {
-    fn process(&mut self, _input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>) {
+    fn process(
+        &mut self,
+        _input: &FrameBuffer<BLOCK_SIZE>,
+        output: &mut FrameBuffer<BLOCK_SIZE>,
+        _controls: &Controls,
+    ) {
         for i in 0..BLOCK_SIZE {
             let sample = libm::sinf(self.phase * core::f32::consts::TAU) * 0.5;
             output.set_frame(i, sample, sample);
-            self.phase = (self.phase + 440.0 / DEFAULT_SAMPLE_RATE).fract();
+            self.phase += 440.0 / DEFAULT_SAMPLE_RATE;
+            if self.phase >= 1.0 {
+                self.phase -= 1.0;
+            }
         }
     }
 }

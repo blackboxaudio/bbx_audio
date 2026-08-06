@@ -68,6 +68,11 @@ pub trait Real: Copy {
     fn ceil(self) -> Self;
     fn round(self) -> Self;
     fn trunc(self) -> Self;
+    /// Floor-based fractional part: `x - floor(x)`, always in `[0, 1)`.
+    ///
+    /// NOTE: this differs from `std`'s trunc-based `fract` for negative
+    /// inputs — `Real::fract(-1.25) == 0.75` while `(-1.25f64).fract() ==
+    /// -0.25`. The floor-based form is what phase wrapping wants.
     fn fract(self) -> Self;
     fn copysign(self, sign: Self) -> Self;
     fn radians(self) -> Self;
@@ -439,6 +444,8 @@ pub fn trunc<T: Real>(x: T) -> T {
     x.trunc()
 }
 
+/// Floor-based fractional part, always in `[0, 1)` — differs from `std`'s
+/// trunc-based `fract` for negative inputs (see [`Real::fract`]).
 #[inline]
 pub fn fract<T: Real>(x: T) -> T {
     x.fract()

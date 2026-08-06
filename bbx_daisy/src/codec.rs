@@ -247,7 +247,10 @@ where
         // Configure sampling: normal mode, USB mode disabled
         let sr_bits = match sample_rate {
             SampleRate::Rate48000 => 0x00, // 48kHz, MCLK = 12.288MHz
-            SampleRate::Rate96000 => 0x1C, // 96kHz, MCLK = 24.576MHz
+            // UNVERIFIED on hardware: 0x1C (SR=0111, CLKIDIV2=0) assumes
+            // 12.288MHz MCLK per the WM8731 table, but the clock tree runs
+            // 256×Fs = 24.576MHz at 96kHz — CLKIDIV2 (bit 6) may be required.
+            SampleRate::Rate96000 => 0x1C,
         };
         self.write_reg(SAMPLING, sr_bits)?;
         Self::delay_ms(10);
@@ -304,7 +307,9 @@ where
 
         // Headphone outputs: bit 7 is mute control when set
         let mute_bit = if mute { 0x80 } else { 0x00 };
-        let current_vol = 0x79; // Assume 0dB, could track actual volume
+        // NOTE: overwrites any level set via set_output_volume with 0dB —
+        // per-instance volume tracking is not implemented yet.
+        let current_vol = 0x79;
 
         self.write_reg(LEFT_HP_OUT, current_vol | mute_bit)?;
         self.write_reg(RIGHT_HP_OUT, current_vol | mute_bit)?;

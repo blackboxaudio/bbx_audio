@@ -186,7 +186,12 @@ The `bbx_daisy` crate handles these details. Your code implements `AudioProcesso
 
 ```rust
 impl AudioProcessor for MyDsp {
-    fn process(&mut self, input: &FrameBuffer<BLOCK_SIZE>, output: &mut FrameBuffer<BLOCK_SIZE>) {
+    fn process(
+        &mut self,
+        input: &FrameBuffer<BLOCK_SIZE>,
+        output: &mut FrameBuffer<BLOCK_SIZE>,
+        controls: &Controls,
+    ) {
         // Called by DMA interrupt
         // ~1ms deadline at 48kHz/48 samples
     }

@@ -48,7 +48,8 @@ pub trait AudioProcessor: 'static {
     /// Process a block of audio samples.
     ///
     /// Called from the DMA interrupt at audio rate. Must complete within
-    /// the buffer period (~0.67ms at 48kHz with 32-sample blocks).
+    /// the buffer period: 1.0ms at 48kHz with the default 48-sample blocks
+    /// (1.33ms with `block_length_64`).
     ///
     /// # Arguments
     ///
