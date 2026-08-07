@@ -2,6 +2,16 @@
 
 All notable changes to bbx_audio will be documented in this file.
 
+## [0.5.1] - 2026-08-07
+
+### Bug Fixes
+
+- **dsp**: Clamp block processing to the output slice length (#119) ([#119](https://github.com/blackboxaudio/bbx_audio/pull/119))
+
+### Changed
+
+- **daisy**: Remove the default board feature from `bbx_daisy`; a board feature must now be selected explicitly with `default-features = false`
+
 ## [0.5.0] - 2026-08-06
 
 ### Features
