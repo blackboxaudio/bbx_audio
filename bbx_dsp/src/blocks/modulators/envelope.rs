@@ -103,7 +103,11 @@ impl<S: Sample> Block<S> for EnvelopeBlock<S> {
 
         let time_per_sample = 1.0 / context.sample_rate;
 
-        for sample_index in 0..context.buffer_size {
+        // Callers may pass slices shorter than the graph's block size
+        // (e.g. sample-accurate event splitting), so clamp to the slice
+        let num_samples = context.buffer_size.min(outputs[0].len());
+
+        for sample_index in 0..num_samples {
             match self.stage {
                 EnvelopeStage::Idle => {
                     self.level = 0.0;
@@ -196,6 +200,28 @@ mod tests {
         let mut outputs: [&mut [S]; 1] = [&mut output];
         env.process(&inputs, &mut outputs, &[], context);
         output
+    }
+
+    #[test]
+    fn test_envelope_short_slice_advances_by_slice_length_f32() {
+        let mut env = EnvelopeBlock::<f32>::new(0.1, 0.1, 0.5, 0.2);
+        env.note_on();
+
+        // Slice is shorter than the context's block size
+        let context = test_context(512, 44100.0);
+        let inputs: [&[f32]; 0] = [];
+        let mut output = vec![0.0f32; 100];
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut output];
+            env.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        let expected_level = (100.0 / 44100.0) / 0.1;
+        assert!(
+            (output[99] - expected_level as f32).abs() < 0.01,
+            "Attack should have advanced 100 samples, not buffer_size: level={}",
+            output[99]
+        );
     }
 
     #[test]

@@ -92,13 +92,16 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
 
         let phase_increment = freq.to_f64() / context.sample_rate * S::TAU.to_f64();
 
+        // Callers may pass slices shorter than the graph's block size
+        // (e.g. sample-accurate event splitting), so clamp to the slice
+        let num_samples = context.buffer_size.min(outputs[0].len());
+
         #[cfg(feature = "simd")]
         {
             use crate::waveform::DEFAULT_DUTY_CYCLE;
 
             if !matches!(self.waveform, Waveform::Noise) {
-                let buffer_size = context.buffer_size;
-                let chunks = buffer_size / SIMD_LANES;
+                let chunks = num_samples / SIMD_LANES;
                 let remainder_start = chunks * SIMD_LANES;
                 let chunk_phase_step = phase_increment * SIMD_LANES as f64;
 
@@ -142,7 +145,7 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                 self.phase = self.phase.rem_euclid(S::TAU.to_f64());
 
                 process_waveform_scalar(
-                    &mut outputs[0][remainder_start..],
+                    &mut outputs[0][remainder_start..num_samples],
                     self.waveform,
                     &mut self.phase,
                     phase_increment,
@@ -151,7 +154,7 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                 );
             } else {
                 process_waveform_scalar(
-                    outputs[0],
+                    &mut outputs[0][..num_samples],
                     self.waveform,
                     &mut self.phase,
                     phase_increment,
@@ -164,7 +167,7 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
         #[cfg(not(feature = "simd"))]
         {
             process_waveform_scalar(
-                outputs[0],
+                &mut outputs[0][..num_samples],
                 self.waveform,
                 &mut self.phase,
                 phase_increment,
@@ -610,6 +613,66 @@ mod tests {
                 POLYBLEP_TOLERANCE
             );
         }
+    }
+
+    #[test]
+    fn test_short_slice_output_f32() {
+        let mut osc = OscillatorBlock::<f32>::new(440.0, Waveform::Sine, Some(42));
+        let context = test_context(512);
+        let inputs: [&[f32]; 0] = [];
+
+        // Shorter than buffer_size and not a multiple of the SIMD width
+        let mut output = vec![0.0f32; 250];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+        osc.process(&inputs, &mut outputs, &[], &context);
+
+        let max = output.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
+        assert!(max > 0.5, "Short slice should still produce signal, max={}", max);
+    }
+
+    #[test]
+    fn test_short_slice_phase_continuity_f32() {
+        let context = test_context(512);
+        let inputs: [&[f32]; 0] = [];
+
+        let mut split_osc = OscillatorBlock::<f32>::new(440.0, Waveform::Sine, Some(42));
+        let mut buffer1 = vec![0.0f32; 250];
+        let mut buffer2 = vec![0.0f32; 250];
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut buffer1];
+            split_osc.process(&inputs, &mut outputs, &[], &context);
+        }
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut buffer2];
+            split_osc.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        let mut continuous_osc = OscillatorBlock::<f32>::new(440.0, Waveform::Sine, Some(42));
+        let mut reference = vec![0.0f32; 500];
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut reference];
+            continuous_osc.process(&inputs, &mut outputs, &[], &context);
+        }
+
+        for (i, (split, cont)) in buffer1.iter().chain(buffer2.iter()).zip(reference.iter()).enumerate() {
+            assert!(
+                (split - cont).abs() < 1e-3,
+                "Split rendering diverges from continuous at sample {}: {} vs {}",
+                i,
+                split,
+                cont
+            );
+        }
+    }
+
+    #[test]
+    fn test_short_slice_noise_f32() {
+        let mut osc = OscillatorBlock::<f32>::new(440.0, Waveform::Noise, Some(42));
+        let context = test_context(512);
+        let inputs: [&[f32]; 0] = [];
+        let mut output = vec![0.0f32; 250];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+        osc.process(&inputs, &mut outputs, &[], &context);
     }
 
     #[test]
