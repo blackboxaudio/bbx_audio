@@ -66,7 +66,9 @@ impl<S: Sample> FileInputBlock<S> {
 
 impl<S: Sample> Block<S> for FileInputBlock<S> {
     fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], context: &DspContext) {
-        let buffer_size = context.buffer_size;
+        // Advance by the samples actually written so shorter-than-block
+        // slices (e.g. sample-accurate event splitting) don't skip audio
+        let num_samples = outputs.first().map_or(0, |o| o.len()).min(context.buffer_size);
         let num_file_channels = self.reader.num_channels();
         let file_length = self.reader.num_samples();
 
@@ -78,7 +80,7 @@ impl<S: Sample> Block<S> for FileInputBlock<S> {
 
             let input_channel = self.reader.read_channel(channel_index);
 
-            for (sample_index, output_sample) in output_buffer.iter_mut().enumerate() {
+            for (sample_index, output_sample) in output_buffer.iter_mut().take(num_samples).enumerate() {
                 let read_position = self.current_position + sample_index;
                 if read_position < file_length {
                     *output_sample = input_channel[read_position];
@@ -90,7 +92,7 @@ impl<S: Sample> Block<S> for FileInputBlock<S> {
             }
         }
 
-        self.advance_position(buffer_size);
+        self.advance_position(num_samples);
     }
 
     #[inline]
@@ -176,6 +178,33 @@ mod tests {
         for (i, &sample) in output.iter().enumerate() {
             assert!((sample - (i as f32 / 100.0)).abs() < 1e-6);
         }
+    }
+
+    #[test]
+    fn test_file_input_short_slice_advances_by_samples_written() {
+        let samples: Vec<f32> = (0..100).map(|i| i as f32).collect();
+        let reader = MockReader::new(44100.0, vec![samples]);
+        let mut block = FileInputBlock::new(Box::new(reader));
+
+        // Slice is shorter than the context's block size
+        let context = test_context(50);
+        let mut output = vec![0.0f32; 10];
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut output];
+            block.process(&[], &mut outputs, &[], &context);
+        }
+
+        assert_eq!(block.get_position(), 10);
+
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut output];
+            block.process(&[], &mut outputs, &[], &context);
+        }
+        assert!(
+            (output[0] - 10.0).abs() < 1e-6,
+            "No samples may be skipped: got {}",
+            output[0]
+        );
     }
 
     #[test]

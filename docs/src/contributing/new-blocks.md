@@ -106,6 +106,14 @@ impl<S: Sample> Block<S> for MyEffectBlock<S> {
 
 ## Key Patterns
 
+### Buffer Length Clamping
+
+`process()` must size every loop by `slice.len().min(context.buffer_size)`, never by
+`context.buffer_size` alone. Callers are allowed to pass slices shorter than the graph's
+block size — for example when splitting a block at MIDI event offsets for sample-accurate
+timing — and indexing by `buffer_size` panics on the shorter slice. Blocks that track a
+position or phase must advance it by the samples actually processed.
+
 ### Parameter Initialization
 
 Parameters combine value source with built-in smoothing:
