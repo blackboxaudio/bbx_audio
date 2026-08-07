@@ -105,6 +105,25 @@ The `bbx_plugin_ffi!` macro generates:
 
 See the workspace README for complete JUCE integration examples with CMake build setup.
 
+## TypeScript Tooling: `@bbx-audio/plugin`
+
+The [`client/`](./client) directory contains the
+[`@bbx-audio/plugin`](https://www.npmjs.com/package/@bbx-audio/plugin) npm
+package: shared tooling for JUCE plugins derived from
+[`blackboxaudio/template-plugin`](https://github.com/blackboxaudio/template-plugin).
+It ships a `bbx` CLI (`build`, `test`, `format`, `tag`, `generate-params`), the
+parameter codegen that mirrors `ParamsFile`'s JSON schema, and the WebView glue
+(`window.__BBX__` wiring and preset wrappers).
+
+```bash
+yarn add --dev @bbx-audio/plugin
+```
+
+The parameter JSON schema is owned by the Rust side (`src/params.rs`); shared
+fixtures in [`fixtures/params/`](./fixtures/params) are tested against both the
+Rust and TypeScript implementations to keep them in lockstep. See
+[`client/README.md`](./client/README.md) for full usage.
+
 ## License
 
 MIT

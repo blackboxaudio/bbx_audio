@@ -1,0 +1,88 @@
+{
+    "parameters": [
+        {
+            "id": "OSC_TYPE",
+            "name": "Oscillator",
+            "type": "choice",
+            "choices": ["Sine", "Square", "Sawtooth", "Triangle"],
+            "defaultValueIndex": 2
+        },
+        {
+            "id": "ATTACK",
+            "name": "Attack",
+            "type": "float",
+            "min": 0.001,
+            "max": 5.0,
+            "defaultValue": 0.01,
+            "unit": "s",
+            "interval": 0.001,
+            "fractionDigits": 3
+        },
+        {
+            "id": "DECAY",
+            "name": "Decay",
+            "type": "float",
+            "min": 0.001,
+            "max": 5.0,
+            "defaultValue": 0.1,
+            "unit": "s",
+            "interval": 0.001,
+            "fractionDigits": 3
+        },
+        {
+            "id": "SUSTAIN",
+            "name": "Sustain",
+            "type": "float",
+            "min": 0.0,
+            "max": 1.0,
+            "defaultValue": 0.7,
+            "interval": 0.01,
+            "fractionDigits": 2
+        },
+        {
+            "id": "RELEASE",
+            "name": "Release",
+            "type": "float",
+            "min": 0.001,
+            "max": 10.0,
+            "defaultValue": 0.3,
+            "unit": "s",
+            "interval": 0.001,
+            "fractionDigits": 3
+        },
+        {
+            "id": "FILTER_CUTOFF",
+            "name": "Cutoff",
+            "type": "float",
+            "min": 20.0,
+            "max": 20000.0,
+            "defaultValue": 2000.0,
+            "unit": "Hz",
+            "midpoint": 1000.0,
+            "interval": 1,
+            "fractionDigits": 0
+        },
+        {
+            "id": "FILTER_RESONANCE",
+            "name": "Resonance",
+            "type": "float",
+            "min": 0.5,
+            "max": 10.0,
+            "defaultValue": 0.707,
+            "interval": 0.01,
+            "fractionDigits": 2
+        },
+        {
+            "id": "MASTER_GAIN",
+            "name": "Volume",
+            "type": "float",
+            "min": -60.0,
+            "max": 12.0,
+            "defaultValue": 0.0,
+            "unit": "dB",
+            "midpoint": 0.0,
+            "interval": 0.1,
+            "fractionDigits": 1
+        }
+    ]
+}

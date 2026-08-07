@@ -10,7 +10,9 @@ This document describes how to release new versions of bbx_audio crates.
 
 ## Version Bump Procedure
 
-All crates use lockstep versioning - they share the same version number.
+All crates use lockstep versioning - they share the same version number. The npm
+client packages (`@bbx-audio/net`, `@bbx-audio/plugin`) are versioned and
+published independently of the crates — see [NPM Client Packages](#npm-client-packages).
 
 ### 1. Create Release Branch
 
@@ -113,8 +115,29 @@ After the tag is created (same workflow run):
 
 1. **Validate job** runs tests and verifies version
 2. **Publish job** publishes crates to crates.io in dependency order, ending with `bbx_daisy`
-3. **Publish NPM job** builds and publishes the `@bbx-audio/net` TypeScript client to npm
-4. **GitHub Release** is created with the changelog section for the version
+3. **GitHub Release** is created with the changelog section for the version
+
+## NPM Client Packages
+
+`@bbx-audio/net` (`bbx_net/client/`) and `@bbx-audio/plugin` (`bbx_plugin/client/`)
+are **not** part of the crate release train. They follow the same model as
+`@bbx-audio/honey` and `@bbx-audio/nectar`: bump the `version` field in the
+client's `package.json` as part of a normal PR, and when that lands on `develop`
+the `Publish NPM` workflow (`.github/workflows/cd.npm.yml`) publishes it.
+
+The workflow compares each package's committed version against the npm registry,
+so:
+
+- Merges that touch client code **without** a version bump publish nothing
+- Re-runs are idempotent (already-published versions are skipped)
+- A successful publish pushes a `net-vX.Y.Z` / `plugin-vX.Y.Z` git tag recording
+  the released commit
+
+When a crate change alters a wire protocol or generated interface the client
+depends on (e.g. the `bbx_net` WebSocket protocol, `bbx_plugin` parameter
+codegen), update the client in the same PR and bump its version — the crate and
+client versions no longer need to match, but their compatibility notes in the
+client READMEs must stay accurate.
 
 ## Troubleshooting
 
@@ -151,7 +174,7 @@ Add to GitHub repository Settings > Secrets and variables > Actions:
 | Secret Name | Description |
 |-------------|-------------|
 | `CARGO_REGISTRY_TOKEN` | crates.io API token with publish scope |
-| `NPM_TOKEN` | npm automation token with publish scope (for `@bbx-audio/net`) |
+| `NPM_TOKEN` | npm automation token with publish scope, used by the `Publish NPM` workflow (for `@bbx-audio/net` and `@bbx-audio/plugin`). CI also exports it as `BBX_AUDIO_NPM_READ_TOKEN` when installing `bbx_plugin/client`, which needs registry auth for its restricted `@bbx-audio/honey` dev dependency |
 
 ### Creating a crates.io API Token
 
@@ -163,6 +186,6 @@ Add to GitHub repository Settings > Secrets and variables > Actions:
 
 ### Optional: Deployment Environments
 
-The workflow uses two GitHub deployment environments: `crates-io` (crates.io publish) and
-`npm-registry` (npm publish). Add required reviewers to either if you want a manual approval
-gate before publishing.
+Two GitHub deployment environments are used: `crates-io` (crates.io publish, in the
+`Release` workflow) and `npm-registry` (npm publish, in the `Publish NPM` workflow). Add
+required reviewers to either if you want a manual approval gate before publishing.
