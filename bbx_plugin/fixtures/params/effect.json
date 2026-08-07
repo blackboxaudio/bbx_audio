@@ -1,0 +1,57 @@
+{
+    "parameters": [
+        {
+            "id": "INVERT_LEFT_CHANNEL",
+            "name": "ØL",
+            "type": "boolean",
+            "defaultValue": false
+        },
+        {
+            "id": "INVERT_RIGHT_CHANNEL",
+            "name": "ØR",
+            "type": "boolean",
+            "defaultValue": false
+        },
+        {
+            "id": "CHANNEL_CONFIGURATION",
+            "name": "Channels",
+            "type": "choice",
+            "choices": ["Stereo", "Left", "Right", "Swap"],
+            "defaultValueIndex": 0
+        },
+        {
+            "id": "MONO",
+            "name": "Mono",
+            "type": "boolean",
+            "defaultValue": false
+        },
+        {
+            "id": "GAIN",
+            "name": "Gain",
+            "type": "float",
+            "min": -60.0,
+            "max": 30.0,
+            "defaultValue": 0.0,
+            "unit": "dB",
+            "midpoint": 0.0,
+            "interval": 0.1,
+            "fractionDigits": 1
+        },
+        {
+            "id": "PAN",
+            "name": "Pan",
+            "type": "float",
+            "min": -100.0,
+            "max": 100.0,
+            "defaultValue": 0.0,
+            "midpoint": 0.0,
+            "interval": 1
+        },
+        {
+            "id": "DC_OFFSET",
+            "name": "DC",
+            "type": "boolean",
+            "defaultValue": false
+        }
+    ]
+}

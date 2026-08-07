@@ -28,6 +28,9 @@ jobs:
     lint-ts:
         name: TypeScript Lint
         runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                client: [bbx_net/client, bbx_plugin/client]
         steps:
             - name: Checkout Repository
               uses: actions/checkout@v4
@@ -42,8 +45,12 @@ jobs:
 
             - name: Install Dependencies
               run: yarn install --frozen-lockfile
-              working-directory: bbx_net/client
+              working-directory: ${{ matrix.client }}
+              env:
+                  BBX_AUDIO_NPM_READ_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Lint
               run: yarn lint:check
-              working-directory: bbx_net/client
+              working-directory: ${{ matrix.client }}
+              env:
+                  BBX_AUDIO_NPM_READ_TOKEN: ${{ secrets.NPM_TOKEN }}

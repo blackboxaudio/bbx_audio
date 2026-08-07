@@ -66,6 +66,7 @@
     - [PluginDsp Trait](crates/plugin/plugin-dsp.md)
     - [FFI Macro](crates/plugin/ffi-macro.md)
     - [Parameter Definitions](crates/plugin/params.md)
+    - [TypeScript Tooling (@bbx-audio/plugin)](crates/plugin/client.md)
 - [bbx_file](crates/bbx-file.md)
     - [WAV Reader](crates/file/wav-reader.md)
     - [WAV Writer](crates/file/wav-writer.md)

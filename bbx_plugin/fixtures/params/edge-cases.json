@@ -1,0 +1,34 @@
+{
+    "parameters": [
+        {
+            "id": "DRIVE",
+            "name": "Drive",
+            "type": "float"
+        },
+        {
+            "id": "LOW_PASS_FILTER_CUTOFF",
+            "name": "Cutoff",
+            "type": "float",
+            "min": 20.0,
+            "max": 20000.0,
+            "defaultValue": 1000.0,
+            "unit": "Hz",
+            "midpoint": 632.0,
+            "interval": 1,
+            "fractionDigits": 0
+        },
+        {
+            "id": "MODE",
+            "name": "Mode",
+            "type": "choice",
+            "choices": ["A", "B"],
+            "defaultValueIndex": 1
+        },
+        {
+            "id": "BYPASS",
+            "name": "Bypass",
+            "type": "boolean",
+            "defaultValue": true
+        }
+    ]
+}

@@ -190,3 +190,24 @@ fn test_param_indices_match() {
     assert!(PARAM_PAN < PARAM_COUNT);
 }
 ```
+
+## TypeScript & C++ ID Generation: `@bbx-audio/plugin`
+
+Template-derived plugins generate the remaining two layers from the same JSON
+with the [`@bbx-audio/plugin`](https://www.npmjs.com/package/@bbx-audio/plugin)
+npm package (`bbx_plugin/client/` in this repository):
+
+```bash
+bbx generate-params --cpp bin/generated   # bbx_generated_params.h (JUCE IDs + relay X-macro)
+bbx generate-params --web                 # web/src/lib/generated/params.ts (ParameterId enum)
+```
+
+CMake invokes the CLI as a build dependency, and the package's Vite plugin
+(`bbxParams()` from `@bbx-audio/plugin/vite`) regenerates the web module during
+development. Index order is defined by the JSON array order on every side, so
+the Rust `PARAM_*` constants, the C++ relay macro, and the web enum always
+agree.
+
+The JSON schema itself is owned by `ParamsFile` (Rust); the shared fixtures in
+`bbx_plugin/fixtures/params/` are tested against both the Rust and TypeScript
+implementations to keep them in lockstep.

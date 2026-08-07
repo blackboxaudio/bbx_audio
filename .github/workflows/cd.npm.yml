@@ -1,0 +1,98 @@
+name: Publish NPM
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - 'bbx_net/client/**'
+      - 'bbx_plugin/client/**'
+
+concurrency:
+  group: cd-npm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    environment: npm-registry
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - package: '@bbx-audio/net'
+            directory: bbx_net/client
+            tag_prefix: net-v
+          - package: '@bbx-audio/plugin'
+            directory: bbx_plugin/client
+            tag_prefix: plugin-v
+    env:
+      BBX_AUDIO_NPM_READ_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Yarn
+        run: npm install -g yarn
+
+      # The registry is the source of truth: publish only when the committed
+      # version is absent from npm, so merges without a version bump are no-ops
+      # and re-runs are idempotent.
+      - name: Detect Unpublished Version
+        id: version
+        env:
+          PACKAGE: ${{ matrix.package }}
+          DIRECTORY: ${{ matrix.directory }}
+        run: |
+          VERSION=$(node -p "require('./$DIRECTORY/package.json').version")
+          PUBLISHED=$(npm view "$PACKAGE@$VERSION" version 2>/dev/null || true)
+          if [ -n "$PUBLISHED" ]; then
+            echo "$PACKAGE@$VERSION is already on the registry; skipping"
+            echo "publish=false" >> $GITHUB_OUTPUT
+          else
+            echo "$PACKAGE@$VERSION is unpublished; publishing"
+            echo "publish=true" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install Dependencies
+        if: steps.version.outputs.publish == 'true'
+        run: yarn install --frozen-lockfile
+        working-directory: ${{ matrix.directory }}
+
+      - name: Build
+        if: steps.version.outputs.publish == 'true'
+        run: yarn build
+        working-directory: ${{ matrix.directory }}
+
+      - name: Publish to NPM
+        if: steps.version.outputs.publish == 'true'
+        run: yarn publish --access public --non-interactive
+        working-directory: ${{ matrix.directory }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # bbx_plugin/client's committed .npmrc authenticates the registry with
+          # ${BBX_AUDIO_NPM_READ_TOKEN} and overrides setup-node's NODE_AUTH_TOKEN
+          # config, so the publish step must alias the write token through it.
+          BBX_AUDIO_NPM_READ_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Tag after publishing so tags only ever record versions that shipped.
+      - name: Create Git Tag
+        if: steps.version.outputs.publish == 'true'
+        env:
+          PACKAGE: ${{ matrix.package }}
+          TAG: ${{ matrix.tag_prefix }}${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $PACKAGE@$VERSION"
+          git push origin "$TAG"

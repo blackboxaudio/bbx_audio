@@ -173,3 +173,11 @@ pub const PARAM_COUNT: usize = 7;
 #define PARAM_DC_OFFSET 6
 #define PARAM_COUNT 7
 ```
+
+## Schema Ownership
+
+The schema is owned by `ParamsFile` in `bbx_plugin/src/params.rs` and mirrored
+by the TypeScript generator in `@bbx-audio/plugin` (`bbx_plugin/client/`).
+Shared fixtures under `bbx_plugin/fixtures/params/` pin the format: both
+implementations are tested against them, so schema changes must update the
+fixtures and both test suites together.
