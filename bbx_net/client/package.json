@@ -1,6 +1,6 @@
 {
     "name": "@bbx-audio/net",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "description": "Lightweight client for websocket-based audio control with the bbx_net 🌐",
     "private": false,
     "license": "MIT",
