@@ -30,6 +30,7 @@ version = "0.2.0"  # Update this
 
 [workspace.dependencies]
 bbx_core = { version = "0.2.0", path = "bbx_core" }  # Update all internal deps
+bbx_daisy = { version = "0.2.0", path = "bbx_daisy" }
 bbx_dsp = { version = "0.2.0", path = "bbx_dsp" }
 bbx_file = { version = "0.2.0", path = "bbx_file" }
 bbx_midi = { version = "0.2.0", path = "bbx_midi" }
@@ -64,7 +65,7 @@ Or manually add entries to `CHANGELOG.md`.
 
 ```bash
 # Run dry-run for all crates
-for crate in bbx_core bbx_midi bbx_net bbx_dsp bbx_file bbx_player bbx_plugin bbx_draw; do
+for crate in bbx_core bbx_midi bbx_net bbx_dsp bbx_file bbx_player bbx_plugin bbx_draw bbx_daisy; do
     cargo publish --dry-run -p $crate
 done
 ```
@@ -108,11 +109,12 @@ When a `release/v*` PR is merged to `develop`:
 1. **Create tag job** extracts version, verifies Cargo.toml, creates and pushes the tag
 2. **Sync main job** creates a PR from `develop` to `main`
 
-When the tag is pushed:
+After the tag is created (same workflow run):
 
 1. **Validate job** runs tests and verifies version
-2. **Publish job** publishes crates to crates.io in dependency order
-3. **GitHub Release** is created with auto-generated changelog
+2. **Publish job** publishes crates to crates.io in dependency order, ending with `bbx_daisy`
+3. **Publish NPM job** builds and publishes the `@bbx-audio/net` TypeScript client to npm
+4. **GitHub Release** is created with the changelog section for the version
 
 ## Troubleshooting
 
@@ -149,6 +151,7 @@ Add to GitHub repository Settings > Secrets and variables > Actions:
 | Secret Name | Description |
 |-------------|-------------|
 | `CARGO_REGISTRY_TOKEN` | crates.io API token with publish scope |
+| `NPM_TOKEN` | npm automation token with publish scope (for `@bbx-audio/net`) |
 
 ### Creating a crates.io API Token
 
@@ -158,9 +161,8 @@ Add to GitHub repository Settings > Secrets and variables > Actions:
 4. Select scopes: `publish-new` and `publish-update`
 5. Copy the token and add it as `CARGO_REGISTRY_TOKEN` secret in GitHub
 
-### Optional: Deployment Environment
+### Optional: Deployment Environments
 
-Create a `crates-io` environment in GitHub with:
-
-- Required reviewers for production releases
-- Deployment branches limited to `main`
+The workflow uses two GitHub deployment environments: `crates-io` (crates.io publish) and
+`npm-registry` (npm publish). Add required reviewers to either if you want a manual approval
+gate before publishing.

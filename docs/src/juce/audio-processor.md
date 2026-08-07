@@ -30,7 +30,7 @@ public:
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
-    void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    void processBlock(juce::SampleBuffer<float>&, juce::MidiBuffer&) override;
 
     // ... other AudioProcessor methods
 
@@ -96,7 +96,7 @@ void PluginAudioProcessor::releaseResources()
 ### processBlock
 
 ```cpp
-void PluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+void PluginAudioProcessor::processBlock(juce::SampleBuffer<float>& buffer,
                                          juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -233,7 +233,7 @@ uint32_t convertMidiBuffer(const juce::MidiBuffer& buffer,
 Use in `processBlock()`:
 
 ```cpp
-void PluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+void PluginAudioProcessor::processBlock(juce::SampleBuffer<float>& buffer,
                                          juce::MidiBuffer& midiMessages)
 {
     // ... parameter loading ...

@@ -11,12 +11,15 @@ mod hrtf;
 mod matrix;
 mod virtual_speaker;
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use hrtf::HrtfConvolver;
 
 use crate::{
-    block::Block, channel::ChannelConfig, context::DspContext, graph::MAX_BLOCK_INPUTS, parameter::ModulationOutput,
+    block::{Block, MAX_BLOCK_INPUTS},
+    channel::ChannelConfig,
+    context::DspContext,
+    parameter::ModulationOutput,
     sample::Sample,
 };
 
@@ -231,6 +234,16 @@ impl<S: Sample> Block<S> for BinauralDecoderBlock<S> {
     #[inline]
     fn channel_config(&self) -> ChannelConfig {
         ChannelConfig::Explicit
+    }
+
+    fn prepare(&mut self, _context: &DspContext) {
+        self.reset();
+    }
+
+    fn reset(&mut self) {
+        if let Some(ref mut convolver) = self.hrtf_convolver {
+            convolver.reset();
+        }
     }
 }
 

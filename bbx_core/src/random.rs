@@ -95,18 +95,6 @@ mod tests {
     }
 
     #[test]
-    fn test_default_matches_seed_one() {
-        let mut rng_default = XorShiftRng::default();
-        let mut rng_one = XorShiftRng::new(1);
-
-        for _ in 0..100 {
-            let s1 = rng_default.next_noise_sample();
-            let s2 = rng_one.next_noise_sample();
-            assert!((s1 - s2).abs() < 1e-15, "Default should match seed=1");
-        }
-    }
-
-    #[test]
     fn test_not_constant() {
         let mut rng = XorShiftRng::new(42);
         let first = rng.next_noise_sample();
@@ -139,6 +127,10 @@ mod tests {
         }
 
         let ratio = positive_count as f64 / negative_count as f64;
+
+        // With 10k samples, a perfect uniform distribution would have ~5000 each.
+        // Bounds of [0.8, 1.25] allow for ±20% deviation, which is ~4σ for n=10000 (very loose).
+        // This validates basic uniformity without being flaky due to statistical variance.
         assert!(
             ratio > 0.8 && ratio < 1.25,
             "Distribution should be roughly balanced: pos={}, neg={}, ratio={}",

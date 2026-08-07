@@ -2,7 +2,7 @@
 
 [![Test](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.test.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.test.yml)
 [![Clippy](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml)
-[![Version: v0.4.3](https://img.shields.io/badge/Version-v0.4.3-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
+[![Version: v0.5.0](https://img.shields.io/badge/Version-v0.5.0-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](https://github.com/blackboxaudio/bbx_audio/blob/develop/LICENSE)
 
 A modular, real-time safe audio toolkit in Rust.
@@ -32,6 +32,7 @@ Optional SIMD optimizations are available via the `simd` feature flag (requires 
 | Crate | Description |
 |-------|-------------|
 | [`bbx_core`](./bbx_core) | `Sample` trait, `StackVec`, lock-free ring buffers, error types |
+| [`bbx_daisy`](./bbx_daisy) | Electrosmith Daisy embedded audio (no_std, ARM Cortex-M) |
 | [`bbx_dsp`](./bbx_dsp) | Block-graph engine with oscillators, filters, panners, mixers, ambisonics |
 | [`bbx_draw`](./bbx_draw) | Waveforms, spectrum analyzers, graph topology viewers (nannou) |
 | [`bbx_file`](./bbx_file) | Audio file I/O (WAV/MP3) |
@@ -72,17 +73,51 @@ See [`bbx_sandbox/examples/`](./bbx_sandbox/examples/) for working examples, or 
 sudo apt install libasound2-dev libssl-dev pkg-config
 ```
 
-## Examples
+### Embedded (Daisy)
 
-The [`bbx_sandbox`](./bbx_sandbox/examples/) crate includes examples covering the major features:
+For embedded development with Electrosmith Daisy hardware:
+
+```toml
+[dependencies]
+bbx_daisy = { git = "https://github.com/blackboxaudio/bbx_audio", features = ["seed"] }
+```
+
+```rust
+#![no_std]
+#![no_main]
+
+use bbx_daisy::prelude::*;
+
+struct SineOsc { phase: f32 }
+
+impl AudioProcessor for SineOsc {
+    fn process(
+        &mut self,
+        _input: &FrameBuffer<BLOCK_SIZE>,
+        output: &mut FrameBuffer<BLOCK_SIZE>,
+        _controls: &Controls,
+    ) {
+        for i in 0..BLOCK_SIZE {
+            let sample = libm::sinf(self.phase * core::f32::consts::TAU) * 0.5;
+            output.set_frame(i, sample, sample);
+            self.phase += 440.0 / DEFAULT_SAMPLE_RATE;
+            if self.phase >= 1.0 {
+                self.phase -= 1.0;
+            }
+        }
+    }
+}
+
+bbx_daisy_audio!(SineOsc, SineOsc { phase: 0.0 });
+```
 
 ```bash
-cargo run --example 01_sine_wave -p bbx_sandbox        # Basic oscillator
-cargo run --example 06_lfo_modulation -p bbx_sandbox   # Modulation
-cargo run --example 08_ambisonic_panner -p bbx_sandbox # Spatial audio
-cargo run --example 14_osc_synth -p bbx_sandbox        # OSC control
-cargo run --example 15_ws_synth -p bbx_sandbox         # WebSocket control
+# Build and flash
+cargo build -p bbx_daisy --example 02_oscillator --features seed --target thumbv7em-none-eabihf --release
+cargo run -p bbx_daisy --example 02_oscillator --features seed --release  # With debug probe
 ```
+
+See the [Embedded Development Guide](https://docs.bbx-audio.com/embedded.html) for setup and flashing instructions.
 
 ## Examples
 

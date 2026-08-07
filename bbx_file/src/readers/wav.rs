@@ -2,11 +2,8 @@
 
 use std::path::Path;
 
-use bbx_dsp::{
-    buffer::{AudioBuffer, Buffer},
-    reader::Reader,
-    sample::Sample,
-};
+use bbx_core::Buffer;
+use bbx_dsp::{buffer::SampleBuffer, reader::Reader, sample::Sample};
 use wavers::Wav;
 
 /// A WAV file reader implementing [`Reader`].
@@ -14,7 +11,7 @@ use wavers::Wav;
 /// Loads the entire WAV file into memory on construction, providing
 /// sample data via the `read_channel` method.
 pub struct WavFileReader<S: Sample> {
-    channel_buffers: Vec<AudioBuffer<S>>,
+    channel_buffers: Vec<SampleBuffer<S>>,
     sample_rate: f64,
     num_channels: usize,
     num_samples: usize,
@@ -32,7 +29,7 @@ impl<S: Sample> WavFileReader<S> {
 
         let mut channels = Vec::with_capacity(num_channels);
         for _ in 0..num_channels {
-            channels.push(AudioBuffer::new(num_samples));
+            channels.push(SampleBuffer::new(num_samples));
         }
 
         for (channel_index, channel) in reader.channels().enumerate() {

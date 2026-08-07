@@ -47,10 +47,10 @@ Storage allocated once, reused forever:
 
 ```rust
 // In Graph struct
-audio_buffers: Vec<AudioBuffer<S>>,
+audio_buffers: Vec<SampleBuffer<S>>,
 modulation_values: Vec<S>,
 
-// In prepare_for_playback()
+// In prepare()
 self.modulation_values.resize(self.blocks.len(), S::ZERO);
 
 // In process_buffers() - just clear, no resize

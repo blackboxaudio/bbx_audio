@@ -7,7 +7,7 @@ The `Player` struct coordinates DSP graph playback through a backend.
 ```rust
 pub struct Player<S: Sample> {
     graph: Graph<S>,
-    backend: Box<dyn Backend>,
+    backend: Box<dyn Backend<S>>,
 }
 ```
 
@@ -49,9 +49,7 @@ let handle = player.play()?;
 Handle returned from `Player::play()` for controlling playback.
 
 ```rust
-pub struct PlayHandle {
-    stop_flag: Arc<AtomicBool>,
-}
+pub struct PlayHandle { /* ... */ }
 ```
 
 ### Methods

@@ -25,8 +25,8 @@ Add OSC support to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bbx_net = { version = "0.4", features = ["osc"] }
-bbx_dsp = "0.4"
+bbx_net = { version = "0.5", features = ["osc"] }
+bbx_dsp = "0.5"
 ```
 
 ## Core Concepts
@@ -155,7 +155,7 @@ use std::{
 use bbx_dsp::{
     block::BlockId,
     blocks::{GainBlock, LowPassFilterBlock, OscillatorBlock, PannerBlock},
-    buffer::{AudioBuffer, Buffer},
+    buffer::{SampleBuffer, Buffer},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::GraphBuilder,
     waveform::Waveform,

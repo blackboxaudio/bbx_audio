@@ -16,7 +16,11 @@ links = "bbx_plugin"
 crate-type = ["rlib"]
 
 [features]
-default = []
+default = ["std"]
+# bbx_plugin is inherently std (FFI, serde_json); this feature exists so the
+# no_std lattice in bbx_core/bbx_dsp/bbx_midi cannot starve `PluginDsp` (which
+# is std-gated in bbx_dsp) when a consumer disables `simd`.
+std = ["bbx_core/std", "bbx_dsp/std", "bbx_midi/std"]
 ftz-daz = ["bbx_core/ftz-daz", "bbx_dsp/ftz-daz"]
 simd = ["bbx_core/simd", "bbx_dsp/simd"]
 

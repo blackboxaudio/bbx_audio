@@ -28,7 +28,7 @@ pub fn flush_denormal_f64(x: f64) -> f64 {
 #[cfg(feature = "simd")]
 #[inline]
 pub fn flush_denormals_f64_batch(buffer: &mut [f64]) {
-    use std::simd::{cmp::SimdPartialOrd, f64x4, num::SimdFloat};
+    use core::simd::{cmp::SimdPartialOrd, f64x4, num::SimdFloat};
 
     let threshold = f64x4::splat(DENORMAL_THRESHOLD_F64);
     let zero = f64x4::splat(0.0);
@@ -63,7 +63,7 @@ pub fn flush_denormal_f32(x: f32) -> f32 {
 #[cfg(feature = "simd")]
 #[inline]
 pub fn flush_denormals_f32_batch(buffer: &mut [f32]) {
-    use std::simd::{cmp::SimdPartialOrd, f32x4, num::SimdFloat};
+    use core::simd::{cmp::SimdPartialOrd, f32x4, num::SimdFloat};
 
     let threshold = f32x4::splat(DENORMAL_THRESHOLD_F32);
     let zero = f32x4::splat(0.0);
@@ -104,7 +104,7 @@ pub fn flush_denormals_f32_batch(buffer: &mut [f32]) {
 /// of any audio processing thread.
 #[cfg(all(feature = "ftz-daz", any(target_arch = "x86", target_arch = "x86_64")))]
 pub fn enable_ftz_daz() {
-    use std::arch::asm;
+    use core::arch::asm;
 
     const FTZ_BIT: u32 = 1 << 15;
     const DAZ_BIT: u32 = 1 << 6;
@@ -135,7 +135,7 @@ pub fn enable_ftz_daz() {
 /// Use `flush_denormal_f64/f32` in feedback paths for full coverage.
 #[cfg(all(feature = "ftz-daz", target_arch = "aarch64"))]
 pub fn enable_ftz_daz() {
-    use std::arch::asm;
+    use core::arch::asm;
 
     const FZ_BIT: u64 = 1 << 24;
 
@@ -192,6 +192,80 @@ mod tests {
     fn test_f32_denormal_handling() {
         assert_eq!(flush_denormal_f32(1.0), 1.0);
         assert_eq!(flush_denormal_f32(1e-16), 0.0);
+    }
+
+    #[test]
+    fn test_f64_batch_flushes_denormals() {
+        let mut buffer = [1.0, 1e-16, -1e-16, 0.5, 1e-300, -0.3, 1e-20, 0.0];
+        flush_denormals_f64_batch(&mut buffer);
+
+        assert_eq!(buffer[0], 1.0);
+        assert_eq!(buffer[1], 0.0);
+        assert_eq!(buffer[2], 0.0);
+        assert_eq!(buffer[3], 0.5);
+        assert_eq!(buffer[4], 0.0);
+        assert_eq!(buffer[5], -0.3);
+        assert_eq!(buffer[6], 0.0);
+        assert_eq!(buffer[7], 0.0);
+    }
+
+    #[test]
+    fn test_f32_batch_flushes_denormals() {
+        let mut buffer: [f32; 8] = [1.0, 1e-16, -1e-16, 0.5, 1e-30, -0.3, 1e-20, 0.0];
+        flush_denormals_f32_batch(&mut buffer);
+
+        assert_eq!(buffer[0], 1.0);
+        assert_eq!(buffer[1], 0.0);
+        assert_eq!(buffer[2], 0.0);
+        assert_eq!(buffer[3], 0.5);
+        assert_eq!(buffer[4], 0.0);
+        assert_eq!(buffer[5], -0.3);
+        assert_eq!(buffer[6], 0.0);
+        assert_eq!(buffer[7], 0.0);
+    }
+
+    #[test]
+    fn test_f64_batch_handles_non_aligned_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15, 17] {
+            let mut buffer = vec![1e-20f64; size];
+            flush_denormals_f64_batch(&mut buffer);
+            for &val in &buffer {
+                assert_eq!(val, 0.0, "All denormals should be flushed for size {}", size);
+            }
+        }
+    }
+
+    #[test]
+    fn test_f32_batch_handles_non_aligned_sizes() {
+        for size in [0, 1, 2, 3, 5, 7, 9, 15, 17] {
+            let mut buffer = vec![1e-20f32; size];
+            flush_denormals_f32_batch(&mut buffer);
+            for &val in &buffer {
+                assert_eq!(val, 0.0, "All denormals should be flushed for size {}", size);
+            }
+        }
+    }
+
+    #[test]
+    fn test_f64_batch_preserves_normal_values() {
+        let original = [0.1, -0.5, 1.0, -1.0, 0.001, 1e-10, -1e-10, 0.99];
+        let mut buffer = original;
+        flush_denormals_f64_batch(&mut buffer);
+
+        for (orig, processed) in original.iter().zip(buffer.iter()) {
+            assert_eq!(*orig, *processed, "Normal values should be unchanged");
+        }
+    }
+
+    #[test]
+    fn test_f32_batch_preserves_normal_values() {
+        let original: [f32; 8] = [0.1, -0.5, 1.0, -1.0, 0.001, 1e-10, -1e-10, 0.99];
+        let mut buffer = original;
+        flush_denormals_f32_batch(&mut buffer);
+
+        for (orig, processed) in original.iter().zip(buffer.iter()) {
+            assert_eq!(*orig, *processed, "Normal values should be unchanged");
+        }
     }
 
     #[cfg(all(feature = "ftz-daz", target_arch = "aarch64"))]

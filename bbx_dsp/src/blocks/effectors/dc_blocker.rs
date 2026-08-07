@@ -1,13 +1,12 @@
 //! DC offset removal filter using a simple one-pole high-pass design.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use bbx_core::flush_denormal_f64;
 
 use crate::{
-    block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
+    block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT, MAX_BLOCK_OUTPUTS},
     context::DspContext,
-    graph::MAX_BLOCK_OUTPUTS,
     parameter::ModulationOutput,
     sample::Sample,
 };
@@ -103,6 +102,16 @@ impl<S: Sample> Block<S> for DcBlockerBlock<S> {
     #[inline]
     fn modulation_outputs(&self) -> &[ModulationOutput] {
         &[]
+    }
+
+    fn prepare(&mut self, context: &DspContext) {
+        self.set_sample_rate(context.sample_rate);
+        self.reset();
+    }
+
+    fn reset(&mut self) {
+        self.x_prev = [0.0; MAX_BLOCK_OUTPUTS];
+        self.y_prev = [0.0; MAX_BLOCK_OUTPUTS];
     }
 }
 

@@ -14,8 +14,8 @@ rodio = ["dep:rodio"]
 cpal = ["dep:cpal"]
 
 [dependencies]
-bbx_core.workspace = true
-bbx_dsp.workspace = true
+bbx_core = { workspace = true, features = ["std"] }
+bbx_dsp = { workspace = true, features = ["std"] }
 
 cpal = { workspace = true, optional = true }
 rodio = { workspace = true, optional = true }

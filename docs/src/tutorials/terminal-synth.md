@@ -40,7 +40,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bbx_dsp = "0.4.3"
+bbx_dsp = "0.5.0"
 rodio = "0.20.1"
 ```
 
@@ -165,7 +165,7 @@ Add the `bbx_dsp` block import:
 
 ```toml
 [dependencies]
-bbx_dsp = "0.4.3"
+bbx_dsp = "0.5.0"
 rodio = "0.20.1"
 ```
 
@@ -248,11 +248,11 @@ Update `Cargo.toml`:
 
 ```toml
 [dependencies]
-bbx_dsp = "0.4.3"
+bbx_dsp = "0.5.0"
 bbx_midi = "0.1.0"
 rodio = "0.20.1"
 midir = "0.11"
-ctrlc = "3.4"
+ctrlc = "3.4"  # Only needed for interactive apps that require graceful shutdown
 ```
 
 ### Voice State
@@ -291,7 +291,7 @@ Build on the `Signal` struct pattern, adding MIDI handling:
 ```rust
 use bbx_dsp::{
     block::BlockId,
-    buffer::{AudioBuffer, Buffer},
+    buffer::{SampleBuffer, Buffer},
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
@@ -302,7 +302,7 @@ use std::time::Duration;
 
 struct MidiSynth {
     graph: Graph<f32>,
-    output_buffers: Vec<AudioBuffer<f32>>,
+    output_buffers: Vec<SampleBuffer<f32>>,
     voice_state: VoiceState,
     oscillator_id: BlockId,
     envelope_id: BlockId,
@@ -340,7 +340,7 @@ impl MidiSynth {
 
         let mut output_buffers = Vec::with_capacity(num_channels);
         for _ in 0..num_channels {
-            output_buffers.push(AudioBuffer::new(buffer_size));
+            output_buffers.push(SampleBuffer::new(buffer_size));
         }
 
         Self {

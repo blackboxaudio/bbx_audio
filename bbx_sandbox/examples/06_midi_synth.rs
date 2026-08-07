@@ -20,17 +20,18 @@ use std::{
     time::Duration,
 };
 
+use bbx_core::Buffer;
 use bbx_dsp::{
     block::BlockId,
     blocks::{EnvelopeBlock, GainBlock, LowPassFilterBlock, OscillatorBlock, VcaBlock},
-    buffer::{AudioBuffer, Buffer},
+    buffer::SampleBuffer,
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
 };
 use bbx_midi::{MidiBufferConsumer, MidiBufferProducer, MidiMessage, MidiMessageStatus, midi_buffer};
+use bbx_player::{Source, play_source};
 use midir::{Ignore, MidiInput, MidiInputConnection};
-use rodio::{OutputStream, Source};
 
 const MIDI_BUFFER_CAPACITY: usize = 256;
 
@@ -59,7 +60,7 @@ impl VoiceState {
 
 struct MidiSynth {
     graph: Graph<f32>,
-    output_buffers: Vec<AudioBuffer<f32>>,
+    output_buffers: Vec<SampleBuffer<f32>>,
     voice_state: VoiceState,
     oscillator_id: BlockId,
     envelope_id: BlockId,
@@ -95,7 +96,7 @@ impl MidiSynth {
 
         let mut output_buffers = Vec::with_capacity(num_channels);
         for _ in 0..num_channels {
-            output_buffers.push(AudioBuffer::new(buffer_size));
+            output_buffers.push(SampleBuffer::new(buffer_size));
         }
 
         Self {
@@ -194,21 +195,13 @@ impl Iterator for MidiSynth {
     }
 }
 
-impl Source for MidiSynth {
-    fn current_frame_len(&self) -> Option<usize> {
-        None
-    }
-
+impl Source<f32> for MidiSynth {
     fn channels(&self) -> u16 {
         self.num_channels as u16
     }
 
     fn sample_rate(&self) -> u32 {
         self.sample_rate
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        None
     }
 }
 
@@ -293,18 +286,13 @@ fn main() {
 
     let synth = MidiSynth::new(consumer);
 
-    let (_stream, stream_handle) = match OutputStream::try_default() {
-        Ok(result) => result,
+    let _handle = match play_source(synth) {
+        Ok(h) => h,
         Err(e) => {
-            println!("Failed to open audio output: {e}");
+            println!("Failed to start audio playback: {e}");
             return;
         }
     };
-
-    if let Err(e) = stream_handle.play_raw(synth.convert_samples()) {
-        println!("Failed to start audio playback: {e}");
-        return;
-    }
 
     while running.load(Ordering::SeqCst) {
         std::thread::sleep(Duration::from_millis(100));

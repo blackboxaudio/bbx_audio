@@ -43,10 +43,11 @@ use std::{
     time::Duration,
 };
 
+use bbx_core::Buffer;
 use bbx_dsp::{
     block::BlockId,
     blocks::{GainBlock, LowPassFilterBlock, OscillatorBlock, PannerBlock},
-    buffer::{AudioBuffer, Buffer},
+    buffer::SampleBuffer,
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
     waveform::Waveform,
@@ -55,7 +56,7 @@ use bbx_net::{
     NetBufferConsumer, NetMessageType, hash_param_name, net_buffer,
     websocket::{ServerCommand, WsServer, WsServerConfig},
 };
-use rodio::{OutputStream, Source};
+use bbx_player::{Source, play_source};
 use tokio::sync::mpsc;
 
 const NET_BUFFER_CAPACITY: usize = 256;
@@ -80,7 +81,7 @@ impl ParamHashes {
 
 struct WsSynth {
     graph: Graph<f32>,
-    output_buffers: Vec<AudioBuffer<f32>>,
+    output_buffers: Vec<SampleBuffer<f32>>,
     net_consumer: NetBufferConsumer,
     oscillator_id: BlockId,
     filter_id: BlockId,
@@ -116,7 +117,7 @@ impl WsSynth {
 
         let mut output_buffers = Vec::with_capacity(num_channels);
         for _ in 0..num_channels {
-            output_buffers.push(AudioBuffer::new(buffer_size));
+            output_buffers.push(SampleBuffer::new(buffer_size));
         }
 
         Self {
@@ -217,21 +218,13 @@ impl Iterator for WsSynth {
     }
 }
 
-impl Source for WsSynth {
-    fn current_frame_len(&self) -> Option<usize> {
-        None
-    }
-
+impl Source<f32> for WsSynth {
     fn channels(&self) -> u16 {
         self.num_channels as u16
     }
 
     fn sample_rate(&self) -> u32 {
         self.sample_rate
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        None
     }
 }
 
@@ -332,18 +325,13 @@ fn main() {
 
     let synth = WsSynth::new(consumer);
 
-    let (_stream, stream_handle) = match OutputStream::try_default() {
-        Ok(result) => result,
+    let _handle = match play_source(synth) {
+        Ok(h) => h,
         Err(e) => {
-            println!("Failed to open audio output: {e}");
+            println!("Failed to start audio playback: {e}");
             return;
         }
     };
-
-    if let Err(e) = stream_handle.play_raw(synth.convert_samples()) {
-        println!("Failed to start audio playback: {e}");
-        return;
-    }
 
     while running.load(Ordering::SeqCst) {
         thread::sleep(Duration::from_millis(100));

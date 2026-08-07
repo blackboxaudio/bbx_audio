@@ -38,7 +38,7 @@ Pre-allocated array indexed by block ID:
 // In Graph
 modulation_values: Vec<S>,
 
-// Sized during prepare_for_playback
+// Sized during prepare()
 self.modulation_values.resize(self.blocks.len(), S::ZERO);
 ```
 

@@ -18,7 +18,7 @@ websocket = ["dep:tokio", "dep:tokio-tungstenite", "dep:serde", "dep:serde_json"
 full = ["osc", "websocket"]
 
 [dependencies]
-bbx_core = { workspace = true }
+bbx_core = { workspace = true, features = ["std"] }
 
 # OSC parsing (optional)
 rosc = { version = "0.10.1", optional = true }

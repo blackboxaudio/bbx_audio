@@ -40,7 +40,7 @@ use crate::{
 /// ```
 pub struct Player<S: Sample> {
     graph: Graph<S>,
-    backend: Box<dyn Backend>,
+    backend: Box<dyn Backend<S>>,
 }
 
 #[cfg(feature = "rodio")]
@@ -57,7 +57,7 @@ impl<S: Sample> Player<S> {
 
 impl<S: Sample> Player<S> {
     /// Create a new player with a custom backend.
-    pub fn with_backend<B: Backend>(graph: Graph<S>, backend: B) -> Self {
+    pub fn with_backend<B: Backend<S>>(graph: Graph<S>, backend: B) -> Self {
         Self {
             graph,
             backend: Box::new(backend),
@@ -73,12 +73,8 @@ impl<S: Sample> Player<S> {
         let handle = PlayHandle::new(Arc::clone(&stop_flag));
 
         let signal = Signal::new(self.graph, Arc::clone(&stop_flag));
-        let sample_rate = signal.sample_rate();
-        let num_channels = signal.num_channels() as u16;
 
-        let signal_f32: Box<dyn Iterator<Item = f32> + Send> = Box::new(signal.map(|s| s.to_f64() as f32));
-
-        self.backend.play(signal_f32, sample_rate, num_channels, stop_flag)?;
+        self.backend.play(Box::new(signal), stop_flag)?;
 
         Ok(handle)
     }

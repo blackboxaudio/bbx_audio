@@ -14,12 +14,12 @@ use std::simd::StdFloat;
 
 #[cfg(feature = "simd")]
 use crate::sample::SIMD_LANES;
-use crate::sample::Sample;
+use crate::{math, sample::Sample};
 
 /// Fractional part of a Sample value.
 #[inline]
 fn fract<S: Sample>(x: S) -> S {
-    x - S::from_f64(x.to_f64().floor())
+    x - S::from_f64(math::floor(x.to_f64()))
 }
 
 /// PolyBLEP correction for step discontinuities.

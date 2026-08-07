@@ -12,7 +12,8 @@ keywords = ["audio", "wav", "file", "io", "dsp"]
 categories = ["multimedia::audio", "filesystem"]
 
 [dependencies]
-bbx_dsp.workspace = true
+bbx_core = { workspace = true, features = ["std"] }
+bbx_dsp = { workspace = true, features = ["std"] }
 
 hound.workspace = true
 wavers.workspace = true

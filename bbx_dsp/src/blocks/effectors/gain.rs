@@ -6,6 +6,7 @@ use bbx_core::simd::apply_gain;
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
+    math,
     parameter::{ModulationOutput, Parameter},
     sample::Sample,
     smoothing::LinearSmoothedValue,
@@ -55,7 +56,7 @@ impl<S: Sample> GainBlock<S> {
     #[inline]
     fn db_to_linear(db: f64) -> f64 {
         let clamped = db.clamp(Self::MIN_DB, Self::MAX_DB);
-        10.0_f64.powf(clamped / 20.0)
+        math::powf(10.0_f64, clamped / 20.0)
     }
 }
 
@@ -128,6 +129,10 @@ impl<S: Sample> Block<S> for GainBlock<S> {
 
     fn set_smoothing(&mut self, sample_rate: f64, ramp_time_ms: f64) {
         self.gain_smoother.reset(sample_rate, ramp_time_ms);
+    }
+
+    fn prepare(&mut self, context: &DspContext) {
+        self.gain_smoother.reset(context.sample_rate, 10.0);
     }
 }
 

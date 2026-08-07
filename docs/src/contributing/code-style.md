@@ -76,7 +76,7 @@ All unsafe blocks must have a `SAFETY:` comment:
 
 ```rust
 // SAFETY: The buffer indices are pre-computed and validated
-// during prepare_for_playback(), guaranteeing valid access.
+// during prepare(), guaranteeing valid access.
 unsafe {
     let slice = std::slice::from_raw_parts(ptr, len);
 }

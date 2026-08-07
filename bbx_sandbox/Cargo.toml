@@ -5,6 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+bbx_core.workspace = true
 bbx_dsp = { workspace = true, features = ["ftz-daz", "simd"] }
 bbx_file.workspace = true
 bbx_midi = { workspace = true, features = ["streaming"] }

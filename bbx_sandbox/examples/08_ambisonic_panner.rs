@@ -9,7 +9,10 @@
 use std::time::Duration;
 
 use bbx_dsp::{
-    blocks::{BinauralDecoderBlock, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock, PannerBlock},
+    blocks::{
+        BinauralDecoderBlock, BinauralStrategy, GainBlock, LfoBlock, LowPassFilterBlock, MixerBlock, OscillatorBlock,
+        PannerBlock,
+    },
     channel::ChannelLayout,
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE},
     graph::{Graph, GraphBuilder},
@@ -26,7 +29,10 @@ fn create_graph() -> Graph<f32> {
     let mut builder = GraphBuilder::with_layout(DEFAULT_SAMPLE_RATE, DEFAULT_BUFFER_SIZE, ChannelLayout::Stereo);
 
     let mixer_id = builder.add(MixerBlock::new(NUM_SOURCES, num_ambi_channels));
-    let decoder = builder.add(BinauralDecoderBlock::new(AMBISONIC_ORDER));
+    let decoder = builder.add(BinauralDecoderBlock::with_strategy(
+        AMBISONIC_ORDER,
+        BinauralStrategy::Matrix,
+    ));
 
     for ch in 0..num_ambi_channels {
         builder.connect(mixer_id, ch, decoder, ch);
@@ -44,6 +50,9 @@ fn create_graph() -> Graph<f32> {
     builder.modulate(lfo1_az, enc1, "azimuth");
     builder.modulate(lfo1_el, enc1, "elevation");
 
+    // The `0/1/2 * num_ambi_channels` pattern is deliberate: it keeps the
+    // layer→mixer-input mapping visually parallel across the three layers.
+    #[allow(clippy::erasing_op, clippy::identity_op)]
     for ch in 0..num_ambi_channels {
         builder.connect(enc1, ch, mixer_id, 0 * num_ambi_channels + ch);
     }
@@ -60,6 +69,7 @@ fn create_graph() -> Graph<f32> {
     builder.modulate(lfo2_az, enc2, "azimuth");
     builder.modulate(lfo2_el, enc2, "elevation");
 
+    #[allow(clippy::identity_op)]
     for ch in 0..num_ambi_channels {
         builder.connect(enc2, ch, mixer_id, 1 * num_ambi_channels + ch);
     }

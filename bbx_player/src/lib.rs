@@ -43,8 +43,54 @@ pub mod backends;
 mod error;
 mod player;
 mod signal;
+mod source;
+
+use std::sync::{Arc, atomic::AtomicBool};
 
 pub use backend::{Backend, PlayHandle};
+#[cfg(feature = "rodio")]
+use backends::RodioBackend;
+use bbx_dsp::sample::Sample;
 pub use error::{PlayerError, Result};
 pub use player::Player;
 pub use signal::Signal;
+pub use source::Source;
+
+/// Play any [`Source<S>`] through the default audio backend.
+///
+/// This is a convenience function for playing custom audio sources without
+/// needing to create a [`Player`] or manage backends directly.
+///
+/// # Examples
+///
+/// ```ignore
+/// use bbx_player::{Source, play_source};
+///
+/// struct MySynth { /* ... */ }
+///
+/// impl Iterator for MySynth {
+///     type Item = f32;
+///     fn next(&mut self) -> Option<Self::Item> { /* ... */ }
+/// }
+///
+/// impl Source<f32> for MySynth {
+///     fn channels(&self) -> u16 { 2 }
+///     fn sample_rate(&self) -> u32 { 44100 }
+/// }
+///
+/// let synth = MySynth::new();
+/// let handle = play_source(synth)?;
+///
+/// // Do other work while audio plays...
+/// handle.stop();
+/// ```
+#[cfg(feature = "rodio")]
+pub fn play_source<S: Sample, T: Source<S>>(source: T) -> Result<PlayHandle> {
+    let stop_flag = Arc::new(AtomicBool::new(false));
+    let handle = PlayHandle::new(Arc::clone(&stop_flag));
+
+    let backend = Box::new(RodioBackend::try_default()?);
+    backend.play(Box::new(source), stop_flag)?;
+
+    Ok(handle)
+}

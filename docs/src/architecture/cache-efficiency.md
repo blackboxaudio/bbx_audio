@@ -19,7 +19,7 @@ Keep related data together:
 
 ```rust
 // Good: Single contiguous allocation
-audio_buffers: Vec<AudioBuffer<S>>
+audio_buffers: Vec<SampleBuffer<S>>
 
 // Each buffer is contiguous
 samples: [S; BUFFER_SIZE]

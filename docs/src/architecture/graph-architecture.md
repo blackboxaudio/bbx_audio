@@ -23,7 +23,7 @@ pub struct Graph<S: Sample> {
     connections: Vec<Connection>,         // Block connections
     execution_order: Vec<BlockId>,        // Sorted processing order
     output_block: Option<BlockId>,        // Final output
-    audio_buffers: Vec<AudioBuffer<S>>,   // Pre-allocated buffers
+    audio_buffers: Vec<SampleBuffer<S>>,   // Pre-allocated buffers
     modulation_values: Vec<S>,            // Per-block modulation
 }
 ```
@@ -90,7 +90,7 @@ pub fn process_buffers(&mut self, output_buffers: &mut [&mut [S]]) {
 
 ### Pre-allocation
 
-All buffers are allocated during `prepare_for_playback()`:
+All buffers are allocated during `prepare()`:
 
 - No allocations during processing
 - Fixed buffer sizes
