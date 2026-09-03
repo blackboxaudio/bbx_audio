@@ -18,7 +18,7 @@ pub use stm32h7xx_hal::prelude::*;
 #[cfg(all(target_arch = "arm", target_os = "none", feature = "pod"))]
 pub use crate::board::{AudioBoardWithAdc, AudioPeripherals};
 #[cfg(all(target_arch = "arm", target_os = "none", feature = "patch_sm"))]
-pub use crate::board::{AudioBoardWithCv, AudioPeripherals};
+pub use crate::board::{AudioBoardWithControls, AudioPeripherals};
 // High-level peripheral types
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use crate::flash::Flash;
@@ -27,7 +27,7 @@ pub use crate::led::UserLed;
 // Peripheral abstractions
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use crate::peripherals::{
-    Button, CvInput, CvRange, Direction, Encoder, EncoderWithButton, GateIn, GateOut, Knob, Led, VelocityEncoder,
+    Button, CvInput, CvOut, CvRange, Direction, Encoder, EncoderWithButton, GateIn, GateOut, Knob, Led, VelocityEncoder,
 };
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use crate::sdram::Sdram;
@@ -39,5 +39,5 @@ pub use crate::{
 pub use crate::{
     buffer::{FrameBuffer, StaticSampleBuffer},
     context::EmbeddedDspContext,
-    controls::Controls,
+    controls::{Controls, Outputs, outputs},
 };

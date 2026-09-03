@@ -52,13 +52,7 @@ mod app {
         }
 
         fn set_cutoff(&mut self, cutoff: f32) {
-            self.cutoff = if cutoff < 20.0 {
-                20.0
-            } else if cutoff > 20000.0 {
-                20000.0
-            } else {
-                cutoff
-            };
+            self.cutoff = cutoff.clamp(20.0, 20000.0);
         }
 
         fn process(&mut self, input: f32) -> f32 {

@@ -2,6 +2,9 @@
 
 MEMORY
 {
+    /* ITCM (Instruction Tightly Coupled Memory) - 64KB, single-cycle access for code */
+    ITCM (rwx)  : ORIGIN = 0x00000000, LENGTH = 64K
+
     /* Flash memory - 128KB internal (Daisy uses external QSPI for larger programs) */
     FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 128K
 
@@ -40,6 +43,17 @@ _stack_end = ORIGIN(DTCM);
 /* DMA buffer placement - must be in SRAM accessible by DMA */
 SECTIONS
 {
+    /* Time-critical code region (single-cycle ITCM). NOLOAD: ITCM is volatile
+       and nothing copies this section from flash at startup yet, so placing
+       actual code here requires adding an LMA (AT> FLASH) plus a startup copy
+       loop first. Kept NOLOAD so an accidental placement cannot bloat the
+       objcopy binary across the 0x0 -> 0x08000000 address gap. */
+    .itcm (NOLOAD) : ALIGN(4)
+    {
+        *(.itcm .itcm.*);
+        . = ALIGN(4);
+    } > ITCM
+
     /* Audio DMA buffers go in SRAM3 (D2 domain, DMA-accessible) */
     .sram3 (NOLOAD) : ALIGN(4)
     {

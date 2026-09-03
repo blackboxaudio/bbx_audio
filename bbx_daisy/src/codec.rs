@@ -202,9 +202,8 @@ impl<I2C> Wm8731<I2C> {
     /// This is intentionally conservative to ensure codec stability.
     #[cfg(all(target_arch = "arm", target_os = "none"))]
     fn delay_ms(ms: u32) {
-        // STM32H750 runs at ~480MHz, cortex_m::asm::delay uses cycles
-        // ~400_000 cycles per ms (conservative estimate for 400 MHz)
-        const CYCLES_PER_MS: u32 = 400_000;
+        // Matches ClockConfig's 480 MHz SYSCLK; cortex_m::asm::delay counts cycles.
+        const CYCLES_PER_MS: u32 = 480_000;
         cortex_m::asm::delay(ms * CYCLES_PER_MS);
     }
 

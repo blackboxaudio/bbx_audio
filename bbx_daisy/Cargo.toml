@@ -71,6 +71,10 @@ required-features = ["seed"]
 name = "09_cycle_check_pod"
 required-features = ["pod"]
 
+[[example]]
+name = "10_patch_init_io"
+required-features = ["patch_sm"]
+
 [features]
 # No default board feature: board features are mutually exclusive, and a
 # default would turn a plain `--features pod` into a seed+pod conflict.

@@ -128,6 +128,25 @@ For audio processing applications. Handles:
 - Audio callback registration
 - Main loop with `wfi()`
 
+### `bbx_daisy_audio_with_controls!`
+
+Everything `bbx_daisy_audio!` does, plus the board's hardware control surface,
+read in the main loop (~1 kHz) and delivered to `process()` as a lock-free
+`Controls` snapshot:
+
+- **Pod**: `controls.knobs[0..2]` (knobs 1 and 2, smoothed 0.0-1.0)
+- **Patch.Init()** (`patch_sm`), pin map cross-checked against libDaisy:
+  - `controls.knobs[0..4]` — the four panel knobs (SM channels CV_1-4), smoothed 0.0-1.0
+  - `controls.cv[0..4]` — the four panel CV jacks (SM channels CV_5-8), bipolar
+    -1.0..+1.0 (±5 V, inversion-corrected, no deadzone); `controls.cv_volts(i)` for volts
+  - `controls.gate1` / `controls.gate2` — gate inputs, raw undebounced levels
+  - `controls.button` (B7) and `controls.switch` (B8), debounced
+  - Processor-driven outputs via `bbx_daisy::outputs()`: front-panel LED
+    (`set_led`, analog brightness — it's a DAC channel), the CV OUT jack
+    (`set_cv_out`), and both gate outputs (`set_gate_out1/2`)
+
+See `examples/10_patch_init_io.rs` for a full Patch.Init() bring-up check.
+
 ### `bbx_daisy_run!`
 
 For GPIO/general applications. Handles:

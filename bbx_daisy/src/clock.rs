@@ -3,11 +3,14 @@
 //! This module configures the clock tree for audio processing:
 //!
 //! - HSE: 16 MHz external crystal
-//! - PLL1: 400 MHz system clock (SYSCLK)
+//! - PLL1: 480 MHz system clock (SYSCLK), Iterative PLL strategy
 //! - PLL3: SAI clock source for audio (12.288 MHz for 48kHz)
 //!
-//! Note: We use 400 MHz instead of 480 MHz due to PLL lock issues
-//! observed on some Daisy hardware when running at 480 MHz with VOS0.
+//! History: earlier revisions ran 400 MHz after "PLL lock issues at 480 MHz
+//! with VOS0" — the real culprit was the default (Normal) PLL1 strategy
+//! producing marginal dividers at 480 MHz. `PllConfigStrategy::Iterative`
+//! searches for in-spec dividers and locks reliably (hardware-verified on
+//! Daisy Seed).
 
 use stm32h7xx_hal::{
     pac,
@@ -68,28 +71,30 @@ impl ClockConfig {
     ///
     /// This sets up:
     /// - HSE at 16 MHz (Daisy Seed external crystal)
-    /// - PLL1 at 400 MHz for SYSCLK
+    /// - PLL1 at 480 MHz for SYSCLK (Iterative strategy for in-spec dividers)
+    /// - PLL1_Q at 48 MHz for SPI/USB peripherals
     /// - PLL3 configured for SAI audio clocking (PLL3_P)
     ///   - 12.288 MHz for 48 kHz (256 * Fs)
     ///   - 24.576 MHz for 96 kHz (256 * Fs)
-    /// - VOS0 power mode for headroom
+    /// - VOS0 power mode (required for 480 MHz)
     /// - ADC clock muxed to peripheral clock
     ///
     /// Note: SAI1 clock source must be set to PLL3_P by the caller.
     pub fn configure(self, pwr: pac::PWR, rcc: pac::RCC, syscfg: &pac::SYSCFG) -> Ccdr {
-        // Enable VOS0 power mode for 400 MHz operation with headroom
-        // Note: We use 400 MHz instead of 480 MHz due to PLL lock issues
-        // observed on some Daisy hardware.
+        // VOS0 power mode: mandatory above 400 MHz.
         let pwr = pwr.constrain().vos0(syscfg).freeze();
 
         // Configure clocks:
         // - HSE: 16 MHz external crystal (Daisy Seed)
-        // - PLL1: 400 MHz system clock
+        // - PLL1: 480 MHz system clock — the Iterative strategy is required here: the default strategy yields marginal
+        //   dividers at 480 MHz that fail to lock on some boards (see module docs)
         // - PLL3: SAI audio clock (sample rate dependent)
         let rcc = rcc.constrain();
         let mut ccdr = rcc
             .use_hse(16.MHz()) // External 16MHz crystal
-            .sys_ck(400.MHz()) // System clock at 400 MHz
+            .pll1_strategy(PllConfigStrategy::Iterative) // Required for a reliable 480 MHz lock
+            .pll1_q_ck(48.MHz()) // For SPI/USB peripherals
+            .sys_ck(480.MHz()) // System clock at 480 MHz
             .pll3_strategy(PllConfigStrategy::Fractional) // Precise audio clock
             .pll3_p_ck(self.pll3_p_frequency()) // SAI MCLK (12.288/24.576 MHz)
             .freeze(pwr, syscfg);

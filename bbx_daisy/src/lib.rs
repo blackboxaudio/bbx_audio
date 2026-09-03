@@ -169,10 +169,10 @@ pub use board::Board;
 #[cfg(all(target_arch = "arm", target_os = "none", feature = "pod"))]
 pub use board::{AudioBoardWithAdc, AudioPeripherals, init_audio_with_adc};
 #[cfg(all(target_arch = "arm", target_os = "none", feature = "patch_sm"))]
-pub use board::{AudioBoardWithCv, AudioPeripherals, init_audio_with_cv};
+pub use board::{AudioBoardWithControls, AudioPeripherals, init_audio_with_controls};
 pub use buffer::{FrameBuffer, StaticSampleBuffer};
 pub use context::EmbeddedDspContext;
-pub use controls::Controls;
+pub use controls::{Controls, Outputs, outputs};
 #[cfg(all(target_arch = "arm", target_os = "none"))]
 pub use flash::Flash;
 #[cfg(all(target_arch = "arm", target_os = "none"))]

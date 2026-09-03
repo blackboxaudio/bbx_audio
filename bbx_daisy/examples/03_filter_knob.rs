@@ -1,10 +1,14 @@
 //! # 03_filter_knob - Filter with Knob Control Example
 //!
-//! A sawtooth oscillator through a low-pass filter.
-//! On Pod hardware, knob1 controls the filter cutoff frequency.
+//! A sawtooth oscillator through a low-pass filter, with the cutoff mapped
+//! from `controls.knobs[0]`.
 //!
-//! This example demonstrates a more complex audio processor with multiple
-//! internal state variables (oscillator phase and filter state).
+//! Note: this Seed example uses `bbx_daisy_audio!`, which reads no hardware
+//! controls — `knobs[0]` stays at its 0.5 default, so the cutoff sits
+//! mid-range. It demonstrates a processor with multiple internal state
+//! variables (oscillator phase and filter state) and how a control value
+//! flows into DSP; see `05_pod_synth` for live knobs via
+//! `bbx_daisy_audio_with_controls!`.
 //!
 //! ## Hardware
 //!
@@ -63,8 +67,8 @@ mod app {
             output: &mut FrameBuffer<BLOCK_SIZE>,
             controls: &Controls,
         ) {
-            // Map knob1 to filter cutoff (100Hz - 8000Hz)
-            let cutoff = MIN_CUTOFF + controls.knob1 * (MAX_CUTOFF - MIN_CUTOFF);
+            // Map knob 1 to filter cutoff (100Hz - 8000Hz)
+            let cutoff = MIN_CUTOFF + controls.knobs[0] * (MAX_CUTOFF - MIN_CUTOFF);
             let filter_coefficient = Self::calculate_coefficient(cutoff);
 
             for i in 0..BLOCK_SIZE {

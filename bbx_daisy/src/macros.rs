@@ -14,13 +14,12 @@
 /// - Clock configuration with PLL3 for SAI audio
 /// - SAI1 + DMA initialization
 /// - Audio callback registration
-/// - ADC initialization for hardware controls (knobs, CVs)
-/// - Control value smoothing
+/// - Main loop with `wfi()`
 ///
-/// # Hardware Controls
-///
-/// For Pod: Knob 1 (PC4), Knob 2 (PC1)
-/// For Seed: No built-in controls (Controls will be default values)
+/// No hardware controls are read: the `controls` passed to `process` stay at
+/// their [`Controls::new`](crate::Controls::new) defaults. Use
+/// [`bbx_daisy_audio_with_controls!`](crate::bbx_daisy_audio_with_controls)
+/// when the board's knobs, CVs, gates, or buttons should be live.
 ///
 /// # Usage
 ///
@@ -32,20 +31,18 @@
 ///
 /// use bbx_daisy::{bbx_daisy_audio, prelude::*};
 ///
-/// struct TunableSine {
+/// struct FixedSine {
 ///     phase: f32,
 /// }
 ///
-/// impl AudioProcessor for TunableSine {
+/// impl AudioProcessor for FixedSine {
 ///     fn process(
 ///         &mut self,
 ///         _input: &FrameBuffer<BLOCK_SIZE>,
 ///         output: &mut FrameBuffer<BLOCK_SIZE>,
-///         controls: &Controls,
+///         _controls: &Controls,
 ///     ) {
-///         // Map knob1 to frequency (110Hz - 880Hz)
-///         let frequency = 110.0 + controls.knob1 * 770.0;
-///         let phase_inc = frequency / DEFAULT_SAMPLE_RATE;
+///         let phase_inc = 440.0 / DEFAULT_SAMPLE_RATE;
 ///
 ///         for i in 0..BLOCK_SIZE {
 ///             let sample = sinf(self.phase * 2.0 * PI) * 0.5;
@@ -58,7 +55,7 @@
 ///     }
 /// }
 ///
-/// bbx_daisy_audio!(TunableSine, TunableSine { phase: 0.0 });
+/// bbx_daisy_audio!(FixedSine, FixedSine { phase: 0.0 });
 /// ```
 #[macro_export]
 macro_rules! bbx_daisy_audio {
@@ -119,11 +116,9 @@ macro_rules! bbx_daisy_audio {
 
 /// Entry point macro for audio processing with ADC control inputs.
 ///
-/// This variant initializes ADC hardware for reading knobs on Pod hardware.
-/// Use this when you need real-time control input during audio processing.
-///
-/// The knob values are read in the main loop and available in the
-/// `controls` parameter of `AudioProcessor::process()`.
+/// Pod variant: initializes ADC1 for the two knobs (knob 1 = PC4, knob 2 = PC0)
+/// and populates `controls.knobs[0..2]` (smoothed, 0.0-1.0) in the main loop
+/// for use in `AudioProcessor::process()`.
 ///
 /// # Example
 ///
@@ -142,7 +137,7 @@ macro_rules! bbx_daisy_audio {
 ///         output: &mut FrameBuffer<BLOCK_SIZE>,
 ///         controls: &Controls,
 ///     ) {
-///         let freq = 110.0 + controls.knob1 * 770.0;
+///         let freq = 110.0 + controls.knobs[0] * 770.0;
 ///         // ...
 ///     }
 /// }
@@ -223,8 +218,8 @@ macro_rules! bbx_daisy_audio_with_controls {
                 let raw2 = (adc1.read(&mut knob2_pin).unwrap_or(0_u32) >> 4) as u16;
 
                 // Smooth and publish to the ISR-visible atomic store.
-                __BBX_CONTROLS.set_knob1(knob1.process_u12(raw1));
-                __BBX_CONTROLS.set_knob2(knob2.process_u12(raw2));
+                __BBX_CONTROLS.set_knob(0, knob1.process_u12(raw1));
+                __BBX_CONTROLS.set_knob(1, knob2.process_u12(raw2));
 
                 $crate::__internal::wfi();
             }
@@ -234,12 +229,28 @@ macro_rules! bbx_daisy_audio_with_controls {
 
 /// Patch.Init (`patch_sm`) variant of [`bbx_daisy_audio_with_controls`].
 ///
-/// Initializes ADC1 for the four CV inputs (CV_1=PC0, CV_2=PA3, CV_3=PB1, CV_4=PA7) and the
-/// B8 toggle (PB9, active-low), then in the main loop populates `controls.cv[0..4]` (smoothed)
-/// and `controls.switch` for use in [`AudioProcessor::process`](crate::AudioProcessor::process).
+/// Brings up the full Patch.Init() control surface and populates every
+/// [`Controls`](crate::Controls) field for
+/// [`AudioProcessor::process`](crate::AudioProcessor::process):
 ///
-/// Same macro name as the Pod variant; only one is compiled because exactly one board feature
-/// is ever active.
+/// | `Controls` field | Hardware | Conditioning |
+/// |---|---|---|
+/// | `knobs[0..4]` | panel knobs 1-4 (SM CV_1-4) | smoothed, 0.0-1.0 |
+/// | `cv[0..4]` | panel CV jacks 1-4 (SM CV_5-8) | smoothed, inversion-corrected, -1.0..+1.0 (±5 V), no deadzone |
+/// | `gate1` / `gate2` | Gate In 1/2 | raw level, undebounced (minimum trigger latency) |
+/// | `button` | B7 momentary | debounced |
+/// | `switch` | B8 toggle | debounced |
+///
+/// The main loop also applies the global [`outputs()`](crate::outputs) store to
+/// hardware each control tick (~1 kHz): LED brightness (DAC), the CV OUT jack
+/// (DAC), and both gate outputs. Drive them from `process`:
+///
+/// ```ignore
+/// bbx_daisy::outputs().set_led(self.envelope);
+/// ```
+///
+/// Same macro name as the Pod variant; only one is compiled because exactly one
+/// board feature is ever active.
 #[cfg(feature = "patch_sm")]
 #[macro_export]
 macro_rules! bbx_daisy_audio_with_controls {
@@ -268,8 +279,9 @@ macro_rules! bbx_daisy_audio_with_controls {
                 __BBX_PROCESSOR.write($processor_init);
             }
 
-            // Initialize the board with ADC for the four CV inputs and the B8 switch.
-            let board = $crate::board::init_audio_with_cv().expect("Failed to initialize audio board with CV");
+            // Bring up audio plus the whole control surface in one shot
+            // (pac::Peripherals::take() is single-use).
+            let board = $crate::board::init_audio_with_controls().expect("Failed to initialize audio board");
 
             // Let the processor precompute sample-rate-dependent state before streaming.
             unsafe {
@@ -280,26 +292,48 @@ macro_rules! bbx_daisy_audio_with_controls {
             // Set the audio callback.
             $crate::audio::set_callback(__bbx_audio_callback).expect("audio already running");
 
-            // Destructure board to extract audio peripherals, ADC, CV pins, and switch.
-            let $crate::board::AudioBoardWithCv {
+            let $crate::board::AudioBoardWithControls {
                 audio,
                 mut adc1,
+                mut knob1_pin,
+                mut knob2_pin,
+                mut knob3_pin,
+                mut knob4_pin,
                 mut cv1_pin,
                 mut cv2_pin,
                 mut cv3_pin,
                 mut cv4_pin,
+                button_pin,
                 switch_pin,
+                gate1_pin,
+                gate2_pin,
+                mut gate_out1,
+                mut gate_out2,
+                mut cv_out,
+                mut led,
             } = board;
 
-            // Wrap the B8 toggle in a debounced, active-low button.
+            // B7/B8 are mechanical contacts against a pull-up: debounced, active-low.
+            let mut button = $crate::peripherals::Button::new_active_low(button_pin);
             let mut switch = $crate::peripherals::Button::new_active_low(switch_pin);
 
-            // CV smoothing state lives in the main loop — only the atomic
-            // controls store is shared with the ISR.
-            let mut cv1 = $crate::peripherals::Knob::default_smoothing_const();
-            let mut cv2 = $crate::peripherals::Knob::default_smoothing_const();
-            let mut cv3 = $crate::peripherals::Knob::default_smoothing_const();
-            let mut cv4 = $crate::peripherals::Knob::default_smoothing_const();
+            // Gate inputs are clean logic through the module's inverting stage:
+            // active-low and deliberately undebounced — debouncing would add
+            // ~5 ms of trigger latency.
+            let gate1 = $crate::peripherals::GateIn::new_active_low(gate1_pin);
+            let gate2 = $crate::peripherals::GateIn::new_active_low(gate2_pin);
+
+            // Smoothing state lives in the main loop — only the atomic stores
+            // are shared with the ISR. CV jacks skip the endpoint deadzone so
+            // 1V/oct tracking stays linear.
+            let mut knob1 = $crate::peripherals::Knob::default_smoothing_const();
+            let mut knob2 = $crate::peripherals::Knob::default_smoothing_const();
+            let mut knob3 = $crate::peripherals::Knob::default_smoothing_const();
+            let mut knob4 = $crate::peripherals::Knob::default_smoothing_const();
+            let mut cv1 = $crate::peripherals::Knob::cv_smoothing_const();
+            let mut cv2 = $crate::peripherals::Knob::cv_smoothing_const();
+            let mut cv3 = $crate::peripherals::Knob::cv_smoothing_const();
+            let mut cv4 = $crate::peripherals::Knob::cv_smoothing_const();
 
             // Start audio processing (consumes audio peripherals).
             $crate::audio::init_and_start(
@@ -313,21 +347,52 @@ macro_rules! bbx_daisy_audio_with_controls {
             )
             .expect("Failed to start audio streaming");
 
-            // Main loop: read CVs + switch and update controls.
+            // Main loop: publish inputs to the ISR, apply processor outputs to
+            // hardware. Wakes on the audio DMA IRQ, so it ticks at ~1 kHz.
             loop {
                 // ADC returns u32; shift down to 12-bit range for processing.
-                let raw1 = (adc1.read(&mut cv1_pin).unwrap_or(0_u32) >> 4) as u16;
-                let raw2 = (adc1.read(&mut cv2_pin).unwrap_or(0_u32) >> 4) as u16;
-                let raw3 = (adc1.read(&mut cv3_pin).unwrap_or(0_u32) >> 4) as u16;
-                let raw4 = (adc1.read(&mut cv4_pin).unwrap_or(0_u32) >> 4) as u16;
-                let switch_state = switch.update();
+                // A failed read falls back to mid-scale ≈ knob center / 0 V,
+                // never full-scale.
+                let raw_k1 = (adc1.read(&mut knob1_pin).unwrap_or(2048_u32 << 4) >> 4) as u16;
+                let raw_k2 = (adc1.read(&mut knob2_pin).unwrap_or(2048_u32 << 4) >> 4) as u16;
+                let raw_k3 = (adc1.read(&mut knob3_pin).unwrap_or(2048_u32 << 4) >> 4) as u16;
+                let raw_k4 = (adc1.read(&mut knob4_pin).unwrap_or(2048_u32 << 4) >> 4) as u16;
+                let raw_c1 = (adc1.read(&mut cv1_pin).unwrap_or(2048_u32 << 4) >> 4) as u16;
+                let raw_c2 = (adc1.read(&mut cv2_pin).unwrap_or(2048_u32 << 4) >> 4) as u16;
+                let raw_c3 = (adc1.read(&mut cv3_pin).unwrap_or(2048_u32 << 4) >> 4) as u16;
+                let raw_c4 = (adc1.read(&mut cv4_pin).unwrap_or(2048_u32 << 4) >> 4) as u16;
 
-                // Smooth and publish to the ISR-visible atomic store.
-                __BBX_CONTROLS.set_cv(0, cv1.process_u12(raw1));
-                __BBX_CONTROLS.set_cv(1, cv2.process_u12(raw2));
-                __BBX_CONTROLS.set_cv(2, cv3.process_u12(raw3));
-                __BBX_CONTROLS.set_cv(3, cv4.process_u12(raw4));
-                __BBX_CONTROLS.set_switch(switch_state);
+                __BBX_CONTROLS.set_knob(0, knob1.process_u12(raw_k1));
+                __BBX_CONTROLS.set_knob(1, knob2.process_u12(raw_k2));
+                __BBX_CONTROLS.set_knob(2, knob3.process_u12(raw_k3));
+                __BBX_CONTROLS.set_knob(3, knob4.process_u12(raw_k4));
+                __BBX_CONTROLS.set_cv(
+                    0,
+                    $crate::peripherals::adc::patch_sm_bipolar(cv1.process_u12(raw_c1)),
+                );
+                __BBX_CONTROLS.set_cv(
+                    1,
+                    $crate::peripherals::adc::patch_sm_bipolar(cv2.process_u12(raw_c2)),
+                );
+                __BBX_CONTROLS.set_cv(
+                    2,
+                    $crate::peripherals::adc::patch_sm_bipolar(cv3.process_u12(raw_c3)),
+                );
+                __BBX_CONTROLS.set_cv(
+                    3,
+                    $crate::peripherals::adc::patch_sm_bipolar(cv4.process_u12(raw_c4)),
+                );
+                __BBX_CONTROLS.set_gate1(gate1.is_active());
+                __BBX_CONTROLS.set_gate2(gate2.is_active());
+                __BBX_CONTROLS.set_button(button.update());
+                __BBX_CONTROLS.set_switch(switch.update());
+
+                // Apply processor-driven outputs (LED, CV out, gate outs).
+                let outputs = $crate::controls::outputs().load();
+                led.set_norm(outputs.led);
+                cv_out.set_norm(outputs.cv_out);
+                gate_out1.set(outputs.gate_out1);
+                gate_out2.set(outputs.gate_out2);
 
                 $crate::__internal::wfi();
             }

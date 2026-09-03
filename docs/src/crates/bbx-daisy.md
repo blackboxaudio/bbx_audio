@@ -20,14 +20,16 @@ bbx_daisy = { version = "0.5", features = ["seed"] }
 
 ## Features
 
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `seed` | Yes | Daisy Seed with AK4556 codec |
-| `seed_1_1` | No | Daisy Seed 1.1 with WM8731 codec |
-| `seed_1_2` | No | Daisy Seed 1.2 with PCM3060 codec |
-| `pod` | No | Daisy Pod with WM8731 codec |
-| `patch_sm` | No | Patch SM with PCM3060 codec |
-| `patch_init` | No | Patch.Init() (uses Patch SM) |
+Exactly one board feature must be selected (there is no default):
+
+| Feature | Description |
+|---------|-------------|
+| `seed` | Daisy Seed with AK4556 codec |
+| `seed_1_1` | Daisy Seed 1.1 with WM8731 codec |
+| `seed_1_2` | Daisy Seed 1.2 with PCM3060 codec |
+| `pod` | Daisy Pod with WM8731 codec |
+| `patch_sm` | Patch SM with PCM3060 codec |
+| `patch_init` | Patch.Init() (uses Patch SM) |
 
 ## Quick Example
 
@@ -71,10 +73,23 @@ bbx_daisy_audio!(SineOsc, SineOsc {
 | Component | Description |
 |-----------|-------------|
 | `AudioProcessor` | Trait for implementing audio processing callbacks |
+| `Controls` | Per-block snapshot of the control surface (knobs, CV jacks, gates, buttons) |
+| `Outputs` / `outputs()` | Processor-driven outputs (LED, CV out, gate outs), applied by the main loop |
 | `StaticSampleBuffer` | Stack-allocated sample buffer for DSP processing |
 | `FrameBuffer` | Interleaved stereo buffer for SAI/DMA hardware output |
 | `EmbeddedDspContext` | Audio context with sample rate and buffer size |
 | `Board` | Hardware abstraction for GPIO, peripherals, and codec |
+
+## Hardware Controls
+
+`bbx_daisy_audio_with_controls!` reads the board's control surface in the main
+loop (~1 kHz) and hands `process()` a lock-free `Controls` snapshot. On the Pod
+that is `knobs[0..2]`; on the Patch.Init() it is the full panel — `knobs[0..4]`
+(smoothed 0-1), `cv[0..4]` (CV jacks, bipolar -1..+1 ≈ ±5 V,
+inversion-corrected), `gate1`/`gate2` (raw levels), `button` (B7), and `switch`
+(B8). In the other direction, `bbx_daisy::outputs()` drives the Patch.Init()
+front-panel LED (analog brightness via DAC), the CV OUT jack, and both gate
+outputs from anywhere — typically inside `process()`.
 
 ## Buffer Types
 
@@ -118,3 +133,5 @@ See `bbx_daisy/examples/` for working examples:
 
 - `01_blink` - GPIO LED blink without audio
 - `02_oscillator` - Basic sine wave output
+- `05_pod_synth` - Pod knobs controlling pitch and filter cutoff
+- `10_patch_init_io` - Full Patch.Init() control-surface bring-up check
