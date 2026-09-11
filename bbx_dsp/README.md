@@ -9,6 +9,7 @@ A block-based audio DSP system for building signal processing graphs.
 - **Realtime-safe processing**: Stack-allocated buffers, no allocations in audio thread
 - **Parameter modulation**: LFOs and envelopes can modulate block parameters
 - **Parameter smoothing**: Click-free parameter changes with configurable ramp times via `set_smoothing()`
+- **Phase accumulation**: `PhaseAccumulator` produces per-sample phase in cycles (`[0, 1)`) for oscillators and table readers
 - **Topological sorting**: Automatic execution order based on connections
 
 ## Block Types
