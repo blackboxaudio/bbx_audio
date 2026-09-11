@@ -47,6 +47,7 @@
     - [SPSC Ring Buffer](crates/core/spsc.md)
     - [Stack Vector](crates/core/stack-vec.md)
     - [Random Number Generation](crates/core/random.md)
+    - [Sine Table](crates/core/sine-table.md)
     - [Error Types](crates/core/error.md)
 - [bbx_daisy](crates/bbx-daisy.md)
 - [bbx_draw](crates/bbx-draw.md)
