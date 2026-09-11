@@ -21,6 +21,12 @@ use stm32h7xx_hal::{
     gpio::Analog,
     pac::ADC1,
 };
+#[cfg(feature = "patch_sm")]
+use stm32h7xx_hal::{
+    dac::{self, DacExt},
+    gpio::{Input, Output, PushPull},
+    pac::DAC,
+};
 use stm32h7xx_hal::{
     delay::Delay,
     gpio::{
@@ -43,6 +49,8 @@ use crate::codec::Codec;
 use crate::codec::Pcm3060;
 #[cfg(any(feature = "seed_1_1", feature = "pod"))]
 use crate::codec::Wm8731;
+#[cfg(feature = "patch_sm")]
+use crate::peripherals::{CvOut, GateOut};
 use crate::{
     audio::Sai1Pins,
     clock::{ClockConfig, SampleRate},
@@ -297,7 +305,7 @@ fn configure_wm8731_i2c2(
 /// - `seed`: AK4556 (no I2C; reset pulse on PB11)
 /// - `seed_1_1` / `pod`: WM8731 over I2C2 (SCL=PH4, SDA=PB11)
 /// - `seed_1_2`: PCM3060 (strapped in hardware; PB11 held low for de-emphasis off)
-/// - `patch_sm`: PCM3060 over I2C4 (SCL=PH11, SDA=PH12)
+/// - `patch_sm`: PCM3060 over I2C2 (SCL=PB10, SDA=PB11)
 ///
 /// Codec/I2C/reset handles are dropped after configuration; the codec retains its state.
 ///
@@ -353,14 +361,15 @@ pub fn init_audio() -> Result<AudioPeripherals, BoardError> {
         deemphasis.set_low();
     }
 
-    // Patch SM: PCM3060 over I2C4 (separate module).
+    // Patch SM: PCM3060 over I2C2 (SCL=PB10, SDA=PB11, per libDaisy's
+    // daisy_patch_sm — PH11/PH12 are SDRAM data lines on this module).
     #[cfg(feature = "patch_sm")]
     {
-        let gpioh = dp.GPIOH.split(ccdr.peripheral.GPIOH);
-        let scl = gpioh.ph11.into_alternate().set_open_drain();
-        let sda = gpioh.ph12.into_alternate().set_open_drain();
-        let i2c4 = dp.I2C4.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C4, &ccdr.clocks);
-        let mut codec = Pcm3060::with_default_address(i2c4);
+        let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
+        let scl = gpiob.pb10.into_alternate().set_open_drain();
+        let sda = gpiob.pb11.into_alternate().set_open_drain();
+        let i2c2 = dp.I2C2.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C2, &ccdr.clocks);
+        let mut codec = Pcm3060::with_default_address(i2c2);
         codec.init(sample_rate).map_err(BoardError::CodecInit)?;
     }
 
@@ -481,19 +490,27 @@ impl AudioBoardWithAdc {
     }
 }
 
-/// Initialize the audio hardware **and** ADC1 for the Patch.Init CV inputs + B8 switch.
+/// Initialize the audio hardware **and** the full Patch.Init() control surface.
 ///
-/// Configures the PCM3060 codec over I2C4 (as in [`init_audio`]), then ADC1 to read the four
-/// Patch.Init CV inputs (CV_1=PC0, CV_2=PA3, CV_3=PB1, CV_4=PA7) and the B8 toggle
-/// (PB9, pull-up, read active-low). Returns the audio peripherals plus the enabled ADC, the four
-/// CV pins, and the switch pin.
+/// Configures the PCM3060 codec over I2C2 (as in [`init_audio`]), then:
+///
+/// - **ADC1** for the four panel knobs (SM channels CV_1-4: PA3, PA6, PA2, PA7) and the four panel CV jacks (SM
+///   channels CV_5-8: PC1, PC0, PB1, PC4)
+/// - **B7** momentary button (PB8) and **B8** toggle (PB9), pull-up, active-low
+/// - **Gate inputs** 1/2 (PG13/PG14, floating — the module's inverting input stage drives them; read active-low)
+/// - **Gate outputs** 1/2 (PC14/PC13, push-pull), wrapped in [`GateOut`]
+/// - **DAC1** both channels, buffer-calibrated and enabled: channel 1 (PA4) is the CV OUT jack, channel 2 (PA5) drives
+///   the Patch.Init() front-panel LED
+///
+/// Everything must be claimed here in one shot: `pac::Peripherals::take()` is
+/// single-use, so there is no adding peripherals after this returns.
 ///
 /// # Errors
 ///
 /// Returns [`BoardError::PeripheralsTaken`] if peripherals were already taken, or
 /// [`BoardError::CodecInit`] if codec configuration fails.
 #[cfg(feature = "patch_sm")]
-pub fn init_audio_with_cv() -> Result<AudioBoardWithCv, BoardError> {
+pub fn init_audio_with_controls() -> Result<AudioBoardWithControls, BoardError> {
     let dp = pac::Peripherals::take().ok_or(BoardError::PeripheralsTaken)?;
     let cp = cortex_m::Peripherals::take().ok_or(BoardError::PeripheralsTaken)?;
 
@@ -510,25 +527,45 @@ pub fn init_audio_with_cv() -> Result<AudioBoardWithCv, BoardError> {
         Some(gpioe.pe3.into_alternate()),
     );
 
-    // PCM3060 codec over I2C4 (SCL=PH11, SDA=PH12).
-    let gpioh = dp.GPIOH.split(ccdr.peripheral.GPIOH);
-    let scl = gpioh.ph11.into_alternate().set_open_drain();
-    let sda = gpioh.ph12.into_alternate().set_open_drain();
-    let i2c4 = dp.I2C4.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C4, &ccdr.clocks);
-    let mut codec = Pcm3060::with_default_address(i2c4);
-    codec.init(sample_rate).map_err(BoardError::CodecInit)?;
-
-    // CV inputs (analog) + B8 toggle (pull-up input).
     let gpioa = dp.GPIOA.split(ccdr.peripheral.GPIOA);
     let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
     let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
-    let cv1_pin = gpioc.pc0.into_analog(); // CV_1
-    let cv2_pin = gpioa.pa3.into_analog(); // CV_2
-    let cv3_pin = gpiob.pb1.into_analog(); // CV_3
-    let cv4_pin = gpioa.pa7.into_analog(); // CV_4
-    let switch_pin = gpiob.pb9.into_pull_up_input(); // B8 toggle (active-low)
+    let gpiog = dp.GPIOG.split(ccdr.peripheral.GPIOG);
 
-    // ADC1 (12-bit) for the CV inputs.
+    // PCM3060 codec over I2C2 (SCL=PB10, SDA=PB11, per libDaisy's
+    // daisy_patch_sm — PH11/PH12 are SDRAM data lines on this module).
+    let scl = gpiob.pb10.into_alternate().set_open_drain();
+    let sda = gpiob.pb11.into_alternate().set_open_drain();
+    let i2c2 = dp.I2C2.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C2, &ccdr.clocks);
+    let mut codec = Pcm3060::with_default_address(i2c2);
+    codec.init(sample_rate).map_err(BoardError::CodecInit)?;
+
+    // Panel knobs (SM channels CV_1-4, pin map per libDaisy's daisy_patch_sm.cpp).
+    let knob1_pin = gpioa.pa3.into_analog();
+    let knob2_pin = gpioa.pa6.into_analog();
+    let knob3_pin = gpioa.pa2.into_analog();
+    let knob4_pin = gpioa.pa7.into_analog();
+
+    // Panel CV jacks (SM channels CV_5-8).
+    let cv1_pin = gpioc.pc1.into_analog();
+    let cv2_pin = gpioc.pc0.into_analog();
+    let cv3_pin = gpiob.pb1.into_analog();
+    let cv4_pin = gpioc.pc4.into_analog();
+
+    // B7 momentary + B8 toggle (both active-low against the internal pull-up).
+    let button_pin = gpiob.pb8.into_pull_up_input();
+    let switch_pin = gpiob.pb9.into_pull_up_input();
+
+    // Gate inputs: the module's transistor stage inverts and drives the pin,
+    // so no pull is wanted; readers must treat these as active-low.
+    let gate1_pin = gpiog.pg13.into_floating_input();
+    let gate2_pin = gpiog.pg14.into_floating_input();
+
+    // Gate outputs.
+    let gate_out1 = GateOut::new(gpioc.pc14.into_push_pull_output());
+    let gate_out2 = GateOut::new(gpioc.pc13.into_push_pull_output());
+
+    // ADC1 (12-bit) shared by knobs and CV jacks.
     let mut delay = cp.SYST.delay(ccdr.clocks);
     let adc_config = AdcConfig::default_knobs();
     let mut adc1: Adc<ADC1, adc::Disabled> =
@@ -537,13 +574,25 @@ pub fn init_audio_with_cv() -> Result<AudioBoardWithCv, BoardError> {
     adc1.set_resolution(adc_config.resolution);
     let adc1 = adc1.enable();
 
+    // DAC1: channel 1 (PA4) = CV OUT jack, channel 2 (PA5) = panel LED.
+    // Factory trim only: the HAL's calibrate_buffer() spins on a calibration
+    // flag with no timeout, so a channel that never raises it would hang boot
+    // before audio even starts. Factory trim is plenty for an LED and
+    // gate-level CV; add calibration back only if CV-out precision demands it.
+    let (cv_dac, led_dac) = dp.DAC.dac(
+        (gpioa.pa4.into_analog(), gpioa.pa5.into_analog()),
+        ccdr.peripheral.DAC12,
+    );
+    let cv_out = CvOut::new(cv_dac.enable());
+    let led = CvOut::new(led_dac.enable());
+
     let sai1_rec = ccdr
         .peripheral
         .SAI1
         .kernel_clk_mux(stm32h7xx_hal::rcc::rec::Sai1ClkSel::Pll3P);
     let dma1_rec = ccdr.peripheral.DMA1;
 
-    Ok(AudioBoardWithCv {
+    Ok(AudioBoardWithControls {
         audio: AudioPeripherals {
             sample_rate,
             sai1: dp.SAI1,
@@ -554,32 +603,66 @@ pub fn init_audio_with_cv() -> Result<AudioBoardWithCv, BoardError> {
             clocks: ccdr.clocks,
         },
         adc1,
+        knob1_pin,
+        knob2_pin,
+        knob3_pin,
+        knob4_pin,
         cv1_pin,
         cv2_pin,
         cv3_pin,
         cv4_pin,
+        button_pin,
         switch_pin,
+        gate1_pin,
+        gate2_pin,
+        gate_out1,
+        gate_out2,
+        cv_out,
+        led,
     })
 }
 
-/// Board with ADC + switch initialized for Patch.Init control reading.
+/// Board with the full Patch.Init() control surface initialized.
 ///
-/// Returned by [`init_audio_with_cv`]; provides the audio peripherals plus the enabled ADC,
-/// the four CV input pins, and the B8 switch pin.
+/// Returned by [`init_audio_with_controls`]. Input pins are handed out raw so
+/// the macro (or a custom main loop) chooses the wrapper semantics (debounce,
+/// polarity); outputs come pre-wrapped and ready to drive.
 #[cfg(feature = "patch_sm")]
-pub struct AudioBoardWithCv {
+pub struct AudioBoardWithControls {
     /// Audio peripherals for starting audio.
     pub audio: AudioPeripherals,
-    /// Configured ADC1 for CV reading.
+    /// Configured ADC1 shared by knobs and CV jacks.
     pub adc1: Adc<ADC1, adc::Enabled>,
-    /// CV_1 pin (PC0, analog).
-    pub cv1_pin: stm32h7xx_hal::gpio::gpioc::PC0<Analog>,
-    /// CV_2 pin (PA3, analog).
-    pub cv2_pin: stm32h7xx_hal::gpio::gpioa::PA3<Analog>,
-    /// CV_3 pin (PB1, analog).
+    /// Panel knob 1 (SM CV_1, PA3, analog).
+    pub knob1_pin: stm32h7xx_hal::gpio::gpioa::PA3<Analog>,
+    /// Panel knob 2 (SM CV_2, PA6, analog).
+    pub knob2_pin: stm32h7xx_hal::gpio::gpioa::PA6<Analog>,
+    /// Panel knob 3 (SM CV_3, PA2, analog).
+    pub knob3_pin: stm32h7xx_hal::gpio::gpioa::PA2<Analog>,
+    /// Panel knob 4 (SM CV_4, PA7, analog).
+    pub knob4_pin: stm32h7xx_hal::gpio::gpioa::PA7<Analog>,
+    /// Panel CV jack 1 (SM CV_5, PC1, analog, bipolar/inverting).
+    pub cv1_pin: stm32h7xx_hal::gpio::gpioc::PC1<Analog>,
+    /// Panel CV jack 2 (SM CV_6, PC0, analog, bipolar/inverting).
+    pub cv2_pin: stm32h7xx_hal::gpio::gpioc::PC0<Analog>,
+    /// Panel CV jack 3 (SM CV_7, PB1, analog, bipolar/inverting).
     pub cv3_pin: stm32h7xx_hal::gpio::gpiob::PB1<Analog>,
-    /// CV_4 pin (PA7, analog).
-    pub cv4_pin: stm32h7xx_hal::gpio::gpioa::PA7<Analog>,
+    /// Panel CV jack 4 (SM CV_8, PC4, analog, bipolar/inverting).
+    pub cv4_pin: stm32h7xx_hal::gpio::gpioc::PC4<Analog>,
+    /// B7 momentary button pin (PB8, pull-up input, active-low).
+    pub button_pin: stm32h7xx_hal::gpio::gpiob::PB8<Input>,
     /// B8 toggle pin (PB9, pull-up input, active-low).
-    pub switch_pin: stm32h7xx_hal::gpio::gpiob::PB9<stm32h7xx_hal::gpio::Input>,
+    pub switch_pin: stm32h7xx_hal::gpio::gpiob::PB9<Input>,
+    /// Gate input 1 pin (PG13, floating, active-low).
+    pub gate1_pin: stm32h7xx_hal::gpio::gpiog::PG13<Input>,
+    /// Gate input 2 pin (PG14, floating, active-low).
+    pub gate2_pin: stm32h7xx_hal::gpio::gpiog::PG14<Input>,
+    /// Gate output 1 (PC14).
+    pub gate_out1: GateOut<stm32h7xx_hal::gpio::gpioc::PC14<Output<PushPull>>>,
+    /// Gate output 2 (PC13).
+    pub gate_out2: GateOut<stm32h7xx_hal::gpio::gpioc::PC13<Output<PushPull>>>,
+    /// CV OUT jack (DAC1 channel 1, PA4), enabled and calibrated.
+    pub cv_out: CvOut<dac::C1<DAC, dac::Enabled>>,
+    /// Front-panel LED (DAC1 channel 2, PA5), enabled and calibrated.
+    pub led: CvOut<dac::C2<DAC, dac::Enabled>>,
 }

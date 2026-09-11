@@ -225,7 +225,7 @@ let filter = builder.add(LowPassFilterBlock::new(1000.0, 4.0));  // High resonan
 let lfo = builder.add(LfoBlock::new(0.5, 1.0, Waveform::Sine, None));  // Slow sweep
 
 builder.connect(osc, 0, filter, 0);
-builder.modulate(lfo, filter, "cutoff");
+builder.modulate(lfo, filter, "cutoff")?;
 ```
 
 ## Implementation Notes

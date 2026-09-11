@@ -29,7 +29,9 @@ fn create_modulated_synth<S: Sample>(buffer_size: usize) -> bbx_dsp::graph::Grap
     let mut builder = GraphBuilder::new(SAMPLE_RATE, buffer_size, NUM_CHANNELS);
     let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
     let lfo = builder.add(LfoBlock::new(5.0, 50.0, Waveform::Sine, None));
-    builder.modulate(lfo, osc, "frequency");
+    builder
+        .modulate(lfo, osc, "frequency")
+        .expect("modulation target exists");
     builder.build()
 }
 

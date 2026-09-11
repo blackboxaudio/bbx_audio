@@ -322,7 +322,7 @@ let lfo = builder.add(LfoBlock::new(0.25, 1.0, Waveform::Sine, None));  // 0.25 
 let pan = builder.add(PannerBlock::new(0.0));
 
 builder.connect(osc, 0, pan, 0);
-builder.modulate(lfo, pan, "position");
+builder.modulate(lfo, pan, "position")?;
 ```
 
 ### Surround Panning with VBAP
@@ -339,7 +339,7 @@ builder.connect(osc, 0, pan, 0);
 
 // Modulate azimuth for circular motion
 let lfo = builder.add(LfoBlock::new(0.1, 1.0, Waveform::Sine, None));
-builder.modulate(lfo, pan, "azimuth");
+builder.modulate(lfo, pan, "azimuth")?;
 ```
 
 ### Ambisonic Encoding with Rotating Source
@@ -356,7 +356,7 @@ builder.connect(osc, 0, encoder, 0);
 
 // Rotate source around listener
 let az_lfo = builder.add(LfoBlock::new(0.2, 1.0, Waveform::Sine, None));
-builder.modulate(az_lfo, encoder, "azimuth");
+builder.modulate(az_lfo, encoder, "azimuth")?;
 
 // Output channels: W, Y, Z, X (ACN order)
 ```

@@ -57,8 +57,12 @@ fn create_graph() -> Graph<f32> {
     builder.connect(panner, 1, gain, 1);
 
     // Apply modulation
-    builder.modulate(lfo_filter, filter, "cutoff");
-    builder.modulate(lfo_pan, panner, "position");
+    builder
+        .modulate(lfo_filter, filter, "cutoff")
+        .expect("modulation target exists");
+    builder
+        .modulate(lfo_pan, panner, "position")
+        .expect("modulation target exists");
 
     builder.build()
 }

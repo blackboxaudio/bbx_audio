@@ -11,7 +11,7 @@ pub trait Block<S: Sample> {
         &mut self,
         inputs: &[&[S]],
         outputs: &mut [&mut [S]],
-        modulation_values: &[S],
+        modulation_values: &ModulationValues<S>,
         context: &DspContext,
     );
 
@@ -68,7 +68,7 @@ impl<S: Sample> Block<S> for MyGainBlock<S> {
         &mut self,
         inputs: &[&[S]],
         outputs: &mut [&mut [S]],
-        _modulation_values: &[S],
+        _modulation_values: &ModulationValues<S>,
         context: &DspContext,
     ) {
         for ch in 0..inputs.len().min(outputs.len()) {
@@ -100,7 +100,7 @@ fn process(
     &mut self,
     inputs: &[&[S]],           // inputs[channel][sample]
     outputs: &mut [&mut [S]],  // outputs[channel][sample]
-    modulation_values: &[S],
+    modulation_values: &ModulationValues<S>,
     context: &DspContext,
 ) {
     // inputs.len() = number of input channels
@@ -117,12 +117,28 @@ fn process(
     &mut self,
     inputs: &[&[S]],
     outputs: &mut [&mut [S]],
-    modulation_values: &[S],
+    modulation_values: &ModulationValues<S>,
     context: &DspContext,
 ) {
-    // modulation_values[0] = value from first connected modulator
-    // Use for per-block (not per-sample) modulation
-    let mod_depth = modulation_values.get(0).copied().unwrap_or(S::ZERO);
+    // Each Parameter holds its own routes; resolve once per buffer
+    // (control rate, not per sample): base + Σ depth · source
+    let cutoff = self.cutoff.value(modulation_values);
+}
+```
+
+Expose parameters so `GraphBuilder::modulate` can find them by name:
+
+```rust
+fn parameter_names(&self) -> &'static [&'static str] {
+    &["cutoff"]
+}
+
+fn parameter(&self, name: &str) -> Option<&Parameter<S>> {
+    parameter_name_matches(name, &["cutoff", "frequency"]).then_some(&self.cutoff)
+}
+
+fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+    parameter_name_matches(name, &["cutoff", "frequency"]).then_some(&mut self.cutoff)
 }
 ```
 

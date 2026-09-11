@@ -7,7 +7,7 @@ use bbx_core::flush_denormal_f64;
 use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT, MAX_BLOCK_OUTPUTS},
     context::DspContext,
-    parameter::ModulationOutput,
+    parameter::{ModulationOutput, ModulationValues},
     sample::Sample,
 };
 
@@ -57,7 +57,13 @@ impl<S: Sample> DcBlockerBlock<S> {
 }
 
 impl<S: Sample> Block<S> for DcBlockerBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         if !self.enabled {
             // Pass through unchanged
             for (ch, input) in inputs.iter().enumerate() {
@@ -142,7 +148,7 @@ mod tests {
         let input_refs: Vec<&[f32]> = input.iter().map(|ch| ch.as_slice()).collect();
         let mut output_refs: Vec<&mut [f32]> = outputs.iter_mut().map(|ch| ch.as_mut_slice()).collect();
 
-        blocker.process(&input_refs, &mut output_refs, &[], &context);
+        blocker.process(&input_refs, &mut output_refs, &ModulationValues::empty(), &context);
 
         for ch in 0..6 {
             assert!(outputs[ch][3].abs() > 0.0, "Channel {ch} should have output");
@@ -162,7 +168,7 @@ mod tests {
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
         for _ in 0..100 {
-            blocker.process(&inputs, &mut outputs, &[], &context);
+            blocker.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         let final_val = output[1023].abs();
@@ -195,7 +201,7 @@ mod tests {
         let inputs: [&[f64]; 1] = [&input];
         let mut outputs: [&mut [f64]; 1] = [&mut output];
 
-        blocker.process(&inputs, &mut outputs, &[], &context);
+        blocker.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert!(output[63].abs() > 0.0, "DC blocker should produce output");
     }
@@ -217,7 +223,7 @@ mod tests {
         let inputs: [&[f32]; 1] = [&input];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        blocker.process(&inputs, &mut outputs, &[], &context);
+        blocker.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(output, input, "Disabled DC blocker should pass through unchanged");
     }
@@ -234,12 +240,12 @@ mod tests {
         let inputs: [&[f32]; 1] = [&input];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        blocker.process(&inputs, &mut outputs, &[], &context);
+        blocker.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         blocker.reset();
 
         let mut output2: [f32; 64] = [0.0; 64];
         let mut outputs2: [&mut [f32]; 1] = [&mut output2];
-        blocker.process(&inputs, &mut outputs2, &[], &context);
+        blocker.process(&inputs, &mut outputs2, &ModulationValues::empty(), &context);
 
         assert!((output[0] - output2[0]).abs() < 1e-6, "Reset should clear state");
     }

@@ -1,71 +1,108 @@
 # Parameter\<S\> Type
 
-The generic parameter type for static and modulated values.
+The generic parameter type: a base value plus summed, depth-scaled modulation routes.
 
 ## Definition
 
 ```rust
-pub enum Parameter<S: Sample> {
-    /// Fixed value
-    Constant(S),
+pub struct Parameter<S: Sample> {
+    base: S,
+    routes: StackVec<ModulationRoute<S>, MAX_MODULATION_ROUTES>, // MAX_MODULATION_ROUTES = 4
+}
 
-    /// Value controlled by a modulator block
-    Modulated(BlockId),
+pub struct ModulationRoute<S: Sample> {
+    source: ModulationSource, // { block: BlockId, output: usize }
+    depth: S,
 }
 ```
 
+The value read during processing is
+
+```text
+base + Σ depth_i · source_i
+```
+
+A parameter with no routes is a constant. Depth lives on the route, not in the
+modulator, so one LFO can drive two targets at different amounts. Sources address a
+specific modulation output, so a modulator with several outputs can be routed from any
+of them.
+
 ## Usage in Blocks
 
-Blocks store parameters as `Parameter<S>`:
+Blocks store parameters as `Parameter<S>` and name them through three `Block` methods.
+`parameter_names()` lists the canonical names; `parameter()` and `parameter_mut()` look
+one up, accepting aliases and ignoring case via `parameter_name_matches`:
 
 ```rust
-pub struct OscillatorBlock<S: Sample> {
-    frequency: Parameter<S>,
-    waveform: Waveform,
-    phase: S,
+pub struct LowPassFilterBlock<S: Sample> {
+    pub cutoff: Parameter<S>,
+    pub resonance: Parameter<S>,
+    // ...
+}
+
+impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
+    fn parameter_names(&self) -> &'static [&'static str] {
+        &["cutoff", "resonance"]
+    }
+
+    fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+        if parameter_name_matches(name, &["cutoff", "frequency"]) {
+            Some(&mut self.cutoff)
+        } else if parameter_name_matches(name, &["resonance", "q"]) {
+            Some(&mut self.resonance)
+        } else {
+            None
+        }
+    }
+
+    // parameter() mirrors parameter_mut() with shared references
 }
 ```
 
 ## Resolving Values
 
-During processing, resolve the actual value:
+During processing, resolve the value against the graph's [`ModulationValues`] view:
 
 ```rust
-impl<S: Sample> OscillatorBlock<S> {
-    fn get_frequency(&self, modulation: &[S]) -> S {
-        match &self.frequency {
-            Parameter::Constant(value) => *value,
-            Parameter::Modulated(block_id) => {
-                let base = S::from_f64(440.0);
-                let mod_value = modulation[block_id.0];
-                base * (S::ONE + mod_value * S::from_f64(0.1))  // ±10%
-            }
-        }
-    }
+fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]],
+           modulation_values: &ModulationValues<S>, context: &DspContext) {
+    let cutoff_hz = self.cutoff.value(modulation_values).to_f64();
+    // ...
 }
 ```
 
-## Constant vs Modulated
-
-### Constant
-
-- Value known at creation
-- No per-block overhead
-- Simple and direct
+When the base is decided elsewhere, such as an oscillator following a MIDI note, use
+`value_with_base` so the routes still add on top of the substituted value:
 
 ```rust
-let gain = Parameter::Constant(S::from_f64(-6.0));
+let base = self.midi_frequency.unwrap_or(self.frequency.base());
+let frequency = self.frequency.value_with_base(base, modulation_values);
 ```
 
-### Modulated
+Blocks driven outside a graph pass `ModulationValues::empty()`, which reads every
+source as zero.
 
-- Value changes each buffer
-- Requires modulator block
-- Adds routing complexity
+## Constants and Routes
 
 ```rust
-let frequency = Parameter::Modulated(lfo_block_id);
+let gain = Parameter::constant(S::from_f64(-6.0));
+let frequency: Parameter<S> = S::from_f64(440.0).into();
+
+assert!(!gain.has_routes());
 ```
+
+Routes are normally attached by `GraphBuilder::modulate`, which validates the source and
+the parameter name at build time. They can also be attached directly:
+
+```rust
+let mut cutoff = Parameter::constant(1000.0_f32);
+cutoff.add_route(ModulationRoute::new(ModulationSource::first_output(lfo), 500.0))?;
+cutoff.routes_mut()[0].set_depth(250.0);
+cutoff.clear_routes();
+```
+
+`add_route` fails with `ParameterError::RoutesFull` once the parameter holds
+`MAX_MODULATION_ROUTES` routes. Nothing here allocates; the route list is a `StackVec`.
 
 ## Parameter Smoothing
 
@@ -100,9 +137,8 @@ The following blocks implement `set_smoothing()`:
 
 ## Design Rationale
 
-The `Parameter` enum:
-
-1. **Unifies constant and dynamic** - Same API for both
-2. **Type-safe modulation** - Compile-time block ID checking
-3. **Zero-cost constant** - No indirection for constant values
-4. **Sample-type generic** - Works with f32 and f64
+1. **One type for constant and modulated** - a constant is a parameter with no routes; the hot loop over zero routes is free
+2. **Depth at the destination** - modulators emit their natural range; each route scales it, like a hardware modulation matrix
+3. **Summed sources** - several modulators can drive one parameter without an intermediate mixer
+4. **Realtime-safe** - fixed-capacity routes, no allocation in `value()`, out-of-range sources read as zero instead of panicking
+5. **Sample-type generic** - depth is `S`, so the multiply stays in the graph's sample type

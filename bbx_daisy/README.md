@@ -23,8 +23,8 @@ This crate provides stack-allocated buffer types and hardware abstractions for r
 | Daisy Seed 1.1 | `seed_1_1` | WM8731 | CH_B TX (slave) | Stream 0→B, Stream 1→A | Builds; hardware-unverified |
 | Daisy Seed 1.2 | `seed_1_2` | PCM3060 | CH_A TX (master) | Stream 0→A, Stream 1→B | Builds; hardware-unverified |
 | Daisy Pod | `pod` | WM8731 | CH_B TX (slave) | Stream 0→B, Stream 1→A | Builds; hardware-unverified |
-| Patch SM | `patch_sm` | PCM3060 | CH_B TX (slave) | Stream 0→B, Stream 1→A | Builds; hardware-unverified |
-| Patch.Init() | `patch_init` | PCM3060 | CH_B TX (slave)* | Stream 0→B, Stream 1→A | Builds; hardware-unverified |
+| Patch SM | `patch_sm` | PCM3060 | CH_B TX (slave) | Stream 0→B, Stream 1→A | ✓ Verified (audio + full I/O, 2026-09) |
+| Patch.Init() | `patch_init` | PCM3060 | CH_B TX (slave)* | Stream 0→B, Stream 1→A | ✓ Verified (audio + full I/O, 2026-09) |
 
 > **Pod owners:** the codec lives on the *Seed* seated in the Pod carrier, and the
 > `pod` feature assumes a Seed 1.1 (WM8731). A Pod holding an original AK4556
@@ -45,7 +45,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bbx_daisy = { version = "0.5.0", default-features = false, features = ["seed"] }
+bbx_daisy = { version = "0.5.1", default-features = false, features = ["seed"] }
 ```
 
 ### Audio Processing
@@ -127,6 +127,25 @@ For audio processing applications. Handles:
 - Safe static state management for your `AudioProcessor`
 - Audio callback registration
 - Main loop with `wfi()`
+
+### `bbx_daisy_audio_with_controls!`
+
+Everything `bbx_daisy_audio!` does, plus the board's hardware control surface,
+read in the main loop (~1 kHz) and delivered to `process()` as a lock-free
+`Controls` snapshot:
+
+- **Pod**: `controls.knobs[0..2]` (knobs 1 and 2, smoothed 0.0-1.0)
+- **Patch.Init()** (`patch_sm`), pin map cross-checked against libDaisy:
+  - `controls.knobs[0..4]` — the four panel knobs (SM channels CV_1-4), smoothed 0.0-1.0
+  - `controls.cv[0..4]` — the four panel CV jacks (SM channels CV_5-8), bipolar
+    -1.0..+1.0 (±5 V, inversion-corrected, no deadzone); `controls.cv_volts(i)` for volts
+  - `controls.gate1` / `controls.gate2` — gate inputs, raw undebounced levels
+  - `controls.button` (B7) and `controls.switch` (B8), debounced
+  - Processor-driven outputs via `bbx_daisy::outputs()`: front-panel LED
+    (`set_led`, analog brightness — it's a DAC channel), the CV OUT jack
+    (`set_cv_out`), and both gate outputs (`set_gate_out1/2`)
+
+See `examples/10_patch_init_io.rs` for a full Patch.Init() bring-up check.
 
 ### `bbx_daisy_run!`
 
@@ -228,7 +247,7 @@ wait states at 400+ MHz — and the data cache helps data-heavy work (big waveta
 delay lines). If the default already keeps up, leave it off: it's the simpler, verified path.
 
 ```toml
-bbx_daisy = { version = "0.5.0", default-features = false, features = ["seed", "dcache"] }
+bbx_daisy = { version = "0.5.1", default-features = false, features = ["seed", "dcache"] }
 ```
 
 **Before shipping with it on:**

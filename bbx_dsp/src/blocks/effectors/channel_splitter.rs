@@ -6,7 +6,7 @@ use crate::{
     block::{Block, MAX_BLOCK_OUTPUTS},
     channel::ChannelConfig,
     context::DspContext,
-    parameter::ModulationOutput,
+    parameter::{ModulationOutput, ModulationValues},
     sample::Sample,
 };
 
@@ -43,7 +43,13 @@ impl<S: Sample> ChannelSplitterBlock<S> {
 }
 
 impl<S: Sample> Block<S> for ChannelSplitterBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         let num_channels = self.channel_count.min(inputs.len()).min(outputs.len());
 
         for ch in 0..num_channels {
@@ -104,7 +110,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        splitter.process(&inputs, &mut outputs, &[], &context);
+        splitter.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, left_in);
         assert_eq!(right_out, right_in);
@@ -151,7 +157,7 @@ mod tests {
         let inputs: [&[f64]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
 
-        splitter.process(&inputs, &mut outputs, &[], &context);
+        splitter.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, left_in);
         assert_eq!(right_out, right_in);

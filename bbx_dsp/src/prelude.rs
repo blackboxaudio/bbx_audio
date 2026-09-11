@@ -49,8 +49,9 @@ pub use crate::{
     block::{Block, BlockId, BlockType},
     buffer::SampleBuffer,
     context::{DEFAULT_BUFFER_SIZE, DEFAULT_SAMPLE_RATE, DspContext},
-    graph::{Graph, GraphBuilder},
-    parameter::Parameter,
+    graph::{Graph, GraphBuilder, GraphError},
+    parameter::{ModulationRoute, ModulationSource, ModulationValues, Parameter, ParameterError},
+    phase::PhaseAccumulator,
     sample::Sample,
     smoothing::{
         Linear, LinearSmoothedValue, Multiplicative, MultiplicativeSmoothedValue, SmoothedValue, SmoothingStrategy,

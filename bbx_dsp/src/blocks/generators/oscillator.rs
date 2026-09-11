@@ -10,7 +10,7 @@ use crate::{
     block::{Block, DEFAULT_GENERATOR_INPUT_COUNT, DEFAULT_GENERATOR_OUTPUT_COUNT},
     context::DspContext,
     math,
-    parameter::{ModulationOutput, Parameter},
+    parameter::{ModulationOutput, ModulationValues, Parameter, parameter_name_matches},
     sample::Sample,
     waveform::{Waveform, process_waveform_scalar},
 };
@@ -28,7 +28,6 @@ pub struct OscillatorBlock<S: Sample> {
     /// Pitch offset in semitones (for pitch bend/modulation).
     pub pitch_offset: Parameter<S>,
 
-    base_frequency: S,
     midi_frequency: Option<S>,
     phase: f64,
     waveform: Waveform,
@@ -40,9 +39,8 @@ impl<S: Sample> OscillatorBlock<S> {
     pub fn new(frequency: f64, waveform: Waveform, seed: Option<u64>) -> Self {
         let freq = S::from_f64(frequency);
         Self {
-            frequency: Parameter::Constant(freq),
-            pitch_offset: Parameter::Constant(S::ZERO),
-            base_frequency: freq,
+            frequency: Parameter::constant(freq),
+            pitch_offset: Parameter::constant(S::ZERO),
             midi_frequency: None,
             phase: 0.0,
             waveform,
@@ -67,21 +65,16 @@ impl<S: Sample> OscillatorBlock<S> {
 }
 
 impl<S: Sample> Block<S> for OscillatorBlock<S> {
-    fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        let base = self.midi_frequency.unwrap_or(self.base_frequency);
-
-        let freq_hz = match &self.frequency {
-            Parameter::Constant(f) => self.midi_frequency.unwrap_or(*f),
-            Parameter::Modulated(block_id) => {
-                let mod_value = modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO);
-                base + mod_value
-            }
-        };
-
-        let pitch_offset_semitones = match &self.pitch_offset {
-            Parameter::Constant(offset) => *offset,
-            Parameter::Modulated(block_id) => modulation_values.get(block_id.0).copied().unwrap_or(S::ZERO),
-        };
+    fn process(
+        &mut self,
+        _inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &ModulationValues<S>,
+        context: &DspContext,
+    ) {
+        let base = self.midi_frequency.unwrap_or(self.frequency.base());
+        let freq_hz = self.frequency.value_with_base(base, modulation_values);
+        let pitch_offset_semitones = self.pitch_offset.value(modulation_values);
 
         let freq = if pitch_offset_semitones != S::ZERO {
             let multiplier = S::from_f64(math::powf(2.0f64, pitch_offset_semitones.to_f64() / 12.0));
@@ -92,13 +85,16 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
 
         let phase_increment = freq.to_f64() / context.sample_rate * S::TAU.to_f64();
 
+        // Callers may pass slices shorter than the graph's block size
+        // (e.g. sample-accurate event splitting), so clamp to the slice
+        let num_samples = context.buffer_size.min(outputs[0].len());
+
         #[cfg(feature = "simd")]
         {
             use crate::waveform::DEFAULT_DUTY_CYCLE;
 
             if !matches!(self.waveform, Waveform::Noise) {
-                let buffer_size = context.buffer_size;
-                let chunks = buffer_size / SIMD_LANES;
+                let chunks = num_samples / SIMD_LANES;
                 let remainder_start = chunks * SIMD_LANES;
                 let chunk_phase_step = phase_increment * SIMD_LANES as f64;
 
@@ -142,7 +138,7 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                 self.phase = self.phase.rem_euclid(S::TAU.to_f64());
 
                 process_waveform_scalar(
-                    &mut outputs[0][remainder_start..],
+                    &mut outputs[0][remainder_start..num_samples],
                     self.waveform,
                     &mut self.phase,
                     phase_increment,
@@ -151,7 +147,7 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
                 );
             } else {
                 process_waveform_scalar(
-                    outputs[0],
+                    &mut outputs[0][..num_samples],
                     self.waveform,
                     &mut self.phase,
                     phase_increment,
@@ -164,13 +160,37 @@ impl<S: Sample> Block<S> for OscillatorBlock<S> {
         #[cfg(not(feature = "simd"))]
         {
             process_waveform_scalar(
-                outputs[0],
+                &mut outputs[0][..num_samples],
                 self.waveform,
                 &mut self.phase,
                 phase_increment,
                 &mut self.rng,
                 1.0,
             );
+        }
+    }
+
+    fn parameter_names(&self) -> &'static [&'static str] {
+        &["frequency", "pitch_offset"]
+    }
+
+    fn parameter(&self, name: &str) -> Option<&Parameter<S>> {
+        if parameter_name_matches(name, &["frequency"]) {
+            Some(&self.frequency)
+        } else if parameter_name_matches(name, &["pitch_offset"]) {
+            Some(&self.pitch_offset)
+        } else {
+            None
+        }
+    }
+
+    fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+        if parameter_name_matches(name, &["frequency"]) {
+            Some(&mut self.frequency)
+        } else if parameter_name_matches(name, &["pitch_offset"]) {
+            Some(&mut self.pitch_offset)
+        } else {
+            None
         }
     }
 
@@ -236,7 +256,7 @@ mod tests {
         let inputs: [&[S]; 0] = [];
         let mut output = vec![S::ZERO; buffer_size];
         let mut outputs: [&mut [S]; 1] = [&mut output];
-        osc.process(&inputs, &mut outputs, &[], &context);
+        osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         output
     }
 
@@ -414,11 +434,11 @@ mod tests {
 
         {
             let mut outputs: [&mut [f32]; 1] = [&mut buffer1];
-            osc.process(&inputs, &mut outputs, &[], &context);
+            osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
         {
             let mut outputs: [&mut [f32]; 1] = [&mut buffer2];
-            osc.process(&inputs, &mut outputs, &[], &context);
+            osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         let last = buffer1[255];
@@ -446,11 +466,11 @@ mod tests {
 
         {
             let mut outputs: [&mut [f64]; 1] = [&mut buffer1];
-            osc.process(&inputs, &mut outputs, &[], &context);
+            osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
         {
             let mut outputs: [&mut [f64]; 1] = [&mut buffer2];
-            osc.process(&inputs, &mut outputs, &[], &context);
+            osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         let last = buffer1[255];
@@ -484,7 +504,7 @@ mod tests {
             let mut buffer = vec![0.0f32; buffer_size];
             {
                 let mut outputs: [&mut [f32]; 1] = [&mut buffer];
-                osc.process(&inputs, &mut outputs, &[], &context);
+                osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
             }
             all_samples.extend(buffer);
         }
@@ -518,7 +538,7 @@ mod tests {
         let inputs: [&[f32]; 0] = [];
         let mut output = vec![0.0f32; 512];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
-        osc.process(&inputs, &mut outputs, &[], &context);
+        osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let max = output.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
         assert!(max > 0.5, "Should produce signal with MIDI frequency");
@@ -534,7 +554,7 @@ mod tests {
         let inputs: [&[f32]; 0] = [];
         let mut output = vec![0.0f32; 512];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
-        osc.process(&inputs, &mut outputs, &[], &context);
+        osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let max = output.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
         assert!(max > 0.5, "Should produce signal after clearing MIDI frequency");
@@ -549,7 +569,7 @@ mod tests {
         let inputs: [&[f32]; 0] = [];
         let mut output = vec![0.0f32; 512];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
-        osc.process(&inputs, &mut outputs, &[], &context);
+        osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let near_one = output.iter().filter(|&&x| (x.abs() - 1.0).abs() < 0.2).count();
         assert!(
@@ -610,6 +630,66 @@ mod tests {
                 POLYBLEP_TOLERANCE
             );
         }
+    }
+
+    #[test]
+    fn test_short_slice_output_f32() {
+        let mut osc = OscillatorBlock::<f32>::new(440.0, Waveform::Sine, Some(42));
+        let context = test_context(512);
+        let inputs: [&[f32]; 0] = [];
+
+        // Shorter than buffer_size and not a multiple of the SIMD width
+        let mut output = vec![0.0f32; 250];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+        osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
+
+        let max = output.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
+        assert!(max > 0.5, "Short slice should still produce signal, max={}", max);
+    }
+
+    #[test]
+    fn test_short_slice_phase_continuity_f32() {
+        let context = test_context(512);
+        let inputs: [&[f32]; 0] = [];
+
+        let mut split_osc = OscillatorBlock::<f32>::new(440.0, Waveform::Sine, Some(42));
+        let mut buffer1 = vec![0.0f32; 250];
+        let mut buffer2 = vec![0.0f32; 250];
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut buffer1];
+            split_osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
+        }
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut buffer2];
+            split_osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
+        }
+
+        let mut continuous_osc = OscillatorBlock::<f32>::new(440.0, Waveform::Sine, Some(42));
+        let mut reference = vec![0.0f32; 500];
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut reference];
+            continuous_osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
+        }
+
+        for (i, (split, cont)) in buffer1.iter().chain(buffer2.iter()).zip(reference.iter()).enumerate() {
+            assert!(
+                (split - cont).abs() < 1e-3,
+                "Split rendering diverges from continuous at sample {}: {} vs {}",
+                i,
+                split,
+                cont
+            );
+        }
+    }
+
+    #[test]
+    fn test_short_slice_noise_f32() {
+        let mut osc = OscillatorBlock::<f32>::new(440.0, Waveform::Noise, Some(42));
+        let context = test_context(512);
+        let inputs: [&[f32]; 0] = [];
+        let mut output = vec![0.0f32; 250];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+        osc.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
     }
 
     #[test]

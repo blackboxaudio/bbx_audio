@@ -219,6 +219,17 @@ All message types match the Rust protocol in `bbx_net`:
 - `IErrorMessage` - Error notification
 - `IRoomClosedMessage` - Room closed
 
+## Versioning & Compatibility
+
+This package is versioned independently of the `bbx_net` Rust crate. The table
+below tracks which package versions speak which server's wire protocol; keep it
+current when the protocol changes.
+
+| `@bbx-audio/net` | `bbx_net` server |
+| ---------------- | ---------------- |
+| 0.5.x            | 0.5.x            |
+| ≤ 0.5.1          | Same version (released in lockstep) |
+
 ## License
 
 MIT

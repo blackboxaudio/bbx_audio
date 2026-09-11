@@ -9,7 +9,7 @@ use crate::waveform::generate_waveform_samples_simd;
 use crate::{
     block::{Block, DEFAULT_MODULATOR_INPUT_COUNT, DEFAULT_MODULATOR_OUTPUT_COUNT},
     context::DspContext,
-    parameter::{ModulationOutput, Parameter},
+    parameter::{ModulationOutput, ModulationValues, Parameter, parameter_name_matches},
     sample::Sample,
     waveform::{Waveform, process_waveform_scalar},
 };
@@ -40,8 +40,8 @@ impl<S: Sample> LfoBlock<S> {
     /// Create an `LfoBlock` with a given frequency, depth, waveform, and optional seed (used for noise waveforms).
     pub fn new(frequency: f64, depth: f64, waveform: Waveform, seed: Option<u64>) -> Self {
         Self {
-            frequency: Parameter::Constant(S::from_f64(frequency)),
-            depth: Parameter::Constant(S::from_f64(depth)),
+            frequency: Parameter::constant(S::from_f64(frequency)),
+            depth: Parameter::constant(S::from_f64(depth)),
             phase: 0.0,
             waveform,
             rng: XorShiftRng::new(seed.unwrap_or_default()),
@@ -50,18 +50,27 @@ impl<S: Sample> LfoBlock<S> {
 }
 
 impl<S: Sample> Block<S> for LfoBlock<S> {
-    fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        let frequency = self.frequency.get_value(modulation_values);
-        let depth = self.depth.get_value(modulation_values).to_f64();
+    fn process(
+        &mut self,
+        _inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &ModulationValues<S>,
+        context: &DspContext,
+    ) {
+        let frequency = self.frequency.value(modulation_values);
+        let depth = self.depth.value(modulation_values).to_f64();
         let phase_increment = frequency.to_f64() / context.sample_rate * S::TAU.to_f64();
+
+        // Callers may pass slices shorter than the graph's block size
+        // (e.g. sample-accurate event splitting), so clamp to the slice
+        let num_samples = context.buffer_size.min(outputs[0].len());
 
         #[cfg(feature = "simd")]
         {
             use crate::waveform::DEFAULT_DUTY_CYCLE;
 
             if !matches!(self.waveform, Waveform::Noise) {
-                let buffer_size = context.buffer_size;
-                let chunks = buffer_size / SIMD_LANES;
+                let chunks = num_samples / SIMD_LANES;
                 let remainder_start = chunks * SIMD_LANES;
                 let chunk_phase_step = phase_increment * SIMD_LANES as f64;
                 let depth_s = S::from_f64(depth);
@@ -109,7 +118,7 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
                 self.phase = self.phase.rem_euclid(S::TAU.to_f64());
 
                 process_waveform_scalar(
-                    &mut outputs[0][remainder_start..],
+                    &mut outputs[0][remainder_start..num_samples],
                     self.waveform,
                     &mut self.phase,
                     phase_increment,
@@ -118,7 +127,7 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
                 );
             } else {
                 process_waveform_scalar(
-                    outputs[0],
+                    &mut outputs[0][..num_samples],
                     self.waveform,
                     &mut self.phase,
                     phase_increment,
@@ -131,13 +140,37 @@ impl<S: Sample> Block<S> for LfoBlock<S> {
         #[cfg(not(feature = "simd"))]
         {
             process_waveform_scalar(
-                outputs[0],
+                &mut outputs[0][..num_samples],
                 self.waveform,
                 &mut self.phase,
                 phase_increment,
                 &mut self.rng,
                 depth,
             );
+        }
+    }
+
+    fn parameter_names(&self) -> &'static [&'static str] {
+        &["frequency", "depth"]
+    }
+
+    fn parameter(&self, name: &str) -> Option<&Parameter<S>> {
+        if parameter_name_matches(name, &["frequency"]) {
+            Some(&self.frequency)
+        } else if parameter_name_matches(name, &["depth"]) {
+            Some(&self.depth)
+        } else {
+            None
+        }
+    }
+
+    fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+        if parameter_name_matches(name, &["frequency"]) {
+            Some(&mut self.frequency)
+        } else if parameter_name_matches(name, &["depth"]) {
+            Some(&mut self.depth)
+        } else {
+            None
         }
     }
 
@@ -180,7 +213,7 @@ mod tests {
         let inputs: [&[S]; 0] = [];
         let mut output = vec![S::ZERO; context.buffer_size];
         let mut outputs: [&mut [S]; 1] = [&mut output];
-        lfo.process(&inputs, &mut outputs, &[], context);
+        lfo.process(&inputs, &mut outputs, &ModulationValues::empty(), context);
         output
     }
 
@@ -549,6 +582,22 @@ mod tests {
         for &sample in &output {
             assert!(sample.abs() < 1e-12, "Zero depth LFO should produce zero: {}", sample);
         }
+    }
+
+    #[test]
+    fn test_lfo_short_slice_f32() {
+        let mut lfo = LfoBlock::<f32>::new(20.0, 1.0, Waveform::Sine, Some(42));
+        let context = test_context(512, 44100.0);
+        let inputs: [&[f32]; 0] = [];
+
+        // Shorter than buffer_size and not a multiple of the SIMD width
+        let mut output = vec![0.0f32; 250];
+        let mut outputs: [&mut [f32]; 1] = [&mut output];
+        lfo.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
+
+        let min = output.iter().fold(f32::MAX, |acc, &x| acc.min(x));
+        let max = output.iter().fold(f32::MIN, |acc, &x| acc.max(x));
+        assert!(max - min > 0.01, "Short slice should still produce modulation");
     }
 
     #[test]

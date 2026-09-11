@@ -44,7 +44,7 @@ let vibrato_lfo = builder.add(LfoBlock::new(5.0, 0.3, Waveform::Sine, None));
 let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Connect LFO to modulate oscillator frequency
-builder.modulate(vibrato_lfo, osc, "frequency");
+builder.modulate(vibrato_lfo, osc, "frequency")?;
 
 let graph = builder.build();
 ```
@@ -79,7 +79,7 @@ let gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(osc, 0, gain, 0);
 
 // Modulate gain level with LFO
-builder.modulate(tremolo_lfo, gain, "level");
+builder.modulate(tremolo_lfo, gain, "level")?;
 
 let graph = builder.build();
 ```
@@ -134,12 +134,12 @@ let fast_lfo = builder.add(LfoBlock::new(5.0, 0.2, Waveform::Sine, None));
 
 // Oscillator with vibrato
 let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
-builder.modulate(fast_lfo, osc, "frequency");
+builder.modulate(fast_lfo, osc, "frequency")?;
 
 // Gain with slow amplitude modulation
 let gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(osc, 0, gain, 0);
-builder.modulate(slow_lfo, gain, "level");
+builder.modulate(slow_lfo, gain, "level")?;
 
 let graph = builder.build();
 ```
@@ -190,7 +190,7 @@ let lfo = builder.add(LfoBlock::new(0.5, 3000.0, Waveform::Sine, None));
 
 // Build chain
 builder.connect(osc, 0, filter, 0);
-builder.modulate(lfo, filter, "cutoff");
+builder.modulate(lfo, filter, "cutoff")?;
 
 let graph = builder.build();
 ```
@@ -217,7 +217,7 @@ let wobble_lfo = builder.add(LfoBlock::new(2.0, 0.8, Waveform::Sine, None));
 // Gain block for wobble effect
 let gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(osc, 0, gain, 0);
-builder.modulate(wobble_lfo, gain, "level");
+builder.modulate(wobble_lfo, gain, "level")?;
 
 let graph = builder.build();
 ```
@@ -243,7 +243,7 @@ let pan = builder.add(PannerBlock::new(0.0));
 builder.connect(osc, 0, pan, 0);
 
 // Modulate pan position
-builder.modulate(pan_lfo, pan, "position");
+builder.modulate(pan_lfo, pan, "position")?;
 
 let graph = builder.build();
 ```

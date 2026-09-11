@@ -9,6 +9,7 @@ Foundational utilities and data structures for the bbx_audio workspace.
 - **Lock-free SPSC**: Single-producer single-consumer ring buffer
 - **Stack-allocated vector**: Fixed-capacity vector without heap allocation
 - **RNG**: Fast XorShift random number generator
+- **Lookup tables**: Compile-time `SineTable` and a shared interpolating table read
 
 ## Cargo Features
 
@@ -93,6 +94,19 @@ use bbx_core::random::XorShiftRng;
 
 let mut rng = XorShiftRng::new(42);
 let noise_sample = rng.next_noise_sample(); // Returns -1.0 to 1.0
+```
+
+### `table`
+
+Lookup tables read by phase in cycles. `SineTable` is evaluated at compile time (`no_std` friendly), and `read_interpolated` is the shared linear-interpolating reader for any `[f32; LENGTH]` table laid out as `LENGTH - 1` cells plus a guard entry.
+
+```rust
+use bbx_core::{SINE_2048, SineTable};
+
+static SMALL: SineTable<1025> = SineTable::new();
+
+let sine = SINE_2048.read(0.25);         // sin(2π · 0.25) ≈ 1.0
+let cosine = SINE_2048.read_cosine(0.0); // same table, a quarter cycle ahead
 ```
 
 ### `error`

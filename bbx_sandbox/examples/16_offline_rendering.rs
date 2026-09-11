@@ -145,7 +145,9 @@ fn main() {
             let lpf = builder.add(LowPassFilterBlock::new(filter_cutoff, filter_q));
 
             builder.connect(osc, 0, lpf, 0);
-            builder.modulate(filter_lfo, lpf, "cutoff");
+            builder
+                .modulate(filter_lfo, lpf, "cutoff")
+                .expect("modulation target exists");
             builder.connect(lpf, 0, voice_mixer, unison_idx);
         }
 
@@ -164,7 +166,9 @@ fn main() {
         ));
 
         builder.connect(gain, 0, panner, 0);
-        builder.modulate(pan_lfo, panner, "position");
+        builder
+            .modulate(pan_lfo, panner, "position")
+            .expect("modulation target exists");
 
         let mixer_input_l = voice_idx * 2;
         let mixer_input_r = voice_idx * 2 + 1;

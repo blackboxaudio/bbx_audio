@@ -20,6 +20,7 @@ pub mod simd;
 #[cfg(feature = "alloc")]
 pub mod spsc;
 pub mod stack_vec;
+pub mod table;
 
 pub use buffer::Buffer;
 pub use denormal::{flush_denormal_f32, flush_denormal_f64, flush_denormals_f32_batch, flush_denormals_f64_batch};
@@ -29,3 +30,4 @@ pub use sample::Sample;
 #[cfg(feature = "alloc")]
 pub use spsc::{Consumer, Producer, SpscRingBuffer};
 pub use stack_vec::StackVec;
+pub use table::{SINE_2048, SineTable, read_interpolated};

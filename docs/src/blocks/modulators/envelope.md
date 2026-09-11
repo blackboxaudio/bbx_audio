@@ -210,7 +210,7 @@ let filter = builder.add(LowPassFilterBlock::new(500.0, 2.0));
 let env = builder.add(EnvelopeBlock::new(0.01, 0.3, 0.2, 0.5));
 
 builder.connect(osc, 0, filter, 0);
-builder.modulate(env, filter, "cutoff");
+builder.modulate(env, filter, "cutoff")?;
 ```
 
 ## Control Methods

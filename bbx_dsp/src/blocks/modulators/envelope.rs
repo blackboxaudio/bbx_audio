@@ -3,7 +3,7 @@
 use crate::{
     block::{Block, DEFAULT_MODULATOR_INPUT_COUNT, DEFAULT_MODULATOR_OUTPUT_COUNT},
     context::DspContext,
-    parameter::{ModulationOutput, Parameter},
+    parameter::{ModulationOutput, ModulationValues, Parameter, parameter_name_matches},
     sample::Sample,
 };
 
@@ -54,10 +54,10 @@ impl<S: Sample> EnvelopeBlock<S> {
     /// Times are in seconds, sustain is a level from 0.0 to 1.0.
     pub fn new(attack: f64, decay: f64, sustain: f64, release: f64) -> Self {
         Self {
-            attack: Parameter::Constant(S::from_f64(attack)),
-            decay: Parameter::Constant(S::from_f64(decay)),
-            sustain: Parameter::Constant(S::from_f64(sustain)),
-            release: Parameter::Constant(S::from_f64(release)),
+            attack: Parameter::constant(S::from_f64(attack)),
+            decay: Parameter::constant(S::from_f64(decay)),
+            sustain: Parameter::constant(S::from_f64(sustain)),
+            release: Parameter::constant(S::from_f64(release)),
             stage: EnvelopeStage::Idle,
             level: 0.0,
             stage_time: 0.0,
@@ -95,15 +95,25 @@ impl<S: Sample> EnvelopeBlock<S> {
 }
 
 impl<S: Sample> Block<S> for EnvelopeBlock<S> {
-    fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        let attack_time = Self::clamp_time(self.attack.get_value(modulation_values).to_f64());
-        let decay_time = Self::clamp_time(self.decay.get_value(modulation_values).to_f64());
-        let sustain_level = self.sustain.get_value(modulation_values).to_f64().clamp(0.0, 1.0);
-        let release_time = Self::clamp_time(self.release.get_value(modulation_values).to_f64());
+    fn process(
+        &mut self,
+        _inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &ModulationValues<S>,
+        context: &DspContext,
+    ) {
+        let attack_time = Self::clamp_time(self.attack.value(modulation_values).to_f64());
+        let decay_time = Self::clamp_time(self.decay.value(modulation_values).to_f64());
+        let sustain_level = self.sustain.value(modulation_values).to_f64().clamp(0.0, 1.0);
+        let release_time = Self::clamp_time(self.release.value(modulation_values).to_f64());
 
         let time_per_sample = 1.0 / context.sample_rate;
 
-        for sample_index in 0..context.buffer_size {
+        // Callers may pass slices shorter than the graph's block size
+        // (e.g. sample-accurate event splitting), so clamp to the slice
+        let num_samples = context.buffer_size.min(outputs[0].len());
+
+        for sample_index in 0..num_samples {
             match self.stage {
                 EnvelopeStage::Idle => {
                     self.level = 0.0;
@@ -145,6 +155,38 @@ impl<S: Sample> Block<S> for EnvelopeBlock<S> {
             if self.stage != EnvelopeStage::Idle && self.stage != EnvelopeStage::Sustain {
                 self.stage_time += time_per_sample;
             }
+        }
+    }
+
+    fn parameter_names(&self) -> &'static [&'static str] {
+        &["attack", "decay", "sustain", "release"]
+    }
+
+    fn parameter(&self, name: &str) -> Option<&Parameter<S>> {
+        if parameter_name_matches(name, &["attack"]) {
+            Some(&self.attack)
+        } else if parameter_name_matches(name, &["decay"]) {
+            Some(&self.decay)
+        } else if parameter_name_matches(name, &["sustain"]) {
+            Some(&self.sustain)
+        } else if parameter_name_matches(name, &["release"]) {
+            Some(&self.release)
+        } else {
+            None
+        }
+    }
+
+    fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+        if parameter_name_matches(name, &["attack"]) {
+            Some(&mut self.attack)
+        } else if parameter_name_matches(name, &["decay"]) {
+            Some(&mut self.decay)
+        } else if parameter_name_matches(name, &["sustain"]) {
+            Some(&mut self.sustain)
+        } else if parameter_name_matches(name, &["release"]) {
+            Some(&mut self.release)
+        } else {
+            None
         }
     }
 
@@ -194,8 +236,30 @@ mod tests {
         let inputs: [&[S]; 0] = [];
         let mut output = vec![S::ZERO; context.buffer_size];
         let mut outputs: [&mut [S]; 1] = [&mut output];
-        env.process(&inputs, &mut outputs, &[], context);
+        env.process(&inputs, &mut outputs, &ModulationValues::empty(), context);
         output
+    }
+
+    #[test]
+    fn test_envelope_short_slice_advances_by_slice_length_f32() {
+        let mut env = EnvelopeBlock::<f32>::new(0.1, 0.1, 0.5, 0.2);
+        env.note_on();
+
+        // Slice is shorter than the context's block size
+        let context = test_context(512, 44100.0);
+        let inputs: [&[f32]; 0] = [];
+        let mut output = vec![0.0f32; 100];
+        {
+            let mut outputs: [&mut [f32]; 1] = [&mut output];
+            env.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
+        }
+
+        let expected_level = (100.0 / 44100.0) / 0.1;
+        assert!(
+            (output[99] - expected_level as f32).abs() < 0.01,
+            "Attack should have advanced 100 samples, not buffer_size: level={}",
+            output[99]
+        );
     }
 
     #[test]

@@ -149,7 +149,7 @@ let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 let encoder = builder.add(PannerBlock::new_ambisonic(1));
 let lfo = builder.add(LfoBlock::new(0.5, 1.0, Waveform::Sine, None));
 builder.connect(osc, 0, encoder, 0);
-builder.modulate(lfo, encoder, "azimuth");
+builder.modulate(lfo, encoder, "azimuth")?;
 
 // Decode to 7.1 speakers
 let decoder = builder.add(AmbisonicDecoderBlock::new(1, ChannelLayout::Surround71));

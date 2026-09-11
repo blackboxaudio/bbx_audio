@@ -2,7 +2,13 @@
 
 use core::marker::PhantomData;
 
-use crate::{block::Block, channel::ChannelConfig, context::DspContext, parameter::ModulationOutput, sample::Sample};
+use crate::{
+    block::Block,
+    channel::ChannelConfig,
+    context::DspContext,
+    parameter::{ModulationOutput, ModulationValues},
+    sample::Sample,
+};
 
 /// Channel routing mode for stereo signals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -72,7 +78,13 @@ impl<S: Sample> ChannelRouterBlock<S> {
 }
 
 impl<S: Sample> Block<S> for ChannelRouterBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         // Handle mono input
         if inputs.is_empty() {
             return;
@@ -196,7 +208,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        router.process(&inputs, &mut outputs, &[], &context);
+        router.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, left_in);
         assert_eq!(right_out, right_in);
@@ -215,7 +227,7 @@ mod tests {
         let inputs: [&[f64]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
 
-        router.process(&inputs, &mut outputs, &[], &context);
+        router.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, left_in);
         assert_eq!(right_out, right_in);
@@ -234,7 +246,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        router.process(&inputs, &mut outputs, &[], &context);
+        router.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, left_in);
         assert_eq!(right_out, left_in);
@@ -253,7 +265,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        router.process(&inputs, &mut outputs, &[], &context);
+        router.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, right_in);
         assert_eq!(right_out, right_in);
@@ -272,7 +284,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        router.process(&inputs, &mut outputs, &[], &context);
+        router.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, right_in);
         assert_eq!(right_out, left_in);
@@ -291,7 +303,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        router.process(&inputs, &mut outputs, &[], &context);
+        router.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let expected = [3.0f32, 5.0, 7.0, 9.0];
         for i in 0..4 {
@@ -313,7 +325,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        router.process(&inputs, &mut outputs, &[], &context);
+        router.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let expected_left = [-1.0f32, -2.0, -3.0, -4.0];
         assert_eq!(left_out, expected_left);
@@ -333,7 +345,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        router.process(&inputs, &mut outputs, &[], &context);
+        router.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let expected_right = [-5.0f32, -6.0, -7.0, -8.0];
         assert_eq!(left_out, left_in);
@@ -353,7 +365,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        router.process(&inputs, &mut outputs, &[], &context);
+        router.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let expected_left = [-1.0f32, -2.0, -3.0, -4.0];
         let expected_right = [-5.0f32, -6.0, -7.0, -8.0];

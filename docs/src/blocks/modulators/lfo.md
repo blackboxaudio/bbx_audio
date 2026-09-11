@@ -150,7 +150,7 @@ let mut builder = GraphBuilder::<f32>::new(44100.0, 512, 2);
 let lfo = builder.add(LfoBlock::new(5.0, 0.3, Waveform::Sine, None));
 let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
-builder.modulate(lfo, osc, "frequency");
+builder.modulate(lfo, osc, "frequency")?;
 ```
 
 ### Tremolo (Amplitude Modulation)
@@ -165,7 +165,7 @@ let lfo = builder.add(LfoBlock::new(6.0, 1.0, Waveform::Sine, None));
 let gain = builder.add(GainBlock::new(-6.0, None));
 
 builder.connect(osc, 0, gain, 0);
-builder.modulate(lfo, gain, "level_db");
+builder.modulate(lfo, gain, "level_db")?;
 ```
 
 ### Auto-Pan
@@ -180,7 +180,7 @@ let lfo = builder.add(LfoBlock::new(0.25, 1.0, Waveform::Sine, None));
 let pan = builder.add(PannerBlock::new(0.0));
 
 builder.connect(osc, 0, pan, 0);
-builder.modulate(lfo, pan, "position");
+builder.modulate(lfo, pan, "position")?;
 ```
 
 ### Filter Sweep
@@ -195,7 +195,7 @@ let filter = builder.add(LowPassFilterBlock::new(1000.0, 4.0));
 let lfo = builder.add(LfoBlock::new(0.1, 0.8, Waveform::Sine, None));
 
 builder.connect(osc, 0, filter, 0);
-builder.modulate(lfo, filter, "cutoff");
+builder.modulate(lfo, filter, "cutoff")?;
 ```
 
 ### Square LFO for Gated Effect
@@ -210,7 +210,7 @@ let lfo = builder.add(LfoBlock::new(4.0, 1.0, Waveform::Square, None));
 let gain = builder.add(GainBlock::new(0.0, None));
 
 builder.connect(osc, 0, gain, 0);
-builder.modulate(lfo, gain, "level_db");
+builder.modulate(lfo, gain, "level_db")?;
 ```
 
 ## Rate Guidelines

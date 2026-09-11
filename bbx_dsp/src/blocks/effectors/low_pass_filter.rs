@@ -6,7 +6,7 @@ use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT, MAX_BLOCK_OUTPUTS},
     context::DspContext,
     math,
-    parameter::{ModulationOutput, Parameter},
+    parameter::{ModulationOutput, ModulationValues, Parameter, parameter_name_matches},
     sample::Sample,
 };
 
@@ -38,8 +38,8 @@ impl<S: Sample> LowPassFilterBlock<S> {
     /// Create a new low-pass filter with the given cutoff and resonance.
     pub fn new(cutoff: f64, resonance: f64) -> Self {
         Self {
-            cutoff: Parameter::Constant(S::from_f64(cutoff)),
-            resonance: Parameter::Constant(S::from_f64(resonance)),
+            cutoff: Parameter::constant(S::from_f64(cutoff)),
+            resonance: Parameter::constant(S::from_f64(resonance)),
             ic1eq: [0.0; MAX_BLOCK_OUTPUTS],
             ic2eq: [0.0; MAX_BLOCK_OUTPUTS],
         }
@@ -47,16 +47,22 @@ impl<S: Sample> LowPassFilterBlock<S> {
 }
 
 impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &ModulationValues<S>,
+        context: &DspContext,
+    ) {
         let cutoff_hz = self
             .cutoff
-            .get_value(modulation_values)
+            .value(modulation_values)
             .to_f64()
             .clamp(Self::MIN_CUTOFF, Self::MAX_CUTOFF);
 
         let q = self
             .resonance
-            .get_value(modulation_values)
+            .value(modulation_values)
             .to_f64()
             .clamp(Self::MIN_Q, Self::MAX_Q);
 
@@ -111,6 +117,30 @@ impl<S: Sample> Block<S> for LowPassFilterBlock<S> {
         }
     }
 
+    fn parameter_names(&self) -> &'static [&'static str] {
+        &["cutoff", "resonance"]
+    }
+
+    fn parameter(&self, name: &str) -> Option<&Parameter<S>> {
+        if parameter_name_matches(name, &["cutoff", "frequency"]) {
+            Some(&self.cutoff)
+        } else if parameter_name_matches(name, &["resonance", "q"]) {
+            Some(&self.resonance)
+        } else {
+            None
+        }
+    }
+
+    fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+        if parameter_name_matches(name, &["cutoff", "frequency"]) {
+            Some(&mut self.cutoff)
+        } else if parameter_name_matches(name, &["resonance", "q"]) {
+            Some(&mut self.resonance)
+        } else {
+            None
+        }
+    }
+
     #[inline]
     fn input_count(&self) -> usize {
         DEFAULT_EFFECTOR_INPUT_COUNT
@@ -162,7 +192,7 @@ mod tests {
         let input_refs: Vec<&[f32]> = input.iter().map(|ch| ch.as_slice()).collect();
         let mut output_refs: Vec<&mut [f32]> = outputs.iter_mut().map(|ch| ch.as_mut_slice()).collect();
 
-        filter.process(&input_refs, &mut output_refs, &[], &context);
+        filter.process(&input_refs, &mut output_refs, &ModulationValues::empty(), &context);
 
         for ch in 0..6 {
             assert!(outputs[ch][3].abs() > 0.0, "Channel {ch} should have output");
@@ -185,7 +215,7 @@ mod tests {
         let input_refs: Vec<&[f32]> = input.iter().map(|ch| ch.as_slice()).collect();
         let mut output_refs: Vec<&mut [f32]> = outputs.iter_mut().map(|ch| ch.as_mut_slice()).collect();
 
-        filter.process(&input_refs, &mut output_refs, &[], &context);
+        filter.process(&input_refs, &mut output_refs, &ModulationValues::empty(), &context);
 
         assert!(outputs[0][63].abs() > outputs[1][63].abs());
         assert!(outputs[2][63].abs() < outputs[0][63].abs());
@@ -217,7 +247,7 @@ mod tests {
         let inputs: [&[f64]; 1] = [&input];
         let mut outputs: [&mut [f64]; 1] = [&mut output];
 
-        filter.process(&inputs, &mut outputs, &[], &context);
+        filter.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert!(output[63].abs() > 0.0, "Filter should produce output");
     }
@@ -239,12 +269,12 @@ mod tests {
         let inputs: [&[f32]; 1] = [&input];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        filter.process(&inputs, &mut outputs, &[], &context);
+        filter.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         filter.reset();
 
         let mut output2: [f32; 64] = [0.0; 64];
         let mut outputs2: [&mut [f32]; 1] = [&mut output2];
-        filter.process(&inputs, &mut outputs2, &[], &context);
+        filter.process(&inputs, &mut outputs2, &ModulationValues::empty(), &context);
 
         assert!((output[0] - output2[0]).abs() < 1e-6, "Reset should clear state");
     }
@@ -260,7 +290,7 @@ mod tests {
         let inputs: [&[f32]; 1] = [&input];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        filter.process(&inputs, &mut outputs, &[], &context);
+        filter.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let new_context = DspContext {
             sample_rate: 48000.0,
@@ -278,8 +308,8 @@ mod tests {
         let mut outputs_used: [&mut [f32]; 1] = [&mut output_used];
         let mut outputs_fresh: [&mut [f32]; 1] = [&mut output_fresh];
 
-        filter.process(&inputs, &mut outputs_used, &[], &new_context);
-        fresh_filter.process(&inputs, &mut outputs_fresh, &[], &new_context);
+        filter.process(&inputs, &mut outputs_used, &ModulationValues::empty(), &new_context);
+        fresh_filter.process(&inputs, &mut outputs_fresh, &ModulationValues::empty(), &new_context);
 
         assert!(
             (output_used[0] - output_fresh[0]).abs() < 1e-6,

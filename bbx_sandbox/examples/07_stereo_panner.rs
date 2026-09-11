@@ -26,7 +26,9 @@ fn create_graph() -> Graph<f32> {
 
     builder.connect(osc1, 0, gain1, 0);
     builder.connect(gain1, 0, pan1, 0);
-    builder.modulate(lfo1, pan1, "position");
+    builder
+        .modulate(lfo1, pan1, "position")
+        .expect("modulation target exists");
 
     // Layer 2: P5 anchor (E2, 82.4 Hz) - weight
     let osc2 = builder.add(OscillatorBlock::new(82.4, Waveform::Triangle, None));
@@ -36,7 +38,9 @@ fn create_graph() -> Graph<f32> {
 
     builder.connect(osc2, 0, gain2, 0);
     builder.connect(gain2, 0, pan2, 0);
-    builder.modulate(lfo2, pan2, "position");
+    builder
+        .modulate(lfo2, pan2, "position")
+        .expect("modulation target exists");
 
     // Layer 3: m7 (G3, 196.0 Hz) - minor color
     let osc3 = builder.add(OscillatorBlock::new(196.0, Waveform::Triangle, None));
@@ -46,7 +50,9 @@ fn create_graph() -> Graph<f32> {
 
     builder.connect(osc3, 0, gain3, 0);
     builder.connect(gain3, 0, pan3, 0);
-    builder.modulate(lfo3, pan3, "position");
+    builder
+        .modulate(lfo3, pan3, "position")
+        .expect("modulation target exists");
 
     // Layer 4: 9th tension (B3, 246.9 Hz +3 cents) - cluster bottom
     let osc4 = builder.add(OscillatorBlock::new(246.9, Waveform::Triangle, None));
@@ -56,7 +62,9 @@ fn create_graph() -> Graph<f32> {
 
     builder.connect(osc4, 0, gain4, 0);
     builder.connect(gain4, 0, pan4, 0);
-    builder.modulate(lfo4, pan4, "position");
+    builder
+        .modulate(lfo4, pan4, "position")
+        .expect("modulation target exists");
 
     // Layer 5: m3 cluster (C4, 261.6 Hz) - semitone shimmer with B, filtered saw
     let osc5 = builder.add(OscillatorBlock::new(261.6, Waveform::Sawtooth, None));
@@ -67,10 +75,14 @@ fn create_graph() -> Graph<f32> {
     let pan_lfo5 = builder.add(LfoBlock::new(0.053, 75.0, Waveform::Sine, None));
 
     builder.connect(osc5, 0, lpf, 0);
-    builder.modulate(filter_lfo, lpf, "cutoff");
+    builder
+        .modulate(filter_lfo, lpf, "cutoff")
+        .expect("modulation target exists");
     builder.connect(lpf, 0, gain5, 0);
     builder.connect(gain5, 0, pan5, 0);
-    builder.modulate(pan_lfo5, pan5, "position");
+    builder
+        .modulate(pan_lfo5, pan5, "position")
+        .expect("modulation target exists");
 
     // Layer 6: Phrygian color (F4, 349.2 Hz -2 cents) - dark modal tension
     let osc6 = builder.add(OscillatorBlock::new(349.2, Waveform::Sine, None));
@@ -80,7 +92,9 @@ fn create_graph() -> Graph<f32> {
 
     builder.connect(osc6, 0, gain6, 0);
     builder.connect(gain6, 0, pan6, 0);
-    builder.modulate(lfo6, pan6, "position");
+    builder
+        .modulate(lfo6, pan6, "position")
+        .expect("modulation target exists");
 
     builder.build()
 }

@@ -62,10 +62,10 @@ mod app {
             controls: &Controls,
         ) {
             // Knob 2 -> pitch, knob 1 -> filter cutoff.
-            let frequency = MIN_FREQ + controls.knob2 * (MAX_FREQ - MIN_FREQ);
+            let frequency = MIN_FREQ + controls.knobs[1] * (MAX_FREQ - MIN_FREQ);
             let phase_inc = frequency / DEFAULT_SAMPLE_RATE;
 
-            let cutoff = MIN_CUTOFF + controls.knob1 * (MAX_CUTOFF - MIN_CUTOFF);
+            let cutoff = MIN_CUTOFF + controls.knobs[0] * (MAX_CUTOFF - MIN_CUTOFF);
             let omega = 2.0 * PI * cutoff / DEFAULT_SAMPLE_RATE;
             let coeff = omega / (omega + 1.0);
 

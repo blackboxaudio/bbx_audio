@@ -27,8 +27,8 @@ use crate::{FrameBuffer, audio::BLOCK_SIZE, controls::Controls};
 ///         output: &mut FrameBuffer<BLOCK_SIZE>,
 ///         controls: &Controls,
 ///     ) {
-///         // Map knob1 to frequency (110Hz - 880Hz)
-///         let frequency = 110.0 + controls.knob1 * 770.0;
+///         // Map knob 1 to frequency (110Hz - 880Hz)
+///         let frequency = 110.0 + controls.knobs[0] * 770.0;
 ///         let phase_inc = frequency / DEFAULT_SAMPLE_RATE;
 ///
 ///         for i in 0..BLOCK_SIZE {

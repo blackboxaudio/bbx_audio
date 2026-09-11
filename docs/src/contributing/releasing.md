@@ -15,6 +15,10 @@ All crates use **lockstep versioning** — they share a single version via
 `[workspace.package]` in the root `Cargo.toml`. Bump the version in one place (plus the
 internal versions under `[workspace.dependencies]`), not in each crate individually.
 
+The npm client packages (`@bbx-audio/net` in `bbx_net/client/`, `@bbx-audio/plugin` in
+`bbx_plugin/client/`) are **versioned independently** of the crates and are not part of
+the crate release train — see [NPM Client Packages](#npm-client-packages) below.
+
 ## Releasing
 
 Releases are triggered by **merging a `release/v*` branch into `develop`** — not by pushing
@@ -34,8 +38,7 @@ which automatically:
 2. **Opens a `develop → main` sync PR** (merge it afterward to bring `main` up to date).
 3. **Validates** — checks out the tag and runs `cargo test --workspace --release`.
 4. **Publishes to crates.io** in dependency order (see below).
-5. **Publishes to npm** — the `@bbx-audio/net` TypeScript client.
-6. **Creates a GitHub Release** with the changelog section for the version.
+5. **Creates a GitHub Release** with the changelog section for the version.
 
 A manual `workflow_dispatch` run is also available; it publishes from an already-existing
 tag whose version matches `Cargo.toml`.
@@ -69,3 +72,16 @@ cargo publish -p <crate_name>
 ```
 
 See `RELEASING.md` in the repository root for the detailed procedure and troubleshooting.
+
+## NPM Client Packages
+
+`@bbx-audio/net` and `@bbx-audio/plugin` follow the same model as `@bbx-audio/honey` and
+`@bbx-audio/nectar`: bump the `version` in the client's `package.json` as part of a normal
+PR, and when it lands on `develop` the `Publish NPM` workflow
+(`.github/workflows/cd.npm.yml`) builds and publishes the package, then pushes a
+`net-vX.Y.Z` / `plugin-vX.Y.Z` tag. Merges without a version bump publish nothing.
+
+Client and crate versions no longer need to match. When a crate change affects something a
+client depends on (the `bbx_net` WebSocket protocol, `bbx_plugin` parameter codegen),
+update the client in the same PR, bump its version, and keep the compatibility notes in
+the client READMEs accurate.

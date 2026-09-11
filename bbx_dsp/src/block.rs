@@ -4,18 +4,12 @@
 //! [`BlockType`] for type-erased block storage in the graph.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    format,
-    string::{String, ToString},
-    vec::Vec,
-};
+use alloc::vec::Vec;
 
 #[cfg(feature = "alloc")]
 use crate::blocks::effectors::{ambisonic_decoder::AmbisonicDecoderBlock, binaural_decoder::BinauralDecoderBlock};
 #[cfg(feature = "std")]
 use crate::blocks::io::{file_input::FileInputBlock, file_output::FileOutputBlock};
-#[cfg(feature = "alloc")]
-use crate::parameter::Parameter;
 use crate::{
     blocks::{
         effectors::{
@@ -30,7 +24,7 @@ use crate::{
     },
     channel::ChannelConfig,
     context::DspContext,
-    parameter::ModulationOutput,
+    parameter::{ModulationOutput, ModulationRoute, ModulationValues, Parameter},
     sample::Sample,
 };
 
@@ -88,9 +82,15 @@ pub trait Block<S: Sample> {
     ///
     /// * `inputs` - Slice of input buffer references, one per input port
     /// * `outputs` - Slice of mutable output buffer references, one per output port
-    /// * `modulation_values` - Values from connected modulator blocks, indexed by [`BlockId`]
+    /// * `modulation_values` - Every modulator output the graph collected for this buffer
     /// * `context` - The DSP context with sample rate and timing info
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext);
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &ModulationValues<S>,
+        context: &DspContext,
+    );
 
     /// Returns the number of input ports this block accepts.
     fn input_count(&self) -> usize;
@@ -139,6 +139,25 @@ pub trait Block<S: Sample> {
     ///
     /// Default implementation is a no-op for stateless blocks.
     fn reset(&mut self) {}
+
+    /// Canonical names of this block's modulatable parameters.
+    ///
+    /// The graph iterates these to discover routes for topology snapshots.
+    /// Blocks without parameters keep the empty default.
+    fn parameter_names(&self) -> &'static [&'static str] {
+        &[]
+    }
+
+    /// Look up a parameter by name. Blocks may accept aliases and ignore case;
+    /// see [`parameter_name_matches`](crate::parameter::parameter_name_matches).
+    fn parameter(&self, _name: &str) -> Option<&Parameter<S>> {
+        None
+    }
+
+    /// Mutable counterpart of [`Block::parameter`]; the builder uses it to attach routes.
+    fn parameter_mut(&mut self, _name: &str) -> Option<&mut Parameter<S>> {
+        None
+    }
 }
 
 /// Type-erased container for all block implementations.
@@ -204,7 +223,7 @@ impl<S: Sample> BlockType<S> {
         &mut self,
         inputs: &[&[S]],
         outputs: &mut [&mut [S]],
-        modulation_values: &[S],
+        modulation_values: &ModulationValues<S>,
         context: &DspContext,
     ) {
         match self {
@@ -480,118 +499,93 @@ impl<S: Sample> BlockType<S> {
         }
     }
 
-    /// Set a given `Parameter` of the underlying `Block`.
-    #[cfg(feature = "alloc")]
-    pub fn set_parameter(&mut self, parameter_name: &str, parameter: Parameter<S>) -> Result<(), String> {
+    /// Canonical names of the underlying block's modulatable parameters.
+    #[inline]
+    pub fn parameter_names(&self) -> &'static [&'static str] {
         match self {
-            // I/O
             #[cfg(feature = "std")]
-            BlockType::FileInput(_) => Err(String::from("File input blocks have no modulated parameters")),
+            BlockType::FileInput(block) => block.parameter_names(),
             #[cfg(feature = "std")]
-            BlockType::FileOutput(_) => Err(String::from("File output blocks have no modulated parameters")),
-            BlockType::Output(_) => Err(String::from("Output blocks have no modulated parameters")),
-
-            // GENERATORS
-            BlockType::Oscillator(block) => match parameter_name.to_lowercase().as_str() {
-                "frequency" => {
-                    block.frequency = parameter;
-                    Ok(())
-                }
-                "pitch_offset" => {
-                    block.pitch_offset = parameter;
-                    Ok(())
-                }
-                _ => Err(format!("Unknown oscillator parameter: {parameter_name}")),
-            },
-
-            // EFFECTORS
+            BlockType::FileOutput(block) => block.parameter_names(),
+            BlockType::Output(block) => block.parameter_names(),
+            BlockType::Oscillator(block) => block.parameter_names(),
             #[cfg(feature = "alloc")]
-            BlockType::AmbisonicDecoder(_) => Err("Ambisonic decoder has no modulated parameters".to_string()),
+            BlockType::AmbisonicDecoder(block) => block.parameter_names(),
             #[cfg(feature = "alloc")]
-            BlockType::BinauralDecoder(_) => Err("Binaural decoder has no modulated parameters".to_string()),
-            BlockType::ChannelMerger(_) => Err("Channel merger has no modulated parameters".to_string()),
-            BlockType::ChannelRouter(_) => Err("Channel router uses direct field access, not Parameter<S>".to_string()),
-            BlockType::ChannelSplitter(_) => Err("Channel splitter has no modulated parameters".to_string()),
-            BlockType::DcBlocker(_) => Err("DC blocker uses direct field access, not Parameter<S>".to_string()),
-            BlockType::Gain(block) => match parameter_name.to_lowercase().as_str() {
-                "level" | "level_db" => {
-                    block.level_db = parameter;
-                    Ok(())
-                }
-                _ => Err(format!("Unknown gain parameter: {parameter_name}")),
-            },
-            BlockType::LowPassFilter(block) => match parameter_name.to_lowercase().as_str() {
-                "cutoff" | "frequency" => {
-                    block.cutoff = parameter;
-                    Ok(())
-                }
-                "resonance" | "q" => {
-                    block.resonance = parameter;
-                    Ok(())
-                }
-                _ => Err(format!("Unknown low-pass filter parameter: {parameter_name}")),
-            },
-            BlockType::MatrixMixer(_) => Err("Matrix mixer uses set_gain method, not Parameter<S>".to_string()),
-            BlockType::Mixer(_) => Err("Mixer has no modulated parameters".to_string()),
-            BlockType::Overdrive(block) => match parameter_name.to_lowercase().as_str() {
-                "drive" => {
-                    block.drive = parameter;
-                    Ok(())
-                }
-                "level" => {
-                    block.level = parameter;
-                    Ok(())
-                }
-                _ => Err(format!("Unknown overdrive parameter: {parameter_name}")),
-            },
-            BlockType::Panner(block) => match parameter_name.to_lowercase().as_str() {
-                "position" | "pan" => {
-                    block.position = parameter;
-                    Ok(())
-                }
-                "azimuth" => {
-                    block.azimuth = parameter;
-                    Ok(())
-                }
-                "elevation" => {
-                    block.elevation = parameter;
-                    Ok(())
-                }
-                _ => Err(format!("Unknown panner parameter: {parameter_name}")),
-            },
-            BlockType::Vca(_) => Err("VCA has no modulated parameters".to_string()),
+            BlockType::BinauralDecoder(block) => block.parameter_names(),
+            BlockType::ChannelMerger(block) => block.parameter_names(),
+            BlockType::ChannelRouter(block) => block.parameter_names(),
+            BlockType::ChannelSplitter(block) => block.parameter_names(),
+            BlockType::DcBlocker(block) => block.parameter_names(),
+            BlockType::Gain(block) => block.parameter_names(),
+            BlockType::LowPassFilter(block) => block.parameter_names(),
+            BlockType::MatrixMixer(block) => block.parameter_names(),
+            BlockType::Mixer(block) => block.parameter_names(),
+            BlockType::Overdrive(block) => block.parameter_names(),
+            BlockType::Panner(block) => block.parameter_names(),
+            BlockType::Vca(block) => block.parameter_names(),
+            BlockType::Envelope(block) => block.parameter_names(),
+            BlockType::Lfo(block) => block.parameter_names(),
+        }
+    }
 
-            // MODULATORS
-            BlockType::Envelope(block) => match parameter_name.to_lowercase().as_str() {
-                "attack" => {
-                    block.attack = parameter;
-                    Ok(())
-                }
-                "decay" => {
-                    block.decay = parameter;
-                    Ok(())
-                }
-                "sustain" => {
-                    block.sustain = parameter;
-                    Ok(())
-                }
-                "release" => {
-                    block.release = parameter;
-                    Ok(())
-                }
-                _ => Err(format!("Unknown envelope parameter: {parameter_name}")),
-            },
-            BlockType::Lfo(block) => match parameter_name.to_lowercase().as_str() {
-                "frequency" => {
-                    block.frequency = parameter;
-                    Ok(())
-                }
-                "depth" => {
-                    block.depth = parameter;
-                    Ok(())
-                }
-                _ => Err(format!("Unknown LFO parameter: {parameter_name}")),
-            },
+    /// Look up a `Parameter` of the underlying `Block` by name.
+    #[inline]
+    pub fn parameter(&self, name: &str) -> Option<&Parameter<S>> {
+        match self {
+            #[cfg(feature = "std")]
+            BlockType::FileInput(block) => block.parameter(name),
+            #[cfg(feature = "std")]
+            BlockType::FileOutput(block) => block.parameter(name),
+            BlockType::Output(block) => block.parameter(name),
+            BlockType::Oscillator(block) => block.parameter(name),
+            #[cfg(feature = "alloc")]
+            BlockType::AmbisonicDecoder(block) => block.parameter(name),
+            #[cfg(feature = "alloc")]
+            BlockType::BinauralDecoder(block) => block.parameter(name),
+            BlockType::ChannelMerger(block) => block.parameter(name),
+            BlockType::ChannelRouter(block) => block.parameter(name),
+            BlockType::ChannelSplitter(block) => block.parameter(name),
+            BlockType::DcBlocker(block) => block.parameter(name),
+            BlockType::Gain(block) => block.parameter(name),
+            BlockType::LowPassFilter(block) => block.parameter(name),
+            BlockType::MatrixMixer(block) => block.parameter(name),
+            BlockType::Mixer(block) => block.parameter(name),
+            BlockType::Overdrive(block) => block.parameter(name),
+            BlockType::Panner(block) => block.parameter(name),
+            BlockType::Vca(block) => block.parameter(name),
+            BlockType::Envelope(block) => block.parameter(name),
+            BlockType::Lfo(block) => block.parameter(name),
+        }
+    }
+
+    /// Mutable lookup of a `Parameter` of the underlying `Block` by name.
+    #[inline]
+    pub fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+        match self {
+            #[cfg(feature = "std")]
+            BlockType::FileInput(block) => block.parameter_mut(name),
+            #[cfg(feature = "std")]
+            BlockType::FileOutput(block) => block.parameter_mut(name),
+            BlockType::Output(block) => block.parameter_mut(name),
+            BlockType::Oscillator(block) => block.parameter_mut(name),
+            #[cfg(feature = "alloc")]
+            BlockType::AmbisonicDecoder(block) => block.parameter_mut(name),
+            #[cfg(feature = "alloc")]
+            BlockType::BinauralDecoder(block) => block.parameter_mut(name),
+            BlockType::ChannelMerger(block) => block.parameter_mut(name),
+            BlockType::ChannelRouter(block) => block.parameter_mut(name),
+            BlockType::ChannelSplitter(block) => block.parameter_mut(name),
+            BlockType::DcBlocker(block) => block.parameter_mut(name),
+            BlockType::Gain(block) => block.parameter_mut(name),
+            BlockType::LowPassFilter(block) => block.parameter_mut(name),
+            BlockType::MatrixMixer(block) => block.parameter_mut(name),
+            BlockType::Mixer(block) => block.parameter_mut(name),
+            BlockType::Overdrive(block) => block.parameter_mut(name),
+            BlockType::Panner(block) => block.parameter_mut(name),
+            BlockType::Vca(block) => block.parameter_mut(name),
+            BlockType::Envelope(block) => block.parameter_mut(name),
+            BlockType::Lfo(block) => block.parameter_mut(name),
         }
     }
 
@@ -670,108 +664,22 @@ impl<S: Sample> BlockType<S> {
         }
     }
 
-    /// Returns all modulated parameters and their source block IDs.
-    ///
-    /// Returns a list of (parameter_name, source_block_id) for each parameter
-    /// that is modulated by another block.
+    /// Returns every modulation route into this block, tagged with the parameter it feeds.
     ///
     /// # Note
     ///
     /// This method allocates and is NOT realtime-safe. Only call during
     /// graph setup or from non-audio threads.
     #[cfg(feature = "alloc")]
-    pub fn get_modulated_parameters(&self) -> Vec<(&'static str, BlockId)> {
+    pub fn modulation_routes(&self) -> Vec<(&'static str, ModulationRoute<S>)> {
         let mut result = Vec::new();
-
-        match self {
-            #[cfg(feature = "std")]
-            BlockType::FileInput(_) => {}
-            #[cfg(feature = "std")]
-            BlockType::FileOutput(_) => {}
-            BlockType::Output(_) => {}
-
-            BlockType::Oscillator(block) => {
-                if let Parameter::Modulated(id) = &block.frequency {
-                    result.push(("frequency", *id));
-                }
-                if let Parameter::Modulated(id) = &block.pitch_offset {
-                    result.push(("pitch_offset", *id));
-                }
-            }
-
-            #[cfg(feature = "alloc")]
-            BlockType::AmbisonicDecoder(_) => {}
-            #[cfg(feature = "alloc")]
-            BlockType::BinauralDecoder(_) => {}
-            BlockType::ChannelMerger(_)
-            | BlockType::ChannelRouter(_)
-            | BlockType::ChannelSplitter(_)
-            | BlockType::DcBlocker(_)
-            | BlockType::MatrixMixer(_)
-            | BlockType::Mixer(_)
-            | BlockType::Vca(_) => {}
-
-            BlockType::Gain(block) => {
-                if let Parameter::Modulated(id) = &block.level_db {
-                    result.push(("level", *id));
-                }
-            }
-
-            BlockType::LowPassFilter(block) => {
-                if let Parameter::Modulated(id) = &block.cutoff {
-                    result.push(("cutoff", *id));
-                }
-                if let Parameter::Modulated(id) = &block.resonance {
-                    result.push(("resonance", *id));
-                }
-            }
-
-            BlockType::Overdrive(block) => {
-                if let Parameter::Modulated(id) = &block.drive {
-                    result.push(("drive", *id));
-                }
-                if let Parameter::Modulated(id) = &block.level {
-                    result.push(("level", *id));
-                }
-            }
-
-            BlockType::Panner(block) => {
-                if let Parameter::Modulated(id) = &block.position {
-                    result.push(("position", *id));
-                }
-                if let Parameter::Modulated(id) = &block.azimuth {
-                    result.push(("azimuth", *id));
-                }
-                if let Parameter::Modulated(id) = &block.elevation {
-                    result.push(("elevation", *id));
-                }
-            }
-
-            BlockType::Envelope(block) => {
-                if let Parameter::Modulated(id) = &block.attack {
-                    result.push(("attack", *id));
-                }
-                if let Parameter::Modulated(id) = &block.decay {
-                    result.push(("decay", *id));
-                }
-                if let Parameter::Modulated(id) = &block.sustain {
-                    result.push(("sustain", *id));
-                }
-                if let Parameter::Modulated(id) = &block.release {
-                    result.push(("release", *id));
-                }
-            }
-
-            BlockType::Lfo(block) => {
-                if let Parameter::Modulated(id) = &block.frequency {
-                    result.push(("frequency", *id));
-                }
-                if let Parameter::Modulated(id) = &block.depth {
-                    result.push(("depth", *id));
+        for &name in self.parameter_names() {
+            if let Some(parameter) = self.parameter(name) {
+                for route in parameter.routes() {
+                    result.push((name, *route));
                 }
             }
         }
-
         result
     }
 }

@@ -1,15 +1,21 @@
 //! Patch SM (Submodule) pin mappings.
 //!
-//! The Patch SM is a surface-mount module designed for integration
-//! into custom hardware. It's used by the Patch.Init() and other products.
+//! The Patch SM is a surface-mount module designed for integration into custom
+//! hardware. It's the brain of the Patch.Init() Eurorack module, whose panel
+//! wiring is noted per pin below.
 //!
-//! # Features
+//! Pin assignments are cross-checked against libDaisy's `daisy_patch_sm.h/.cpp`
+//! (the authoritative board definition). Header names (`B5`, `C10`, …) refer to
+//! the Patch SM's A/B/C/D expansion headers.
 //!
-//! - 12 CV inputs (ADC)
-//! - 2 CV outputs (DAC)
-//! - 4 gate inputs
-//! - 2 gate outputs
-//! - MIDI input
+//! # Patch.Init() control surface
+//!
+//! - 4 panel knobs → SM channels CV_1-4 ([`Cv1`]-[`Cv4`])
+//! - 4 panel CV jacks → SM channels CV_5-8 ([`Cv5`]-[`Cv8`]) — separate channels, *not* analog-summed with the knobs
+//! - B7 momentary button ([`ButtonB7`]), B8 toggle ([`SwitchB8`])
+//! - 2 gate inputs ([`GateIn1`]/[`GateIn2`]), 2 gate outputs ([`GateOut1`]/[`GateOut2`])
+//! - CV OUT jack = DAC channel 1 ([`CvOut1`]); front-panel LED = DAC channel 2 ([`CvOut2`])
+//! - The SM's own tiny onboard LED is PC7 (see [`crate::led::UserLed`])
 //! - Stereo audio I/O (PCM3060 codec)
 
 use stm32h7xx_hal::gpio::{self, Alternate, Analog, Input, Output, PushPull};
@@ -45,94 +51,100 @@ pub struct Sai1Pins {
 // ============================================================================
 // I2C Pins (for PCM3060 codec)
 // ============================================================================
+// Per libDaisy's daisy_patch_sm: the codec hangs off I2C2 on PB10/PB11.
+// (PH11/PH12 are SDRAM data lines on this module, not I2C.)
 
-/// I2C4 SCL (PH11) - Codec I2C clock
-pub type I2c4Scl = gpio::PH11<Alternate<4>>;
+/// I2C2 SCL (PB10) - Codec I2C clock
+pub type I2c2Scl = gpio::PB10<Alternate<4>>;
 
-/// I2C4 SDA (PH12) - Codec I2C data
-pub type I2c4Sda = gpio::PH12<Alternate<4>>;
+/// I2C2 SDA (PB11) - Codec I2C data
+pub type I2c2Sda = gpio::PB11<Alternate<4>>;
 
-/// Collected I2C4 pins for codec control.
-pub struct I2c4Pins {
-    pub scl: I2c4Scl,
-    pub sda: I2c4Sda,
+/// Collected I2C2 pins for codec control.
+pub struct I2c2Pins {
+    pub scl: I2c2Scl,
+    pub sda: I2c2Sda,
 }
 
 // ============================================================================
-// CV Inputs (ADC)
+// CV Inputs (ADC) — bipolar ±5V channels
 // ============================================================================
+//
+// All eight CV_x channels run through the module's bipolar (-5V to +5V) input
+// stage, which is INVERTING: +5V at the jack pulls the ADC pin low. Readers
+// must invert and re-center (see `peripherals::adc::patch_sm_bipolar`).
+// On the Patch.Init(), CV_1-4 are the panel knobs and CV_5-8 are the CV jacks.
 
-/// CV Input 1 (PC0, ADC1_IN10) - Bipolar -5V to +5V
-pub type Cv1 = gpio::PC0<Analog>;
+/// CV_1 (PA3, header C5) - Patch.Init() panel knob 1
+pub type Cv1 = gpio::PA3<Analog>;
 
-/// CV Input 2 (PA3, ADC1_IN15) - Bipolar -5V to +5V
-pub type Cv2 = gpio::PA3<Analog>;
+/// CV_2 (PA6, header C4) - Patch.Init() panel knob 2
+pub type Cv2 = gpio::PA6<Analog>;
 
-/// CV Input 3 (PB1, ADC1_IN9) - Bipolar -5V to +5V
-pub type Cv3 = gpio::PB1<Analog>;
+/// CV_3 (PA2, header C3) - Patch.Init() panel knob 3
+pub type Cv3 = gpio::PA2<Analog>;
 
-/// CV Input 4 (PA7, ADC1_IN7) - Bipolar -5V to +5V
+/// CV_4 (PA7, header C2) - Patch.Init() panel knob 4
 pub type Cv4 = gpio::PA7<Analog>;
 
-/// CV Input 5 (PA6, ADC1_IN3) - Unipolar 0V to 5V
-pub type Cv5 = gpio::PA6<Analog>;
+/// CV_5 (PC1, header C9) - Patch.Init() panel CV jack 1
+pub type Cv5 = gpio::PC1<Analog>;
 
-/// CV Input 6 (PC1, ADC1_IN11) - Unipolar 0V to 5V
-pub type Cv6 = gpio::PC1<Analog>;
+/// CV_6 (PC0, header C8) - Patch.Init() panel CV jack 2
+pub type Cv6 = gpio::PC0<Analog>;
 
-/// CV Input 7 (PC4, ADC1_IN4) - Unipolar 0V to 5V
-pub type Cv7 = gpio::PC4<Analog>;
+/// CV_7 (PB1, header C6) - Patch.Init() panel CV jack 3
+pub type Cv7 = gpio::PB1<Analog>;
 
-/// CV Input 8 (PA5, ADC1_IN5) - Unipolar 0V to 5V
-pub type Cv8 = gpio::PA5<Analog>;
-
-/// CV Input 9 (PA4, ADC1_IN4) - Unipolar 0V to 5V
-pub type Cv9 = gpio::PA4<Analog>;
-
-/// CV Input 10 (PA1, ADC1_IN1) - Unipolar 0V to 5V
-pub type Cv10 = gpio::PA1<Analog>;
-
-/// CV Input 11 (PA0, ADC1_IN0) - Unipolar 0V to 5V
-pub type Cv11 = gpio::PA0<Analog>;
-
-/// CV Input 12 (PA2, ADC1_IN14) - Unipolar 0V to 5V
-pub type Cv12 = gpio::PA2<Analog>;
+/// CV_8 (PC4, header C7) - Patch.Init() panel CV jack 4
+pub type Cv8 = gpio::PC4<Analog>;
 
 // ============================================================================
-// CV Outputs (DAC)
+// Additional ADC Inputs — unipolar 0-3.3V, no input conditioning
 // ============================================================================
 
-/// CV Output 1 (PA4, DAC1_OUT1) - 0V to 5V output
+/// ADC_9 (PA1, header A2 - shared with UART1 RX) - Unipolar 0V to 3.3V
+pub type Adc9 = gpio::PA1<Analog>;
+
+/// ADC_10 (PA0, header A3 - shared with UART1 TX) - Unipolar 0V to 3.3V
+pub type Adc10 = gpio::PA0<Analog>;
+
+// ADC_11 / ADC_12 live on the D-column SPI2 header pins (D9/D8) and are not
+// aliased here; add them alongside an SPI abstraction if ever needed.
+
+// ============================================================================
+// CV Outputs (DAC1) — 0V to 5V via the module's op-amp output stage
+// ============================================================================
+
+/// CV_OUT_1 (PA4, DAC1_OUT1, header C10) - the Patch.Init() CV OUT jack
 pub type CvOut1 = gpio::PA4<Analog>;
 
-/// CV Output 2 (PA5, DAC1_OUT2) - 0V to 5V output
+/// CV_OUT_2 (PA5, DAC1_OUT2, header C1) - drives the Patch.Init() front-panel LED
 pub type CvOut2 = gpio::PA5<Analog>;
 
 // ============================================================================
 // Gate Inputs
 // ============================================================================
+//
+// The module's transistor input stage is INVERTING: a high gate at the jack
+// pulls the MCU pin low, so wrap these in `GateIn::new_active_low`. No pull
+// resistor is needed — the input stage drives the pin.
 
-/// Gate Input 1 (PB5)
-pub type GateIn1 = gpio::PB5<Input>;
+/// Gate Input 1 (PG13, header B10)
+pub type GateIn1 = gpio::PG13<Input>;
 
-/// Gate Input 2 (PB4)
-pub type GateIn2 = gpio::PB4<Input>;
-
-/// Gate Input 3 (PG6)
-pub type GateIn3 = gpio::PG6<Input>;
-
-/// Gate Input 4 (PG7)
-pub type GateIn4 = gpio::PG7<Input>;
+/// Gate Input 2 (PG14, header B9)
+pub type GateIn2 = gpio::PG14<Input>;
 
 // ============================================================================
 // Gate Outputs
 // ============================================================================
 
-/// Gate Output 1 (PB6)
-pub type GateOut1 = gpio::PB6<Output<PushPull>>;
+/// Gate Output 1 (PC14, header B5)
+pub type GateOut1 = gpio::PC14<Output<PushPull>>;
 
-/// Gate Output 2 (PB7)
-pub type GateOut2 = gpio::PB7<Output<PushPull>>;
+/// Gate Output 2 (PC13, header B6)
+pub type GateOut2 = gpio::PC13<Output<PushPull>>;
 
 // ============================================================================
 // MIDI Input
@@ -142,70 +154,15 @@ pub type GateOut2 = gpio::PB7<Output<PushPull>>;
 pub type MidiRx = gpio::PD6<Alternate<7>>;
 
 // ============================================================================
-// User Switch / Button
+// Buttons / Switches
 // ============================================================================
 
-/// B8 toggle/switch pin (PB9) - pull-up input, read active-low.
+/// B7 momentary button pin (PB8, also I2C1 SCL) - pull-up input, read active-low.
 ///
-/// Header pin "B8" on the Patch SM (PB9, also I2C1 SDA). Used as the toggle input
-/// by the `kudzu` and `lotus` patches.
+/// On the Patch.Init() this is the front-panel push button.
+pub type ButtonB7 = gpio::PB8<Input>;
+
+/// B8 toggle/switch pin (PB9, also I2C1 SDA) - pull-up input, read active-low.
+///
+/// On the Patch.Init() this is the front-panel toggle switch.
 pub type SwitchB8 = gpio::PB9<Input>;
-
-// ============================================================================
-// User LED
-// ============================================================================
-
-/// User LED pin (PC7) - active high
-pub type UserLedPin = gpio::PC7<Output<PushPull>>;
-
-// ============================================================================
-// Patch SM Board Aggregates
-// ============================================================================
-
-/// All CV input pins.
-pub struct CvInputs {
-    pub cv1: Cv1,
-    pub cv2: Cv2,
-    pub cv3: Cv3,
-    pub cv4: Cv4,
-    pub cv5: Cv5,
-    pub cv6: Cv6,
-    pub cv7: Cv7,
-    pub cv8: Cv8,
-    pub cv9: Cv9,
-    pub cv10: Cv10,
-    pub cv11: Cv11,
-    pub cv12: Cv12,
-}
-
-/// All CV output pins.
-pub struct CvOutputs {
-    pub cv_out1: CvOut1,
-    pub cv_out2: CvOut2,
-}
-
-/// All gate input pins.
-pub struct GateInputs {
-    pub gate1: GateIn1,
-    pub gate2: GateIn2,
-    pub gate3: GateIn3,
-    pub gate4: GateIn4,
-}
-
-/// All gate output pins.
-pub struct GateOutputs {
-    pub gate1: GateOut1,
-    pub gate2: GateOut2,
-}
-
-/// All Patch SM pins collected together.
-pub struct PatchSmPins {
-    pub cv_inputs: CvInputs,
-    pub cv_outputs: CvOutputs,
-    pub gate_inputs: GateInputs,
-    pub gate_outputs: GateOutputs,
-    pub midi_rx: MidiRx,
-    pub user_led: UserLedPin,
-    pub codec_i2c: I2c4Pins,
-    pub audio: Sai1Pins,
-}

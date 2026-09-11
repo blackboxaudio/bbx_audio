@@ -64,6 +64,20 @@ impl Knob {
         }
     }
 
+    /// Create with default smoothing but **zero deadzone**, for CV jacks.
+    ///
+    /// The endpoint deadzone rescales the transfer slope by ~1%, which would
+    /// bend precision uses like 1V/oct pitch tracking — CV inputs get the raw
+    /// slope and rely on smoothing alone. Starts at mid-scale so a bipolar
+    /// conversion reads 0 V until the first real sample arrives.
+    pub const fn cv_smoothing_const() -> Self {
+        Self {
+            value: 0.5,
+            alpha: 0.1,
+            deadzone: 0.0,
+        }
+    }
+
     /// Set the deadzone for min/max positions.
     pub fn with_deadzone(mut self, deadzone: f32) -> Self {
         self.deadzone = deadzone.clamp(0.0, 0.1);
@@ -150,6 +164,18 @@ impl Default for Knob {
     fn default() -> Self {
         Self::default_smoothing()
     }
+}
+
+/// Convert a normalized (0.0-1.0) reading from a Patch SM bipolar CV input
+/// into a normalized bipolar value (-1.0 to +1.0, where +1.0 ≈ +5 V).
+///
+/// The Patch SM's bipolar input op-amp stage is **inverting** — a positive
+/// voltage at the jack pulls the ADC pin low — so this both re-centers and
+/// flips the sign (mirroring libDaisy's `InitBipolarCv`). Linear operations
+/// commute, so it's fine to smooth the 0-1 reading first and convert after.
+#[inline]
+pub fn patch_sm_bipolar(normalized: f32) -> f32 {
+    (0.5 - normalized) * 2.0
 }
 
 // ============================================================================

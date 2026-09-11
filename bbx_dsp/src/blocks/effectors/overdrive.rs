@@ -6,7 +6,7 @@ use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT, MAX_BLOCK_OUTPUTS},
     context::DspContext,
     math,
-    parameter::{ModulationOutput, Parameter},
+    parameter::{ModulationOutput, ModulationValues, Parameter, parameter_name_matches},
     sample::Sample,
     smoothing::LinearSmoothedValue,
 };
@@ -42,8 +42,8 @@ impl<S: Sample> OverdriveBlock<S> {
         let level_val = level.clamp(0.0, 1.0);
 
         let mut overdrive = Self {
-            drive: Parameter::Constant(S::from_f64(drive)),
-            level: Parameter::Constant(S::from_f64(level)),
+            drive: Parameter::constant(S::from_f64(drive)),
+            level: Parameter::constant(S::from_f64(level)),
             tone,
             filter_state: [0.0; MAX_BLOCK_OUTPUTS],
             filter_coefficient: 0.0,
@@ -79,9 +79,15 @@ impl<S: Sample> OverdriveBlock<S> {
 }
 
 impl<S: Sample> Block<S> for OverdriveBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        let target_drive = S::from_f64(self.drive.get_value(modulation_values).to_f64());
-        let target_level = S::from_f64(self.level.get_value(modulation_values).to_f64().clamp(0.0, 1.0));
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &ModulationValues<S>,
+        context: &DspContext,
+    ) {
+        let target_drive = S::from_f64(self.drive.value(modulation_values).to_f64());
+        let target_level = S::from_f64(self.level.value(modulation_values).to_f64().clamp(0.0, 1.0));
 
         if (target_drive - self.drive_smoother.target()).abs() > S::EPSILON {
             self.drive_smoother.set_target_value(target_drive);
@@ -117,6 +123,30 @@ impl<S: Sample> Block<S> for OverdriveBlock<S> {
                 self.filter_state[ch] = flush_denormal_f64(self.filter_state[ch]);
                 outputs[ch][sample_index] = S::from_f64(self.filter_state[ch] * level.to_f64());
             }
+        }
+    }
+
+    fn parameter_names(&self) -> &'static [&'static str] {
+        &["drive", "level"]
+    }
+
+    fn parameter(&self, name: &str) -> Option<&Parameter<S>> {
+        if parameter_name_matches(name, &["drive"]) {
+            Some(&self.drive)
+        } else if parameter_name_matches(name, &["level"]) {
+            Some(&self.level)
+        } else {
+            None
+        }
+    }
+
+    fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+        if parameter_name_matches(name, &["drive"]) {
+            Some(&mut self.drive)
+        } else if parameter_name_matches(name, &["level"]) {
+            Some(&mut self.level)
+        } else {
+            None
         }
     }
 
@@ -178,7 +208,7 @@ mod tests {
         let input_refs: Vec<&[f32]> = input.iter().map(|ch| ch.as_slice()).collect();
         let mut output_refs: Vec<&mut [f32]> = outputs.iter_mut().map(|ch| ch.as_mut_slice()).collect();
 
-        overdrive.process(&input_refs, &mut output_refs, &[], &context);
+        overdrive.process(&input_refs, &mut output_refs, &ModulationValues::empty(), &context);
 
         for ch in 0..6 {
             assert!(outputs[ch][3].abs() > 0.0, "Channel {ch} should have output");
@@ -201,7 +231,7 @@ mod tests {
         let input_refs: Vec<&[f32]> = input.iter().map(|ch| ch.as_slice()).collect();
         let mut output_refs: Vec<&mut [f32]> = outputs.iter_mut().map(|ch| ch.as_mut_slice()).collect();
 
-        overdrive.process(&input_refs, &mut output_refs, &[], &context);
+        overdrive.process(&input_refs, &mut output_refs, &ModulationValues::empty(), &context);
 
         assert!(outputs[0][63].abs() > outputs[1][63].abs());
         assert!(outputs[2][63].abs() < outputs[0][63].abs());
@@ -233,7 +263,7 @@ mod tests {
         let inputs: [&[f64]; 1] = [&input];
         let mut outputs: [&mut [f64]; 1] = [&mut output];
 
-        overdrive.process(&inputs, &mut outputs, &[], &context);
+        overdrive.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert!(output[63].abs() > 0.0, "Overdrive should produce output");
         assert!(output[63] <= 1.0, "Overdrive output should be bounded");
@@ -257,12 +287,12 @@ mod tests {
 
         let pos_inputs: [&[f32]; 1] = [&pos_input];
         let mut pos_outputs: [&mut [f32]; 1] = [&mut pos_output];
-        overdrive.process(&pos_inputs, &mut pos_outputs, &[], &context);
+        overdrive.process(&pos_inputs, &mut pos_outputs, &ModulationValues::empty(), &context);
 
         let mut overdrive2 = OverdriveBlock::<f32>::new(5.0, 1.0, 0.5, 44100.0);
         let neg_inputs: [&[f32]; 1] = [&neg_input];
         let mut neg_outputs: [&mut [f32]; 1] = [&mut neg_output];
-        overdrive2.process(&neg_inputs, &mut neg_outputs, &[], &context);
+        overdrive2.process(&neg_inputs, &mut neg_outputs, &ModulationValues::empty(), &context);
 
         assert!(
             pos_output[63].abs() != neg_output[63].abs(),

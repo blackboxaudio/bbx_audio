@@ -46,6 +46,7 @@ mod app {
             block::Block,
             blocks::{LowPassFilterBlock, OscillatorBlock},
             context::DspContext,
+            parameter::ModulationValues,
             waveform::Waveform,
         },
         peripherals::Led,
@@ -91,12 +92,14 @@ mod app {
             let no_inputs: [&[f32]; 0] = [];
             {
                 let mut outputs: [&mut [f32]; 1] = [&mut self.osc_buffer];
-                self.oscillator.process(&no_inputs, &mut outputs, &[], &self.context);
+                self.oscillator
+                    .process(&no_inputs, &mut outputs, &ModulationValues::empty(), &self.context);
             }
             {
                 let inputs: [&[f32]; 1] = [&self.osc_buffer];
                 let mut outputs: [&mut [f32]; 1] = [&mut self.out_buffer];
-                self.filter.process(&inputs, &mut outputs, &[], &self.context);
+                self.filter
+                    .process(&inputs, &mut outputs, &ModulationValues::empty(), &self.context);
             }
             for i in 0..BLOCK_SIZE {
                 let sample = self.out_buffer[i] * 0.5;

@@ -213,7 +213,7 @@ checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
 
 [[package]]
 name = "bbx_core"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "libm",
  "loom",
@@ -221,7 +221,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_daisy"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bbx_core",
  "bbx_dsp",
@@ -236,7 +236,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_draw"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bbx_core",
  "bbx_dsp",
@@ -251,7 +251,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_dsp"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bbx_core",
  "bbx_midi",
@@ -260,7 +260,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_file"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bbx_core",
  "bbx_dsp",
@@ -271,7 +271,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_midi"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bbx_core",
  "midir",
@@ -279,7 +279,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_net"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bbx_core",
  "futures-util",
@@ -292,7 +292,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_player"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bbx_core",
  "bbx_dsp",
@@ -302,7 +302,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_plugin"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bbx_core",
  "bbx_dsp",
@@ -313,7 +313,7 @@ dependencies = [
 
 [[package]]
 name = "bbx_sandbox"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bbx_core",
  "bbx_dsp",

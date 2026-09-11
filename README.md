@@ -2,7 +2,7 @@
 
 [![Test](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.test.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.test.yml)
 [![Clippy](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml/badge.svg)](https://github.com/blackboxaudio/bbx_audio/actions/workflows/ci.clippy.yml)
-[![Version: v0.5.0](https://img.shields.io/badge/Version-v0.5.0-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
+[![Version: v0.5.1](https://img.shields.io/badge/Version-v0.5.1-blue.svg)](https://github.com/blackboxaudio/bbx_audio)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](https://github.com/blackboxaudio/bbx_audio/blob/develop/LICENSE)
 
 A modular, real-time safe audio toolkit in Rust.
@@ -39,7 +39,7 @@ Optional SIMD optimizations are available via the `simd` feature flag (requires 
 | [`bbx_midi`](./bbx_midi) | MIDI parsing, events, and real-time streaming |
 | [`bbx_net`](./bbx_net) | OSC + WebSocket for TouchOSC, Max/MSP, web/mobile control; includes [`@bbx-audio/net`](https://www.npmjs.com/package/@bbx-audio/net) TypeScript client |
 | [`bbx_player`](./bbx_player) | Audio playback with rodio (default) or cpal backends |
-| [`bbx_plugin`](./bbx_plugin) | C FFI bindings for JUCE or any C/C++ host |
+| [`bbx_plugin`](./bbx_plugin) | C FFI bindings for JUCE or any C/C++ host; includes [`@bbx-audio/plugin`](https://www.npmjs.com/package/@bbx-audio/plugin) plugin tooling (`bbx` CLI, codegen, web glue) |
 | [`bbx_sandbox`](./bbx_sandbox) | Examples and testing playground |
 
 ## Quick Start

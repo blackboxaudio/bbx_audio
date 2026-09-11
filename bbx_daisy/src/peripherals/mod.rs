@@ -14,15 +14,21 @@
 //! - [`adc::Knob`] - Potentiometer with smoothing
 //! - [`adc::CvInput`] - CV input with bipolar/unipolar support
 //!
+//! ## DAC
+//!
+//! - [`dac::CvOut`] - CV output channel (Patch SM CV outs / Patch.Init LED)
+//!
 //! ## Encoders
 //!
 //! - [`encoder::Encoder`] - Quadrature encoder
 //! - [`encoder::EncoderWithButton`] - Encoder with integrated push button
 
 pub mod adc;
+pub mod dac;
 pub mod encoder;
 pub mod gpio;
 
 pub use adc::{CvInput, CvRange, Knob};
+pub use dac::CvOut;
 pub use encoder::{Direction, Encoder, EncoderWithButton, VelocityEncoder};
 pub use gpio::{Button, GateIn, GateOut, Led};

@@ -335,4 +335,74 @@ mod tests {
         assert!(c_header.contains("static const char* PARAM_IDS[PARAM_COUNT]"));
         assert!(c_header.contains("\"GAIN\""));
     }
+
+    // The fixtures under fixtures/params/ are shared with the TypeScript
+    // generator in client/ (see fixtures/params/README.md): both sides must
+    // accept them, and fixture order defines the parameter index order.
+
+    #[test]
+    fn test_effect_fixture() {
+        let params = ParamsFile::from_json(include_str!("../fixtures/params/effect.json")).unwrap();
+        let ids: Vec<&str> = params.parameters.iter().map(|p| p.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            [
+                "INVERT_LEFT_CHANNEL",
+                "INVERT_RIGHT_CHANNEL",
+                "CHANNEL_CONFIGURATION",
+                "MONO",
+                "GAIN",
+                "PAN",
+                "DC_OFFSET"
+            ]
+        );
+
+        let gain = &params.parameters[4];
+        assert_eq!(gain.param_type, "float");
+        assert_eq!(gain.min, Some(-60.0));
+        assert_eq!(gain.max, Some(30.0));
+        assert_eq!(gain.unit.as_deref(), Some("dB"));
+        assert_eq!(gain.midpoint, Some(0.0));
+        assert_eq!(gain.interval, Some(0.1));
+        assert_eq!(gain.fraction_digits, Some(1));
+
+        let indices = params.generate_rust_indices();
+        assert!(indices.contains("pub const PARAM_INVERT_LEFT_CHANNEL: usize = 0;"));
+        assert!(indices.contains("pub const PARAM_DC_OFFSET: usize = 6;"));
+        assert!(indices.contains("pub const PARAM_COUNT: usize = 7;"));
+    }
+
+    #[test]
+    fn test_synth_fixture() {
+        let params = ParamsFile::from_json(include_str!("../fixtures/params/synth.json")).unwrap();
+        assert_eq!(params.parameters.len(), 8);
+        assert_eq!(params.parameters[0].id, "OSC_TYPE");
+        assert_eq!(params.parameters[0].param_type, "choice");
+        assert_eq!(params.parameters[0].choices.as_ref().unwrap().len(), 4);
+        assert_eq!(params.parameters[0].default_value_index, Some(2));
+
+        let header = params.generate_c_header();
+        assert!(header.contains("#define PARAM_OSC_TYPE 0"));
+        assert!(header.contains("#define PARAM_MASTER_GAIN 7"));
+        assert!(header.contains("#define PARAM_COUNT 8"));
+    }
+
+    #[test]
+    fn test_edge_cases_fixture() {
+        let params = ParamsFile::from_json(include_str!("../fixtures/params/edge-cases.json")).unwrap();
+        let ids: Vec<&str> = params.parameters.iter().map(|p| p.id.as_str()).collect();
+        assert_eq!(ids, ["DRIVE", "LOW_PASS_FILTER_CUTOFF", "MODE", "BYPASS"]);
+
+        let drive = &params.parameters[0];
+        assert_eq!(drive.param_type, "float");
+        assert_eq!(drive.min, None);
+        assert_eq!(drive.default_value, None);
+
+        assert_eq!(params.parameters[3].default_value, Some(serde_json::Value::Bool(true)));
+        assert!(
+            params
+                .generate_rust_indices()
+                .contains("pub const PARAM_COUNT: usize = 4;")
+        );
+    }
 }

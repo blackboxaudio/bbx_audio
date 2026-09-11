@@ -38,7 +38,7 @@ let lfo = builder.add(LfoBlock::new(5.0, 0.5, Waveform::Sine, None));
 let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Connect modulation using the modulate() method
-builder.modulate(lfo, osc, "frequency");
+builder.modulate(lfo, osc, "frequency")?;
 ```
 
 ## Modulation Routing
@@ -65,7 +65,7 @@ let gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(osc, 0, gain, 0);
 
 // Modulation connection (source, target, parameter_name)
-builder.modulate(lfo, gain, "level");
+builder.modulate(lfo, gain, "level")?;
 ```
 
 ## Combining Modulators
@@ -89,12 +89,12 @@ let fast_lfo = builder.add(LfoBlock::new(6.0, 0.3, Waveform::Sine, None));
 
 // Oscillator with vibrato
 let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
-builder.modulate(fast_lfo, osc, "frequency");
+builder.modulate(fast_lfo, osc, "frequency")?;
 
 // Gain with tremolo
 let gain = builder.add(GainBlock::new(-6.0, None));
 builder.connect(osc, 0, gain, 0);
-builder.modulate(slow_lfo, gain, "level");
+builder.modulate(slow_lfo, gain, "level")?;
 ```
 
 ## Modulatable Parameters

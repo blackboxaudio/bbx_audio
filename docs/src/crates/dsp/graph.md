@@ -115,8 +115,8 @@ Use `modulate()` to connect modulators to parameters:
 
 ```rust
 // modulate(source, target, parameter_name)
-builder.modulate(lfo, osc, "frequency");
-builder.modulate(lfo, gain, "level");
+builder.modulate(lfo, osc, "frequency")?;
+builder.modulate(lfo, gain, "level")?;
 ```
 
 ### Building the Graph

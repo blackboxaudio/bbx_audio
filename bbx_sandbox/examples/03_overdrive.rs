@@ -25,7 +25,9 @@ fn create_graph() -> Graph<f32> {
     builder.connect(oscillator, 0, overdrive, 0);
     builder.connect(overdrive, 0, dc_blocker, 0);
     builder.connect(dc_blocker, 0, gain, 0);
-    builder.modulate(lfo, overdrive, "drive");
+    builder
+        .modulate(lfo, overdrive, "drive")
+        .expect("modulation target exists");
 
     builder.build()
 }

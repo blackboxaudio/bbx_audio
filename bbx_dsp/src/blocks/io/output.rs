@@ -2,7 +2,12 @@
 
 use core::marker::PhantomData;
 
-use crate::{block::Block, context::DspContext, parameter::ModulationOutput, sample::Sample};
+use crate::{
+    block::Block,
+    context::DspContext,
+    parameter::{ModulationOutput, ModulationValues},
+    sample::Sample,
+};
 
 /// The terminal output block for a DSP graph.
 ///
@@ -24,7 +29,13 @@ impl<S: Sample> OutputBlock<S> {
 }
 
 impl<S: Sample> Block<S> for OutputBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         for (input, output) in inputs.iter().zip(outputs.iter_mut()) {
             output.copy_from_slice(input);
         }
@@ -102,7 +113,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        block.process(&inputs, &mut outputs, &[], &context);
+        block.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, left_in);
         assert_eq!(right_out, right_in);
@@ -121,7 +132,7 @@ mod tests {
         let inputs: [&[f64]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
 
-        block.process(&inputs, &mut outputs, &[], &context);
+        block.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, left_in);
         assert_eq!(right_out, right_in);

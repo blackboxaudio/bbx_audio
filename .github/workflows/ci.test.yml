@@ -24,3 +24,30 @@ jobs:
 
             - name: Cargo Test
               run: cargo test --workspace --release
+
+    test-ts:
+        name: TypeScript Test
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+
+            - name: Install Yarn
+              run: npm install -g yarn
+
+            - name: Install Dependencies
+              run: yarn install --frozen-lockfile
+              working-directory: bbx_plugin/client
+              env:
+                  BBX_AUDIO_NPM_READ_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - name: Test
+              run: yarn test
+              working-directory: bbx_plugin/client
+              env:
+                  BBX_AUDIO_NPM_READ_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -53,6 +53,7 @@ pub mod channel;
 pub mod context;
 pub mod frame;
 pub mod parameter;
+pub mod phase;
 pub mod polyblep;
 pub mod sample {
     //! Audio sample type abstraction.

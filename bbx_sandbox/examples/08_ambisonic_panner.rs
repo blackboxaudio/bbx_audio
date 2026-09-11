@@ -47,8 +47,12 @@ fn create_graph() -> Graph<f32> {
 
     builder.connect(osc1, 0, gain1, 0);
     builder.connect(gain1, 0, enc1, 0);
-    builder.modulate(lfo1_az, enc1, "azimuth");
-    builder.modulate(lfo1_el, enc1, "elevation");
+    builder
+        .modulate(lfo1_az, enc1, "azimuth")
+        .expect("modulation target exists");
+    builder
+        .modulate(lfo1_el, enc1, "elevation")
+        .expect("modulation target exists");
 
     // The `0/1/2 * num_ambi_channels` pattern is deliberate: it keeps the
     // layer→mixer-input mapping visually parallel across the three layers.
@@ -66,8 +70,12 @@ fn create_graph() -> Graph<f32> {
 
     builder.connect(osc2, 0, gain2, 0);
     builder.connect(gain2, 0, enc2, 0);
-    builder.modulate(lfo2_az, enc2, "azimuth");
-    builder.modulate(lfo2_el, enc2, "elevation");
+    builder
+        .modulate(lfo2_az, enc2, "azimuth")
+        .expect("modulation target exists");
+    builder
+        .modulate(lfo2_el, enc2, "elevation")
+        .expect("modulation target exists");
 
     #[allow(clippy::identity_op)]
     for ch in 0..num_ambi_channels {
@@ -83,8 +91,12 @@ fn create_graph() -> Graph<f32> {
 
     builder.connect(osc3, 0, gain3, 0);
     builder.connect(gain3, 0, enc3, 0);
-    builder.modulate(lfo3_az, enc3, "azimuth");
-    builder.modulate(lfo3_el, enc3, "elevation");
+    builder
+        .modulate(lfo3_az, enc3, "azimuth")
+        .expect("modulation target exists");
+    builder
+        .modulate(lfo3_el, enc3, "elevation")
+        .expect("modulation target exists");
 
     for ch in 0..num_ambi_channels {
         builder.connect(enc3, ch, mixer_id, 2 * num_ambi_channels + ch);
@@ -100,11 +112,17 @@ fn create_graph() -> Graph<f32> {
     let lfo4_el = builder.add(LfoBlock::new(0.037, 60.0, Waveform::Sine, None));
 
     builder.connect(osc4, 0, lpf, 0);
-    builder.modulate(filter_lfo, lpf, "cutoff");
+    builder
+        .modulate(filter_lfo, lpf, "cutoff")
+        .expect("modulation target exists");
     builder.connect(lpf, 0, gain4, 0);
     builder.connect(gain4, 0, enc4, 0);
-    builder.modulate(lfo4_az, enc4, "azimuth");
-    builder.modulate(lfo4_el, enc4, "elevation");
+    builder
+        .modulate(lfo4_az, enc4, "azimuth")
+        .expect("modulation target exists");
+    builder
+        .modulate(lfo4_el, enc4, "elevation")
+        .expect("modulation target exists");
 
     for ch in 0..num_ambi_channels {
         builder.connect(enc4, ch, mixer_id, 3 * num_ambi_channels + ch);

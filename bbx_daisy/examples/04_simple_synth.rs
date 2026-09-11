@@ -32,7 +32,7 @@ fn main() {}
 mod app {
     use bbx_daisy::{
         bbx_daisy_audio,
-        dsp::{ChannelLayout, block::Block, blocks::EnvelopeBlock, context::DspContext},
+        dsp::{ChannelLayout, block::Block, blocks::EnvelopeBlock, context::DspContext, parameter::ModulationValues},
         prelude::*,
     };
 
@@ -52,13 +52,7 @@ mod app {
         }
 
         fn set_cutoff(&mut self, cutoff: f32) {
-            self.cutoff = if cutoff < 20.0 {
-                20.0
-            } else if cutoff > 20000.0 {
-                20000.0
-            } else {
-                cutoff
-            };
+            self.cutoff = cutoff.clamp(20.0, 20000.0);
         }
 
         fn process(&mut self, input: f32) -> f32 {
@@ -141,11 +135,13 @@ mod app {
             let inputs: [&[f32]; 0] = [];
             {
                 let mut outputs: [&mut [f32]; 1] = [&mut self.amp_env_buffer];
-                self.amp_env.process(&inputs, &mut outputs, &[], &context);
+                self.amp_env
+                    .process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
             }
             {
                 let mut outputs: [&mut [f32]; 1] = [&mut self.filter_env_buffer];
-                self.filter_env.process(&inputs, &mut outputs, &[], &context);
+                self.filter_env
+                    .process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
             }
 
             for i in 0..BLOCK_SIZE {
