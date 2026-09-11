@@ -10,6 +10,7 @@ bbx_core provides low-level utilities designed for real-time audio applications:
 - Lock-free data structures for inter-thread communication
 - Stack-allocated containers to avoid heap allocations
 - Fast random number generation
+- Compile-time lookup tables read by phase in cycles
 
 ## Installation
 
@@ -28,6 +29,7 @@ bbx_core = "0.1"
 | [SPSC Ring Buffer](core/spsc.md) | Lock-free producer-consumer queue |
 | [Stack Vector](core/stack-vec.md) | Fixed-capacity heap-free vector |
 | [Random](core/random.md) | Fast XorShift RNG |
+| [Sine Table](core/sine-table.md) | Compile-time sine table and interpolating table read |
 | [Error Types](core/error.md) | Unified error handling |
 
 ## Quick Example
