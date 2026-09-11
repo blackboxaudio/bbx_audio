@@ -7,7 +7,7 @@ use crate::{
     channel::ChannelConfig,
     context::DspContext,
     math,
-    parameter::ModulationOutput,
+    parameter::{ModulationOutput, ModulationValues},
     sample::Sample,
 };
 
@@ -92,7 +92,13 @@ impl<S: Sample> MixerBlock<S> {
 }
 
 impl<S: Sample> Block<S> for MixerBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         let num_channels = self.num_channels.min(outputs.len());
         if num_channels == 0 || inputs.is_empty() {
             return;
@@ -178,7 +184,7 @@ mod tests {
         let inputs: [&[f32]; 4] = [&src0_l, &src0_r, &src1_l, &src1_r];
         let mut outputs: [&mut [f32]; 2] = [&mut out_l, &mut out_r];
 
-        mixer.process(&inputs, &mut outputs, &[], &context);
+        mixer.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         // Default is ConstantPower: L = (1+3)/sqrt(2), R = (2+4)/sqrt(2)
         let sqrt2 = 2.0_f32.sqrt();
@@ -205,7 +211,7 @@ mod tests {
         let inputs: [&[f32]; 4] = [&src0_l, &src0_r, &src1_l, &src1_r];
         let mut outputs: [&mut [f32]; 2] = [&mut out_l, &mut out_r];
 
-        mixer.process(&inputs, &mut outputs, &[], &context);
+        mixer.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         // Expected: L = (2+2)/2 = 2, R = (4+4)/2 = 4
         for &sample in &out_l {
@@ -228,7 +234,7 @@ mod tests {
         let mut out_r = [0.0f32; 4];
         let mut outputs: [&mut [f32]; 2] = [&mut out_l, &mut out_r];
 
-        mixer.process(&input_refs, &mut outputs, &[], &context);
+        mixer.process(&input_refs, &mut outputs, &ModulationValues::empty(), &context);
 
         // Expected: (1+1+1+1) / sqrt(4) = 4/2 = 2
         for &sample in &out_l {
@@ -249,7 +255,7 @@ mod tests {
         let inputs: [&[f32]; 3] = [&src0, &src1, &src2];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        mixer.process(&inputs, &mut outputs, &[], &context);
+        mixer.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         // Default is ConstantPower: (1+2+3) / sqrt(3)
         let expected = 6.0 / 3.0_f32.sqrt();
@@ -281,7 +287,7 @@ mod tests {
         let inputs: [&[f64]; 4] = [&src0_l, &src0_r, &src1_l, &src1_r];
         let mut outputs: [&mut [f64]; 2] = [&mut out_l, &mut out_r];
 
-        mixer.process(&inputs, &mut outputs, &[], &context);
+        mixer.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         // Default is ConstantPower: (0.5+0.5)/sqrt(2) and (0.25+0.25)/sqrt(2)
         let sqrt2 = 2.0_f64.sqrt();

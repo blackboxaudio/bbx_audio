@@ -27,23 +27,25 @@ buffer.zeroize();
 ### Modulation Values
 
 ```rust
-// Allocated during prepare
-self.modulation_values.resize(self.blocks.len(), S::ZERO);
+// Allocated during prepare: one slot per modulation output, plus an offset table
+self.modulation_values.resize(total_modulation_outputs, S::ZERO);
 
 // During processing - just write
-self.modulation_values[block_id.0] = value;
+self.modulation_values[offsets[block_id.0] + output] = value;
 ```
 
 ### Connection Lookups
 
 ```rust
-// Computed during prepare
+// Computed during prepare: one slot per input port, indexed by port number
 self.block_input_buffers = vec![Vec::new(); self.blocks.len()];
-for conn in &self.connections {
-    self.block_input_buffers[conn.to.0].push(buffer_idx);
+for connection in &self.connections {
+    let ports = &mut self.block_input_buffers[connection.to.0];
+    ports.resize(ports.len().max(connection.to_input + 1), None);
+    ports[connection.to_input] = Some(buffer_index);
 }
 
-// During processing - O(1) read
+// During processing - O(1) read; None becomes an empty slice
 let inputs = &self.block_input_buffers[block_id.0];
 ```
 

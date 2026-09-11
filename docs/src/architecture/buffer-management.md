@@ -49,16 +49,30 @@ fn get_buffer_index(&self, block_id: BlockId, output_index: usize) -> usize {
 Input connections are pre-computed for O(1) access:
 
 ```rust
-// Pre-computed during prepare()
+// Pre-computed during prepare(), indexed by the destination *port* so a block
+// sees each input at the port it declared, whatever order it was connected in
 self.block_input_buffers = vec![Vec::new(); self.blocks.len()];
-for conn in &self.connections {
-    let buffer_idx = self.get_buffer_index(conn.from, conn.from_output);
-    self.block_input_buffers[conn.to.0].push(buffer_idx);
+for connection in &self.connections {
+    let buffer_index = self.get_buffer_index(connection.from, connection.from_output);
+    let ports = &mut self.block_input_buffers[connection.to.0];
+    if ports.len() <= connection.to_input {
+        ports.resize(connection.to_input + 1, None);
+    }
+    assert!(ports[connection.to_input].is_none(), "port connected twice");
+    ports[connection.to_input] = Some(buffer_index);
 }
 
-// During processing - O(1) lookup
+// During processing - O(1) lookup; None becomes an empty slice
 let input_indices = &self.block_input_buffers[block_id.0];
 ```
+
+An unconnected port below the highest connected one reads as an empty slice, so each
+block's own "missing input" default applies (`VcaBlock` treats a missing control as
+unity, a missing audio input as silence). Connecting two sources to one port is rejected
+at build time; sum them with a `MixerBlock`.
+
+`prepare()` also re-creates every buffer whose length differs from the new buffer size,
+so a host that changes its block size after the graph was built is handled.
 
 ## Buffer Clearing
 

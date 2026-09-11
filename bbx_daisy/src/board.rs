@@ -305,7 +305,7 @@ fn configure_wm8731_i2c2(
 /// - `seed`: AK4556 (no I2C; reset pulse on PB11)
 /// - `seed_1_1` / `pod`: WM8731 over I2C2 (SCL=PH4, SDA=PB11)
 /// - `seed_1_2`: PCM3060 (strapped in hardware; PB11 held low for de-emphasis off)
-/// - `patch_sm`: PCM3060 over I2C4 (SCL=PH11, SDA=PH12)
+/// - `patch_sm`: PCM3060 over I2C2 (SCL=PB10, SDA=PB11)
 ///
 /// Codec/I2C/reset handles are dropped after configuration; the codec retains its state.
 ///
@@ -361,14 +361,15 @@ pub fn init_audio() -> Result<AudioPeripherals, BoardError> {
         deemphasis.set_low();
     }
 
-    // Patch SM: PCM3060 over I2C4 (separate module).
+    // Patch SM: PCM3060 over I2C2 (SCL=PB10, SDA=PB11, per libDaisy's
+    // daisy_patch_sm — PH11/PH12 are SDRAM data lines on this module).
     #[cfg(feature = "patch_sm")]
     {
-        let gpioh = dp.GPIOH.split(ccdr.peripheral.GPIOH);
-        let scl = gpioh.ph11.into_alternate().set_open_drain();
-        let sda = gpioh.ph12.into_alternate().set_open_drain();
-        let i2c4 = dp.I2C4.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C4, &ccdr.clocks);
-        let mut codec = Pcm3060::with_default_address(i2c4);
+        let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
+        let scl = gpiob.pb10.into_alternate().set_open_drain();
+        let sda = gpiob.pb11.into_alternate().set_open_drain();
+        let i2c2 = dp.I2C2.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C2, &ccdr.clocks);
+        let mut codec = Pcm3060::with_default_address(i2c2);
         codec.init(sample_rate).map_err(BoardError::CodecInit)?;
     }
 
@@ -491,7 +492,7 @@ impl AudioBoardWithAdc {
 
 /// Initialize the audio hardware **and** the full Patch.Init() control surface.
 ///
-/// Configures the PCM3060 codec over I2C4 (as in [`init_audio`]), then:
+/// Configures the PCM3060 codec over I2C2 (as in [`init_audio`]), then:
 ///
 /// - **ADC1** for the four panel knobs (SM channels CV_1-4: PA3, PA6, PA2, PA7) and the four panel CV jacks (SM
 ///   channels CV_5-8: PC1, PC0, PB1, PC4)
@@ -526,18 +527,18 @@ pub fn init_audio_with_controls() -> Result<AudioBoardWithControls, BoardError> 
         Some(gpioe.pe3.into_alternate()),
     );
 
-    // PCM3060 codec over I2C4 (SCL=PH11, SDA=PH12).
-    let gpioh = dp.GPIOH.split(ccdr.peripheral.GPIOH);
-    let scl = gpioh.ph11.into_alternate().set_open_drain();
-    let sda = gpioh.ph12.into_alternate().set_open_drain();
-    let i2c4 = dp.I2C4.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C4, &ccdr.clocks);
-    let mut codec = Pcm3060::with_default_address(i2c4);
-    codec.init(sample_rate).map_err(BoardError::CodecInit)?;
-
     let gpioa = dp.GPIOA.split(ccdr.peripheral.GPIOA);
     let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
     let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
     let gpiog = dp.GPIOG.split(ccdr.peripheral.GPIOG);
+
+    // PCM3060 codec over I2C2 (SCL=PB10, SDA=PB11, per libDaisy's
+    // daisy_patch_sm — PH11/PH12 are SDRAM data lines on this module).
+    let scl = gpiob.pb10.into_alternate().set_open_drain();
+    let sda = gpiob.pb11.into_alternate().set_open_drain();
+    let i2c2 = dp.I2C2.i2c((scl, sda), 400.kHz(), ccdr.peripheral.I2C2, &ccdr.clocks);
+    let mut codec = Pcm3060::with_default_address(i2c2);
+    codec.init(sample_rate).map_err(BoardError::CodecInit)?;
 
     // Panel knobs (SM channels CV_1-4, pin map per libDaisy's daisy_patch_sm.cpp).
     let knob1_pin = gpioa.pa3.into_analog();
@@ -574,13 +575,16 @@ pub fn init_audio_with_controls() -> Result<AudioBoardWithControls, BoardError> 
     let adc1 = adc1.enable();
 
     // DAC1: channel 1 (PA4) = CV OUT jack, channel 2 (PA5) = panel LED.
-    // Buffer calibration compensates VDDA/temperature drift from factory trim.
+    // Factory trim only: the HAL's calibrate_buffer() spins on a calibration
+    // flag with no timeout, so a channel that never raises it would hang boot
+    // before audio even starts. Factory trim is plenty for an LED and
+    // gate-level CV; add calibration back only if CV-out precision demands it.
     let (cv_dac, led_dac) = dp.DAC.dac(
         (gpioa.pa4.into_analog(), gpioa.pa5.into_analog()),
         ccdr.peripheral.DAC12,
     );
-    let cv_out = CvOut::new(cv_dac.calibrate_buffer(&mut delay).enable());
-    let led = CvOut::new(led_dac.calibrate_buffer(&mut delay).enable());
+    let cv_out = CvOut::new(cv_dac.enable());
+    let led = CvOut::new(led_dac.enable());
 
     let sai1_rec = ccdr
         .peripheral

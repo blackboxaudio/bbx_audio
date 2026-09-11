@@ -8,6 +8,7 @@
 //! value collection.
 
 use alloc::{string::String, vec, vec::Vec};
+use core::fmt;
 use std::collections::HashMap;
 
 use bbx_core::{Buffer, StackVec};
@@ -20,7 +21,7 @@ use crate::{
     buffer::SampleBuffer,
     channel::ChannelLayout,
     context::DspContext,
-    parameter::Parameter,
+    parameter::{ModulationRoute, ModulationSource, ModulationValues, ParameterError},
     sample::Sample,
 };
 
@@ -74,10 +75,14 @@ pub struct ConnectionSnapshot {
 pub struct ModulationConnectionSnapshot {
     /// Source modulator block ID.
     pub from_block: usize,
+    /// Index of the source block's modulation output.
+    pub from_output: usize,
     /// Target block ID.
     pub to_block: usize,
     /// Name of the modulated parameter on the target block.
     pub parameter_name: String,
+    /// Scale applied to the source value.
+    pub depth: f64,
 }
 
 /// Snapshot of a graph's topology for visualization.
@@ -94,6 +99,65 @@ pub struct GraphTopologySnapshot {
     pub modulation_connections: Vec<ModulationConnectionSnapshot>,
 }
 
+/// Errors raised while wiring a graph.
+///
+/// These surface at build time, never on the audio thread.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GraphError {
+    /// The referenced block does not exist in this graph.
+    BlockNotFound(BlockId),
+    /// The target block has no parameter with this name.
+    UnknownParameter {
+        /// The target block.
+        block: BlockId,
+        /// The name that was requested.
+        name: String,
+    },
+    /// The source block has fewer modulation outputs than the requested index.
+    InvalidModulationOutput {
+        /// The source block.
+        block: BlockId,
+        /// The requested output index.
+        output: usize,
+        /// How many modulation outputs the block declares.
+        available: usize,
+    },
+    /// The parameter refused the route.
+    Parameter {
+        /// The target block.
+        block: BlockId,
+        /// The parameter name.
+        name: String,
+        /// The underlying parameter error.
+        error: ParameterError,
+    },
+}
+
+impl fmt::Display for GraphError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BlockNotFound(block) => write!(formatter, "block {} does not exist", block.0),
+            Self::UnknownParameter { block, name } => {
+                write!(formatter, "block {} has no parameter named \"{name}\"", block.0)
+            }
+            Self::InvalidModulationOutput {
+                block,
+                output,
+                available,
+            } => write!(
+                formatter,
+                "block {} has {available} modulation output(s); output {output} does not exist",
+                block.0
+            ),
+            Self::Parameter { block, name, error } => {
+                write!(formatter, "parameter \"{name}\" on block {}: {error}", block.0)
+            }
+        }
+    }
+}
+
+impl std::error::Error for GraphError {}
+
 /// A directed acyclic graph of connected DSP blocks.
 ///
 /// The graph manages block storage, buffer allocation, and execution ordering.
@@ -108,15 +172,17 @@ pub struct Graph<S: Sample> {
     // Pre-allocated buffers
     audio_buffers: Vec<SampleBuffer<S>>,
     modulation_values: Vec<S>,
+    modulation_offsets: Vec<usize>,
 
     // Buffer management
     block_buffer_start: Vec<usize>,
     buffer_size: usize,
     context: DspContext,
 
-    // Pre-computed connection lookups: block_id -> [input buffer indices]
-    // Computed once in prepare() for O(1) lookup during processing
-    block_input_buffers: Vec<Vec<usize>>,
+    // Pre-computed connection lookups: block_id -> [buffer index per input port].
+    // Indexed by port so a block sees its inputs at the ports it declared;
+    // an unconnected port below the highest connected one is None (empty slice).
+    block_input_buffers: Vec<Vec<Option<usize>>>,
 }
 
 impl<S: Sample> Graph<S> {
@@ -137,6 +203,7 @@ impl<S: Sample> Graph<S> {
             output_block: None,
             audio_buffers: Vec::new(),
             modulation_values: Vec::new(),
+            modulation_offsets: Vec::new(),
             block_buffer_start: Vec::new(),
             buffer_size,
             context,
@@ -148,6 +215,15 @@ impl<S: Sample> Graph<S> {
     #[inline]
     pub fn context(&self) -> &DspContext {
         &self.context
+    }
+
+    /// The modulation values collected during the most recent buffer.
+    ///
+    /// Useful for inspecting what a [`Parameter`](crate::parameter::Parameter)
+    /// resolved to, for example in tests or a debug view.
+    #[inline]
+    pub fn modulation_values(&self) -> ModulationValues<'_, S> {
+        ModulationValues::new(&self.modulation_values, &self.modulation_offsets)
     }
 
     /// Get a reference to a block by its ID.
@@ -185,15 +261,43 @@ impl<S: Sample> Graph<S> {
             block.prepare(&self.context);
         }
 
-        // Compute execution order and pre-allocate modulation value storage
         self.execution_order = self.topological_sort();
-        self.modulation_values.resize(self.blocks.len(), S::ZERO);
+
+        // A prefix-sum table lets a ModulationSource resolve to a flat index
+        // (offsets[block] + output) with no search on the audio thread
+        let mut end = 0;
+        self.modulation_offsets.clear();
+        self.modulation_offsets.push(end);
+        for block in &self.blocks {
+            end += block.modulation_outputs().len();
+            self.modulation_offsets.push(end);
+        }
+        self.modulation_values.clear();
+        self.modulation_values.resize(end, S::ZERO);
+
+        // Buffers were sized when their block was added; a host may prepare
+        // again with a different buffer size, so bring every buffer to it
+        for buffer in &mut self.audio_buffers {
+            if buffer.len() != buffer_size {
+                *buffer = SampleBuffer::new(buffer_size);
+            }
+        }
 
         // Pre-compute input buffer indices for each block (O(1) lookup during processing)
         self.block_input_buffers = vec![Vec::new(); self.blocks.len()];
-        for conn in &self.connections {
-            let buffer_idx = self.get_buffer_index(conn.from, conn.from_output);
-            self.block_input_buffers[conn.to.0].push(buffer_idx);
+        for connection in &self.connections {
+            let buffer_index = self.get_buffer_index(connection.from, connection.from_output);
+            let ports = &mut self.block_input_buffers[connection.to.0];
+            if ports.len() <= connection.to_input {
+                ports.resize(connection.to_input + 1, None);
+            }
+            assert!(
+                ports[connection.to_input].is_none(),
+                "Block {} input {} is connected twice; sum sources with a MixerBlock instead",
+                connection.to.0,
+                connection.to_input
+            );
+            ports[connection.to_input] = Some(buffer_index);
         }
 
         #[cfg(debug_assertions)]
@@ -261,7 +365,7 @@ impl<S: Sample> Graph<S> {
 
                 // Check that no input index matches this output index
                 debug_assert!(
-                    !input_indices.contains(&buffer_idx),
+                    !input_indices.contains(&Some(buffer_idx)),
                     "Block {block_id} has overlapping input/output buffer index {buffer_idx}. \
                      This would cause undefined behavior in process_block_unsafe()."
                 );
@@ -354,9 +458,16 @@ impl<S: Sample> Graph<S> {
                 input_count <= MAX_BLOCK_INPUTS,
                 "Block input count {input_count} exceeds MAX_BLOCK_INPUTS {MAX_BLOCK_INPUTS}"
             );
-            for &index in input_indices {
-                let buffer_ptr = buffers_ptr.add(index);
-                let slice = std::slice::from_raw_parts((*buffer_ptr).as_ptr(), (*buffer_ptr).len());
+            for port in input_indices {
+                // An unconnected port reads as an empty slice so the block's
+                // own "missing input" default applies
+                let slice: &[S] = match port {
+                    Some(index) => {
+                        let buffer_ptr = buffers_ptr.add(*index);
+                        std::slice::from_raw_parts((*buffer_ptr).as_ptr(), (*buffer_ptr).len())
+                    }
+                    None => &[],
+                };
                 // SAFETY: We verified input_indices.len() <= MAX_BLOCK_INPUTS via debug_assert
                 input_slices.push_unchecked(slice);
             }
@@ -373,7 +484,7 @@ impl<S: Sample> Graph<S> {
             self.blocks[block_id.0].process(
                 input_slices.as_slice(),
                 output_slices.as_mut_slice(),
-                &self.modulation_values,
+                &ModulationValues::new(&self.modulation_values, &self.modulation_offsets),
                 &self.context,
             );
         }
@@ -396,20 +507,25 @@ impl<S: Sample> Graph<S> {
     /// require per-sample parameter updates, significantly increasing CPU usage.
     #[inline]
     fn collect_modulation_values(&mut self, block_id: BlockId) {
-        // Bounds check to prevent panic in audio thread
-        if block_id.0 >= self.blocks.len() {
+        let Some(block) = self.blocks.get(block_id.0) else {
             return;
-        }
+        };
+        let output_count = block.modulation_outputs().len();
+        let Some(&start) = self.modulation_offsets.get(block_id.0) else {
+            return;
+        };
 
-        let has_modulation = !self.blocks[block_id.0].modulation_outputs().is_empty();
-        if has_modulation {
-            let buffer_index = self.get_buffer_index(block_id, 0);
-            // Take only the first sample (control rate, not audio rate)
-            if let (Some(&first_sample), Some(mod_val)) = (
-                self.audio_buffers.get(buffer_index).and_then(|b| b.as_slice().first()),
-                self.modulation_values.get_mut(block_id.0),
+        // Modulation output i is read from audio output i; only its first
+        // sample is kept because modulation is control rate, not audio rate
+        for output in 0..output_count {
+            let buffer_index = self.get_buffer_index(block_id, output);
+            if let (Some(&first_sample), Some(value)) = (
+                self.audio_buffers
+                    .get(buffer_index)
+                    .and_then(|buffer| buffer.as_slice().first()),
+                self.modulation_values.get_mut(start + output),
             ) {
-                *mod_val = first_sample;
+                *value = first_sample;
             }
         }
     }
@@ -489,12 +605,61 @@ impl<S: Sample> GraphBuilder<S> {
         self
     }
 
-    /// Specify a `Parameter` to be modulated by a `Modulator` block.
-    pub fn modulate(&mut self, source: BlockId, target: BlockId, parameter: &str) -> &mut Self {
-        if let Err(e) = self.graph.blocks[target.0].set_parameter(parameter, Parameter::Modulated(source)) {
-            eprintln!("Modulation error: {e}");
+    /// Route `source`'s first modulation output into `parameter` on `target` at unity depth.
+    ///
+    /// Use [`modulate_with`](Self::modulate_with) to choose another output or a depth.
+    pub fn modulate(&mut self, source: BlockId, target: BlockId, parameter: &str) -> Result<&mut Self, GraphError> {
+        self.modulate_with(
+            ModulationRoute::unity(ModulationSource::first_output(source)),
+            target,
+            parameter,
+        )
+    }
+
+    /// Attach `route` to `parameter` on `target`.
+    ///
+    /// Fails if either block is missing, the source lacks the requested
+    /// modulation output, the target has no such parameter, or the parameter
+    /// already holds its maximum number of routes.
+    pub fn modulate_with(
+        &mut self,
+        route: ModulationRoute<S>,
+        target: BlockId,
+        parameter: &str,
+    ) -> Result<&mut Self, GraphError> {
+        let source = route.source();
+        let available = self
+            .graph
+            .blocks
+            .get(source.block.0)
+            .ok_or(GraphError::BlockNotFound(source.block))?
+            .modulation_outputs()
+            .len();
+        if source.output >= available {
+            return Err(GraphError::InvalidModulationOutput {
+                block: source.block,
+                output: source.output,
+                available,
+            });
         }
-        self
+
+        let target_block = self
+            .graph
+            .blocks
+            .get_mut(target.0)
+            .ok_or(GraphError::BlockNotFound(target))?;
+        let slot = target_block
+            .parameter_mut(parameter)
+            .ok_or_else(|| GraphError::UnknownParameter {
+                block: target,
+                name: String::from(parameter),
+            })?;
+        slot.add_route(route).map_err(|error| GraphError::Parameter {
+            block: target,
+            name: String::from(parameter),
+            error,
+        })?;
+        Ok(self)
     }
 
     /// Capture a snapshot of the current graph topology for visualization.
@@ -536,12 +701,14 @@ impl<S: Sample> GraphBuilder<S> {
             .enumerate()
             .flat_map(|(target_id, block)| {
                 block
-                    .get_modulated_parameters()
+                    .modulation_routes()
                     .into_iter()
-                    .map(move |(param_name, source_id)| ModulationConnectionSnapshot {
-                        from_block: source_id.0,
+                    .map(move |(parameter_name, route)| ModulationConnectionSnapshot {
+                        from_block: route.source().block.0,
+                        from_output: route.source().output,
                         to_block: target_id,
-                        parameter_name: param_name.to_string(),
+                        parameter_name: parameter_name.to_string(),
+                        depth: route.depth().to_f64(),
                     })
             })
             .collect();

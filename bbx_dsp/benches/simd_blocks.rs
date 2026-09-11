@@ -22,6 +22,7 @@ use bbx_dsp::{
         modulators::{envelope::EnvelopeBlock, lfo::LfoBlock},
     },
     buffer::SampleBuffer,
+    parameter::ModulationValues,
     sample::Sample,
     waveform::Waveform,
 };
@@ -48,7 +49,7 @@ fn bench_oscillator_waveforms<S: Sample>(c: &mut Criterion, type_name: &str) {
                 let context = create_context(size);
                 let mut block = OscillatorBlock::<S>::new(440.0, *waveform, None);
                 let mut outputs = create_output_buffers::<S>(size, 1);
-                let modulation_values: Vec<S> = vec![];
+                let modulation_values = ModulationValues::<S>::empty();
 
                 b.iter(|| {
                     let inputs: Vec<&[S]> = vec![];
@@ -88,7 +89,7 @@ fn bench_panner<S: Sample>(c: &mut Criterion, type_name: &str) {
             let mut block = PannerBlock::<S>::new(25.0);
             let inputs = create_input_buffers::<S>(size, 2);
             let mut outputs = create_output_buffers::<S>(size, 2);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let input_slices = as_input_slices(&inputs);
@@ -127,7 +128,7 @@ fn bench_gain<S: Sample>(c: &mut Criterion, type_name: &str) {
             let mut block = GainBlock::<S>::new(-6.0, Some(1.0));
             let inputs = create_input_buffers::<S>(size, 1);
             let mut outputs = create_output_buffers::<S>(size, 1);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let input_slices = as_input_slices(&inputs);
@@ -167,7 +168,7 @@ fn bench_low_pass_filter<S: Sample>(c: &mut Criterion, type_name: &str) {
             block.prepare(&context);
             let inputs = create_input_buffers::<S>(size, 1);
             let mut outputs = create_output_buffers::<S>(size, 1);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let input_slices = as_input_slices(&inputs);
@@ -205,7 +206,7 @@ fn bench_lfo<S: Sample>(c: &mut Criterion, type_name: &str) {
             let context = create_context(size);
             let mut block = LfoBlock::<S>::new(5.0, 100.0, Waveform::Sine, None);
             let mut outputs = create_output_buffers::<S>(size, 1);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let inputs: Vec<&[S]> = vec![];
@@ -247,7 +248,7 @@ fn bench_mixer<S: Sample>(c: &mut Criterion, type_name: &str) {
             // 4 sources × 2 channels = 8 inputs
             let inputs = create_input_buffers::<S>(size, 8);
             let mut outputs = create_output_buffers::<S>(size, 2);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let input_slices = as_input_slices(&inputs);
@@ -293,7 +294,7 @@ fn bench_matrix_mixer<S: Sample>(c: &mut Criterion, type_name: &str) {
 
             let inputs = create_input_buffers::<S>(size, 4);
             let mut outputs = create_output_buffers::<S>(size, 2);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let input_slices = as_input_slices(&inputs);
@@ -334,7 +335,7 @@ fn bench_channel_splitter<S: Sample>(c: &mut Criterion, type_name: &str) {
 
             let inputs = create_input_buffers::<S>(size, 4);
             let mut outputs = create_output_buffers::<S>(size, 4);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let input_slices = as_input_slices(&inputs);
@@ -375,7 +376,7 @@ fn bench_channel_merger<S: Sample>(c: &mut Criterion, type_name: &str) {
 
             let inputs = create_input_buffers::<S>(size, 4);
             let mut outputs = create_output_buffers::<S>(size, 4);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let input_slices = as_input_slices(&inputs);
@@ -474,7 +475,7 @@ fn bench_vca<S: Sample>(c: &mut Criterion, type_name: &str) {
             let audio_input = create_input_buffers::<S>(size, 1);
             let control_input: Vec<S> = (0..size).map(|_| S::from_f64(0.5)).collect();
             let mut outputs = create_output_buffers::<S>(size, 1);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let inputs: Vec<&[S]> = vec![audio_input[0].as_slice(), control_input.as_slice()];
@@ -514,7 +515,7 @@ fn bench_dc_blocker<S: Sample>(c: &mut Criterion, type_name: &str) {
             block.set_sample_rate(SAMPLE_RATE);
             let inputs = create_input_buffers::<S>(size, 1);
             let mut outputs = create_output_buffers::<S>(size, 1);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let input_slices = as_input_slices(&inputs);
@@ -553,7 +554,7 @@ fn bench_overdrive<S: Sample>(c: &mut Criterion, type_name: &str) {
             let mut block = OverdriveBlock::<S>::new(2.0, 0.7, 0.5, SAMPLE_RATE);
             let inputs = create_input_buffers::<S>(size, 1);
             let mut outputs = create_output_buffers::<S>(size, 1);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let input_slices = as_input_slices(&inputs);
@@ -592,7 +593,7 @@ fn bench_envelope<S: Sample>(c: &mut Criterion, type_name: &str) {
             let mut block = EnvelopeBlock::<S>::new(0.01, 0.1, 0.7, 0.2);
             block.note_on();
             let mut outputs = create_output_buffers::<S>(size, 1);
-            let modulation_values: Vec<S> = vec![];
+            let modulation_values = ModulationValues::<S>::empty();
 
             b.iter(|| {
                 let inputs: Vec<&[S]> = vec![];

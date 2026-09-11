@@ -55,7 +55,7 @@ impl<S: Sample> BlockType<S> {
         &mut self,
         inputs: &[&[S]],
         outputs: &mut [&mut [S]],
-        modulation_values: &[S],
+        modulation_values: &ModulationValues<S>,
         context: &DspContext,
     ) {
         match self {

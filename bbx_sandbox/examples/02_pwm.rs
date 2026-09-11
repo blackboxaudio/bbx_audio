@@ -19,9 +19,13 @@ fn create_graph() -> Graph<f32> {
     let lfo1 = builder.add(LfoBlock::new(1.0, 5.0, Waveform::Sine, Some(rng.next_u64())));
     let lfo2 = builder.add(LfoBlock::new(1.0, 2.0, Waveform::Sine, Some(rng.next_u64())));
     let lfo3 = builder.add(LfoBlock::new(1.0, 3.0, Waveform::Sine, Some(rng.next_u64())));
-    builder.modulate(lfo1, oscillator, "Frequency");
-    builder.modulate(lfo2, lfo1, "Depth");
-    builder.modulate(lfo3, lfo2, "Frequency");
+    builder
+        .modulate(lfo1, oscillator, "Frequency")
+        .expect("modulation target exists");
+    builder.modulate(lfo2, lfo1, "Depth").expect("modulation target exists");
+    builder
+        .modulate(lfo3, lfo2, "Frequency")
+        .expect("modulation target exists");
 
     builder.build()
 }

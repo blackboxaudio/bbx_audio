@@ -4,7 +4,7 @@ use crate::{
     block::{Block, MAX_BLOCK_INPUTS, MAX_BLOCK_OUTPUTS},
     channel::ChannelConfig,
     context::DspContext,
-    parameter::ModulationOutput,
+    parameter::{ModulationOutput, ModulationValues},
     sample::Sample,
 };
 
@@ -92,7 +92,13 @@ impl<S: Sample> MatrixMixerBlock<S> {
 }
 
 impl<S: Sample> Block<S> for MatrixMixerBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         let num_inputs = self.num_inputs.min(inputs.len());
         let num_outputs = self.num_outputs.min(outputs.len());
 
@@ -162,7 +168,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        mixer.process(&inputs, &mut outputs, &[], &context);
+        mixer.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, left_in);
         assert_eq!(right_out, right_in);
@@ -182,7 +188,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 1] = [&mut mono_out];
 
-        mixer.process(&inputs, &mut outputs, &[], &context);
+        mixer.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let expected = [1.0, 2.0, 3.0, 4.0];
         for (actual, exp) in mono_out.iter().zip(expected.iter()) {
@@ -205,7 +211,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        mixer.process(&inputs, &mut outputs, &[], &context);
+        mixer.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, right_in);
         assert_eq!(right_out, left_in);
@@ -252,7 +258,7 @@ mod tests {
         let inputs: [&[f64]; 2] = [&left_in, &right_in];
         let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
 
-        mixer.process(&inputs, &mut outputs, &[], &context);
+        mixer.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert_eq!(left_out, left_in);
         assert_eq!(right_out, right_in);

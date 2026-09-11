@@ -12,7 +12,7 @@ use crate::{
     channel::{ChannelConfig, ChannelLayout},
     context::DspContext,
     math,
-    parameter::{ModulationOutput, Parameter},
+    parameter::{ModulationOutput, ModulationValues, Parameter, parameter_name_matches},
     sample::Sample,
     smoothing::LinearSmoothedValue,
 };
@@ -77,9 +77,9 @@ impl<S: Sample> PannerBlock<S> {
     pub fn new_stereo(position: f64) -> Self {
         let pos = S::from_f64(position);
         Self {
-            position: Parameter::Constant(pos),
-            azimuth: Parameter::Constant(S::ZERO),
-            elevation: Parameter::Constant(S::ZERO),
+            position: Parameter::constant(pos),
+            azimuth: Parameter::constant(S::ZERO),
+            elevation: Parameter::constant(S::ZERO),
             mode: PannerMode::Stereo,
             output_layout: ChannelLayout::Stereo,
             position_smoother: LinearSmoothedValue::new(pos),
@@ -100,9 +100,9 @@ impl<S: Sample> PannerBlock<S> {
     /// Uses VBAP (Vector Base Amplitude Panning) algorithm.
     pub fn new_surround(layout: ChannelLayout) -> Self {
         let mut panner = Self {
-            position: Parameter::Constant(S::ZERO),
-            azimuth: Parameter::Constant(S::ZERO),
-            elevation: Parameter::Constant(S::ZERO),
+            position: Parameter::constant(S::ZERO),
+            azimuth: Parameter::constant(S::ZERO),
+            elevation: Parameter::constant(S::ZERO),
             mode: PannerMode::Surround,
             output_layout: layout,
             position_smoother: LinearSmoothedValue::new(S::ZERO),
@@ -125,9 +125,9 @@ impl<S: Sample> PannerBlock<S> {
         let layout = ChannelLayout::from_ambisonic_order(order).unwrap_or(ChannelLayout::AmbisonicFoa);
 
         Self {
-            position: Parameter::Constant(S::ZERO),
-            azimuth: Parameter::Constant(S::ZERO),
-            elevation: Parameter::Constant(S::ZERO),
+            position: Parameter::constant(S::ZERO),
+            azimuth: Parameter::constant(S::ZERO),
+            elevation: Parameter::constant(S::ZERO),
             mode: PannerMode::Ambisonic,
             output_layout: layout,
             position_smoother: LinearSmoothedValue::new(S::ZERO),
@@ -273,12 +273,12 @@ impl<S: Sample> PannerBlock<S> {
         }
     }
 
-    fn process_stereo(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S]) {
+    fn process_stereo(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &ModulationValues<S>) {
         if inputs.is_empty() || outputs.is_empty() {
             return;
         }
 
-        let target_position = self.position.get_value(modulation_values);
+        let target_position = self.position.value(modulation_values);
         if (target_position - self.position_smoother.target()).abs() > S::EPSILON {
             self.position_smoother.set_target_value(target_position);
         }
@@ -376,13 +376,13 @@ impl<S: Sample> PannerBlock<S> {
         }
     }
 
-    fn process_surround(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S]) {
+    fn process_surround(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &ModulationValues<S>) {
         if inputs.is_empty() || outputs.is_empty() {
             return;
         }
 
-        let target_azimuth = self.azimuth.get_value(modulation_values);
-        let target_elevation = self.elevation.get_value(modulation_values);
+        let target_azimuth = self.azimuth.value(modulation_values);
+        let target_elevation = self.elevation.value(modulation_values);
 
         if (target_azimuth - self.azimuth_smoother.target()).abs() > S::EPSILON {
             self.azimuth_smoother.set_target_value(target_azimuth);
@@ -409,13 +409,18 @@ impl<S: Sample> PannerBlock<S> {
         }
     }
 
-    fn process_ambisonic(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S]) {
+    fn process_ambisonic(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &ModulationValues<S>,
+    ) {
         if inputs.is_empty() || outputs.is_empty() {
             return;
         }
 
-        let target_azimuth = self.azimuth.get_value(modulation_values);
-        let target_elevation = self.elevation.get_value(modulation_values);
+        let target_azimuth = self.azimuth.value(modulation_values);
+        let target_elevation = self.elevation.value(modulation_values);
 
         if (target_azimuth - self.azimuth_smoother.target()).abs() > S::EPSILON {
             self.azimuth_smoother.set_target_value(target_azimuth);
@@ -444,11 +449,45 @@ impl<S: Sample> PannerBlock<S> {
 }
 
 impl<S: Sample> Block<S> for PannerBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         match self.mode {
             PannerMode::Stereo => self.process_stereo(inputs, outputs, modulation_values),
             PannerMode::Surround => self.process_surround(inputs, outputs, modulation_values),
             PannerMode::Ambisonic => self.process_ambisonic(inputs, outputs, modulation_values),
+        }
+    }
+
+    fn parameter_names(&self) -> &'static [&'static str] {
+        &["position", "azimuth", "elevation"]
+    }
+
+    fn parameter(&self, name: &str) -> Option<&Parameter<S>> {
+        if parameter_name_matches(name, &["position", "pan"]) {
+            Some(&self.position)
+        } else if parameter_name_matches(name, &["azimuth"]) {
+            Some(&self.azimuth)
+        } else if parameter_name_matches(name, &["elevation"]) {
+            Some(&self.elevation)
+        } else {
+            None
+        }
+    }
+
+    fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+        if parameter_name_matches(name, &["position", "pan"]) {
+            Some(&mut self.position)
+        } else if parameter_name_matches(name, &["azimuth"]) {
+            Some(&mut self.azimuth)
+        } else if parameter_name_matches(name, &["elevation"]) {
+            Some(&mut self.elevation)
+        } else {
+            None
         }
     }
 
@@ -512,7 +551,7 @@ mod tests {
         let inputs: [&[f32]; 1] = [&input];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        panner.process(&inputs, &mut outputs, &[], &context);
+        panner.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let expected_gain = (core::f32::consts::FRAC_PI_4).cos();
         for i in 0..4 {
@@ -533,7 +572,7 @@ mod tests {
         let inputs: [&[f32]; 1] = [&input];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        panner.process(&inputs, &mut outputs, &[], &context);
+        panner.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         for i in 0..4 {
             assert!((left_out[i] - 1.0).abs() < 0.01);
@@ -598,7 +637,7 @@ mod tests {
         let inputs: [&[f32]; 1] = [&input];
         let mut outputs: [&mut [f32]; 4] = [&mut w, &mut y, &mut z, &mut x];
 
-        panner.process(&inputs, &mut outputs, &[], &context);
+        panner.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert!((w[0] - 1.0).abs() < 0.01, "W should be 1.0 for front");
         assert!(y[0].abs() < 0.01, "Y should be 0 for front");

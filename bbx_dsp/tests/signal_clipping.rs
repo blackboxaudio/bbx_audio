@@ -20,6 +20,7 @@ use bbx_dsp::{
     channel::ChannelLayout,
     context::DspContext,
     graph::GraphBuilder,
+    parameter::ModulationValues,
     waveform::Waveform,
 };
 
@@ -66,7 +67,7 @@ fn test_oscillator_peak_amplitude_by_waveform() {
             for _ in 0..num_buffers {
                 let mut output = vec![0.0f64; buffer_size];
                 let mut outputs: [&mut [f64]; 1] = [&mut output];
-                osc.process(&[], &mut outputs, &[], &context);
+                osc.process(&[], &mut outputs, &ModulationValues::empty(), &context);
 
                 for sample in output {
                     max_amplitude = max_amplitude.max(sample.abs());
@@ -107,7 +108,7 @@ fn test_envelope_output_range() {
     for _ in 0..200 {
         let mut output = vec![0.0f64; buffer_size];
         let mut outputs: [&mut [f64]; 1] = [&mut output];
-        env.process(&[], &mut outputs, &[], &context);
+        env.process(&[], &mut outputs, &ModulationValues::empty(), &context);
 
         for sample in &output {
             max_output = max_output.max(*sample);
@@ -120,7 +121,7 @@ fn test_envelope_output_range() {
     for _ in 0..100 {
         let mut output = vec![0.0f64; buffer_size];
         let mut outputs: [&mut [f64]; 1] = [&mut output];
-        env.process(&[], &mut outputs, &[], &context);
+        env.process(&[], &mut outputs, &ModulationValues::empty(), &context);
 
         for sample in &output {
             max_output = max_output.max(*sample);
@@ -159,7 +160,7 @@ fn test_filter_resonance_gain() {
 
             let inputs: [&[f64]; 1] = [&input];
             let mut outputs: [&mut [f64]; 1] = [&mut output];
-            filter.process(&inputs, &mut outputs, &[], &context);
+            filter.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
             if buffer_idx > 5 {
                 for sample in output {
@@ -381,7 +382,7 @@ fn test_filter_high_cutoff_low_q() {
 
             let inputs: [&[f64]; 1] = [&input];
             let mut outputs: [&mut [f64]; 1] = [&mut output];
-            filter.process(&inputs, &mut outputs, &[], &context);
+            filter.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
             if buffer_idx > 10 {
                 for sample in output {

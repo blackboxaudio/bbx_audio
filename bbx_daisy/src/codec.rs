@@ -29,15 +29,16 @@
 //!
 //! ## PCM3060 (Seed 1.2/Patch SM)
 //!
-//! 1. Master reset (reg 0x40 bit 7 = 1), wait 4ms
-//! 2. Soft reset (reg 0x40 bit 6 = 1), wait 4ms
-//! 3. Clear resets (reg 0x40 = 0x00), wait 1ms
-//! 4. Configure DAC format (reg 0x41 = 0x00: I2S, 24-bit)
-//! 5. Set DAC attenuation (reg 0x43/0x44 = 0x00: 0dB)
-//! 6. Set ADC attenuation (reg 0x45/0x46 = 0x00: 0dB)
-//! 7. Configure ADC format (reg 0x47 = 0x00: I2S, 24-bit)
+//! 1. Master reset (reg 0x40, MRST bit 7 pulsed LOW — active-low, self-recovers), wait 4ms
+//! 2. System reset (reg 0x40, SRST bit 6 pulsed LOW), wait 4ms
+//! 3. Normal operation, power-save off (reg 0x40 = 0xC0), wait 1ms
+//! 4. DAC format: 24-bit left-justified, slave (reg 0x43 = 0x01)
+//! 5. ADC format: 24-bit left-justified, slave (reg 0x48 = 0x01)
+//! 6. Attenuation registers (0x41/0x42 DAC, 0x46/0x47 ADC) are left at their power-on defaults, which are 0 dB — their
+//!    encoding is inverted (DAC: 0xFF = 0 dB, 0x36 and below = mute)
 //!
-//! **Note**: Reset sequence timing per datasheet section 8.5.1.
+//! **Note**: Reset sequence timing per datasheet section 8.5.1. Left-justified
+//! format matches the SAI's MSB-justified frame configuration.
 //!
 //! ## AK4556 (Seed)
 //!
@@ -337,18 +338,16 @@ where
 // PCM3060 Codec (Daisy Seed 1.2, Patch SM)
 // ============================================================================
 
-/// PCM3060 I2C register addresses.
+/// PCM3060 I2C register addresses (datasheet registers 64-73).
 mod pcm3060_regs {
-    pub const REG_64: u8 = 64; // System control
-    pub const REG_65: u8 = 65; // DAC control 1
-    pub const REG_66: u8 = 66; // DAC control 2
-    pub const REG_67: u8 = 67; // DAC left attenuation
-    pub const REG_68: u8 = 68; // DAC right attenuation
-    pub const REG_69: u8 = 69; // ADC left attenuation
-    pub const REG_70: u8 = 70; // ADC right attenuation
-    pub const REG_71: u8 = 71; // ADC control 1
-    pub const REG_72: u8 = 72; // ADC control 2
-    pub const REG_73: u8 = 73; // ADC input mux
+    pub const REG_SYS_CTRL: u8 = 0x40; // MRST/SRST (active-low) + ADC/DAC power-save
+    pub const REG_DAC_ATT_L: u8 = 0x41; // DAC digital attenuation left (0xFF = 0 dB)
+    pub const REG_DAC_ATT_R: u8 = 0x42; // DAC digital attenuation right
+    pub const REG_DAC_CTRL1: u8 = 0x43; // DAC format / master-slave select
+    pub const REG_DAC_CTRL2: u8 = 0x44; // DAC soft mute / de-emphasis
+    pub const REG_ADC_ATT_L: u8 = 0x46; // ADC digital attenuation left (0xD7 = 0 dB)
+    pub const REG_ADC_ATT_R: u8 = 0x47; // ADC digital attenuation right
+    pub const REG_ADC_CTRL1: u8 = 0x48; // ADC format / master-slave select
 }
 
 /// PCM3060 codec driver for Daisy Seed 1.2 and Patch SM.
@@ -403,42 +402,25 @@ where
     fn init(&mut self, _sample_rate: SampleRate) -> CodecResult<()> {
         use pcm3060_regs::*;
 
-        // PCM3060 reset sequence per datasheet:
-        // 1. Master reset (MRST bit 7 = 1)
-        self.write_reg(REG_64, 0x80)?;
+        // MRST and SRST are ACTIVE-LOW and self-recover to 1: pulse the master
+        // reset (registers back to defaults), then the system reset
+        // (resynchronizes the audio clocks), then settle into normal operation
+        // with ADC/DAC power-save disabled. Mirrors libDaisy's bring-up order.
+        self.write_reg(REG_SYS_CTRL, 0x40)?; // MRST=0: master reset
         Self::delay_ms(4);
-
-        // 2. Soft reset (SRST bit 6 = 1)
-        self.write_reg(REG_64, 0x40)?;
+        self.write_reg(REG_SYS_CTRL, 0x80)?; // SRST=0: system reset
         Self::delay_ms(4);
-
-        // 3. Clear both reset bits, power up all sections
-        self.write_reg(REG_64, 0x00)?;
+        self.write_reg(REG_SYS_CTRL, 0xC0)?; // normal operation, both halves powered
         Self::delay_ms(1);
 
-        // DAC control 1: I2S format, 24-bit
-        self.write_reg(REG_65, 0x00)?;
+        // 24-bit left-justified, slave mode, on both halves — must match the
+        // SAI's MSB-justified frame (I2S here would shift everything a bit).
+        self.write_reg(REG_DAC_CTRL1, 0x01)?;
+        self.write_reg(REG_ADC_CTRL1, 0x01)?;
 
-        // DAC control 2: Normal operation
-        self.write_reg(REG_66, 0x00)?;
-
-        // DAC attenuation: 0dB (0xFF = mute, 0x00 = 0dB)
-        self.write_reg(REG_67, 0x00)?; // Left
-        self.write_reg(REG_68, 0x00)?; // Right
-
-        // ADC attenuation: 0dB
-        self.write_reg(REG_69, 0x00)?; // Left
-        self.write_reg(REG_70, 0x00)?; // Right
-
-        // ADC control 1: I2S format, 24-bit
-        self.write_reg(REG_71, 0x00)?;
-
-        // ADC control 2: Normal operation
-        self.write_reg(REG_72, 0x00)?;
-
-        // ADC input mux: Normal input (not differential)
-        self.write_reg(REG_73, 0x00)?;
-
+        // The attenuation registers keep their power-on defaults (0 dB). Their
+        // encoding is inverted from intuition — DAC: 0xFF = 0 dB, 0x36 and
+        // below = mute — so writing "0x00 for 0 dB" hard-mutes the codec.
         self.ready = true;
         Ok(())
     }
@@ -446,38 +428,44 @@ where
     fn set_output_volume(&mut self, volume: f32) -> CodecResult<()> {
         use pcm3060_regs::*;
 
-        // Attenuation: 0x00 = 0dB, 0xFF = mute
-        // Map 0.0-1.0 to 0xFF-0x00 (inverted because it's attenuation)
+        // DAC attenuation: 0xFF = 0 dB, 0.5 dB per code below it, 0x36 and
+        // below = mute. Map 0.0-1.0 onto mute..0 dB.
         let volume = volume.clamp(0.0, 1.0);
         let attenuation = if volume == 0.0 {
-            0xFF // Mute
+            0x36 // Mute
         } else {
-            ((1.0 - volume) * 0xD8 as f32) as u8 // -54dB range
+            0x37 + (volume * 200.0) as u8 // up to 0xFF = 0 dB
         };
 
-        self.write_reg(REG_67, attenuation)?;
-        self.write_reg(REG_68, attenuation)?;
+        self.write_reg(REG_DAC_ATT_L, attenuation)?;
+        self.write_reg(REG_DAC_ATT_R, attenuation)?;
         Ok(())
     }
 
     fn set_input_gain(&mut self, gain: f32) -> CodecResult<()> {
         use pcm3060_regs::*;
 
-        // ADC attenuation (similar to DAC)
+        // ADC attenuation: 0xD7 = 0 dB (the power-on default), codes below
+        // attenuate toward mute; codes above add gain (up to +20 dB at 0xFF,
+        // not exposed here). Map 0.0-1.0 onto mute..0 dB.
         let gain = gain.clamp(0.0, 1.0);
-        let attenuation = ((1.0 - gain) * 0xD8 as f32) as u8;
+        let attenuation = if gain == 0.0 {
+            0x13 // Mute
+        } else {
+            0x14 + (gain * (0xD7 - 0x14) as f32) as u8 // up to 0xD7 = 0 dB
+        };
 
-        self.write_reg(REG_69, attenuation)?;
-        self.write_reg(REG_70, attenuation)?;
+        self.write_reg(REG_ADC_ATT_L, attenuation)?;
+        self.write_reg(REG_ADC_ATT_R, attenuation)?;
         Ok(())
     }
 
     fn set_mute(&mut self, mute: bool) -> CodecResult<()> {
         use pcm3060_regs::*;
 
-        // DAC control 2: bit 0 is soft mute
-        let control = if mute { 0x01 } else { 0x00 };
-        self.write_reg(REG_66, control)?;
+        // DAC control 2 bits 1:0 are the left/right soft-mute flags.
+        let control = if mute { 0x03 } else { 0x00 };
+        self.write_reg(REG_DAC_CTRL2, control)?;
         Ok(())
     }
 

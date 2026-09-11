@@ -7,7 +7,7 @@ use crate::{
     block::{Block, DEFAULT_EFFECTOR_INPUT_COUNT, DEFAULT_EFFECTOR_OUTPUT_COUNT},
     context::DspContext,
     math,
-    parameter::{ModulationOutput, Parameter},
+    parameter::{ModulationOutput, ModulationValues, Parameter, parameter_name_matches},
     sample::Sample,
     smoothing::LinearSmoothedValue,
 };
@@ -41,7 +41,7 @@ impl<S: Sample> GainBlock<S> {
         let initial_gain = Self::db_to_linear(clamped_db);
 
         Self {
-            level_db: Parameter::Constant(S::from_f64(level_db)),
+            level_db: Parameter::constant(S::from_f64(level_db)),
             base_gain: S::from_f64(base_gain.unwrap_or(1.0)),
             gain_smoother: LinearSmoothedValue::new(S::from_f64(initial_gain)),
         }
@@ -61,8 +61,14 @@ impl<S: Sample> GainBlock<S> {
 }
 
 impl<S: Sample> Block<S> for GainBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        let level_db = self.level_db.get_value(modulation_values).to_f64();
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &ModulationValues<S>,
+        context: &DspContext,
+    ) {
+        let level_db = self.level_db.value(modulation_values).to_f64();
         let target_gain = S::from_f64(Self::db_to_linear(level_db));
 
         let current_target = self.gain_smoother.target();
@@ -109,6 +115,26 @@ impl<S: Sample> Block<S> for GainBlock<S> {
             for (i, &gain) in gain_values.iter().enumerate().take(ch_len) {
                 outputs[ch][i] = inputs[ch][i] * gain;
             }
+        }
+    }
+
+    fn parameter_names(&self) -> &'static [&'static str] {
+        &["level_db"]
+    }
+
+    fn parameter(&self, name: &str) -> Option<&Parameter<S>> {
+        if parameter_name_matches(name, &["level_db", "level"]) {
+            Some(&self.level_db)
+        } else {
+            None
+        }
+    }
+
+    fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+        if parameter_name_matches(name, &["level_db", "level"]) {
+            Some(&mut self.level_db)
+        } else {
+            None
         }
     }
 
@@ -177,7 +203,7 @@ mod tests {
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         for (i, (&inp, &out)) in input.iter().zip(output.iter()).enumerate() {
@@ -204,7 +230,7 @@ mod tests {
         let mut outputs: [&mut [f64]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         for (i, (&inp, &out)) in input.iter().zip(output.iter()).enumerate() {
@@ -231,7 +257,7 @@ mod tests {
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         for (i, &out) in output.iter().enumerate() {
@@ -256,7 +282,7 @@ mod tests {
         let mut outputs: [&mut [f64]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         for (i, &out) in output.iter().enumerate() {
@@ -281,7 +307,7 @@ mod tests {
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         let expected_linear = 10.0_f32.powf(6.0 / 20.0);
@@ -309,7 +335,7 @@ mod tests {
         let mut outputs: [&mut [f64]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         let expected_linear = 10.0_f64.powf(6.0 / 20.0);
@@ -337,7 +363,7 @@ mod tests {
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         let expected_linear = 10.0_f32.powf(-6.0 / 20.0);
@@ -364,7 +390,7 @@ mod tests {
         let mut outputs: [&mut [f64]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         let expected_linear = 10.0_f64.powf(-6.0 / 20.0);
@@ -391,7 +417,7 @@ mod tests {
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         for (i, &out) in output.iter().enumerate() {
@@ -418,7 +444,7 @@ mod tests {
         let mut outputs: [&mut [f32]; 2] = [&mut output_l, &mut output_r];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         for (i, (&inp, &out)) in input_l.iter().zip(output_l.iter()).enumerate() {
@@ -455,7 +481,7 @@ mod tests {
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         let expected = 10.0_f32.powf(-80.0 / 20.0);
@@ -476,7 +502,7 @@ mod tests {
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
         for _ in 0..10 {
-            gain.process(&inputs, &mut outputs, &[], &context);
+            gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         let max_gain = 10.0_f32.powf(30.0 / 20.0);
@@ -500,7 +526,7 @@ mod tests {
         let inputs: [&[f32]; 1] = [&input];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        gain.process(&inputs, &mut outputs, &[], &context);
+        gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         for (i, &out) in output.iter().enumerate() {
             assert!(
@@ -523,7 +549,7 @@ mod tests {
         let inputs: [&[f64]; 1] = [&input];
         let mut outputs: [&mut [f64]; 1] = [&mut output];
 
-        gain.process(&inputs, &mut outputs, &[], &context);
+        gain.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         for (i, &out) in output.iter().enumerate() {
             assert!(

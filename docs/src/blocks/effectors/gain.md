@@ -177,7 +177,7 @@ let lfo = builder.add(LfoBlock::new(4.0, 0.5, Waveform::Sine, None));  // 4 Hz t
 let gain = builder.add(GainBlock::new(0.0, None));
 
 builder.connect(osc, 0, gain, 0);
-builder.modulate(lfo, gain, "level_db");
+builder.modulate(lfo, gain, "level_db")?;
 ```
 
 ### Base Gain for Fixed Scaling

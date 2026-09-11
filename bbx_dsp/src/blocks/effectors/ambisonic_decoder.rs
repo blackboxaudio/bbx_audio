@@ -7,7 +7,7 @@ use crate::{
     channel::{ChannelConfig, ChannelLayout},
     context::DspContext,
     math,
-    parameter::ModulationOutput,
+    parameter::{ModulationOutput, ModulationValues},
     sample::Sample,
 };
 
@@ -194,7 +194,13 @@ impl<S: Sample> AmbisonicDecoderBlock<S> {
 }
 
 impl<S: Sample> Block<S> for AmbisonicDecoderBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         let num_inputs = self.input_channel_count().min(inputs.len());
         let num_outputs = self.output_layout.channel_count().min(outputs.len());
 
@@ -288,7 +294,7 @@ mod tests {
         let inputs: [&[f32]; 4] = [&w, &y, &z, &x];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         // Front signal should have similar levels in L and R
         let diff = (left_out[0] - right_out[0]).abs();
@@ -311,7 +317,7 @@ mod tests {
         let inputs: [&[f32]; 4] = [&w, &y, &z, &x];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         // Left signal should be louder in left channel
         assert!(

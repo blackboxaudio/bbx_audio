@@ -34,19 +34,22 @@ pub struct Sai1Pins {
 }
 
 // ============================================================================
-// I2C Pins (for codec control on Seed 1.1, 1.2)
+// I2C Pins (for codec control on Seed 1.1)
 // ============================================================================
+// Only the Seed 1.1 WM8731 uses codec I2C, over I2C2 (SCL=PH4, SDA=PB11) —
+// see `board::configure_wm8731_i2c2`. The AK4556 (Seed) has no control bus
+// and the Seed 1.2 PCM3060 is strapped in hardware.
 
-/// I2C4 SCL (PH11) - Codec I2C clock (Seed 1.1, 1.2)
-pub type I2c4Scl = gpio::PH11<Alternate<4>>;
+/// I2C2 SCL (PH4) - Codec I2C clock (Seed 1.1)
+pub type I2c2Scl = gpio::PH4<Alternate<4>>;
 
-/// I2C4 SDA (PH12) - Codec I2C data (Seed 1.1, 1.2)
-pub type I2c4Sda = gpio::PH12<Alternate<4>>;
+/// I2C2 SDA (PB11) - Codec I2C data (Seed 1.1)
+pub type I2c2Sda = gpio::PB11<Alternate<4>>;
 
-/// Collected I2C4 pins for codec control.
-pub struct I2c4Pins {
-    pub scl: I2c4Scl,
-    pub sda: I2c4Sda,
+/// Collected I2C2 pins for codec control.
+pub struct I2c2Pins {
+    pub scl: I2c2Scl,
+    pub sda: I2c2Sda,
 }
 
 // ============================================================================

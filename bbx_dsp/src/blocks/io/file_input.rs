@@ -1,6 +1,12 @@
 //! Audio file input block.
 
-use crate::{block::Block, context::DspContext, parameter::ModulationOutput, reader::Reader, sample::Sample};
+use crate::{
+    block::Block,
+    context::DspContext,
+    parameter::{ModulationOutput, ModulationValues},
+    reader::Reader,
+    sample::Sample,
+};
 
 /// Reads audio from a file into the DSP graph.
 ///
@@ -65,7 +71,13 @@ impl<S: Sample> FileInputBlock<S> {
 }
 
 impl<S: Sample> Block<S> for FileInputBlock<S> {
-    fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], context: &DspContext) {
+    fn process(
+        &mut self,
+        _inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        context: &DspContext,
+    ) {
         // Advance by the samples actually written so shorter-than-block
         // slices (e.g. sample-accurate event splitting) don't skip audio
         let num_samples = outputs.first().map_or(0, |o| o.len()).min(context.buffer_size);
@@ -173,7 +185,7 @@ mod tests {
         let mut output = vec![0.0f32; 10];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        block.process(&[], &mut outputs, &[], &context);
+        block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
 
         for (i, &sample) in output.iter().enumerate() {
             assert!((sample - (i as f32 / 100.0)).abs() < 1e-6);
@@ -191,14 +203,14 @@ mod tests {
         let mut output = vec![0.0f32; 10];
         {
             let mut outputs: [&mut [f32]; 1] = [&mut output];
-            block.process(&[], &mut outputs, &[], &context);
+            block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
         }
 
         assert_eq!(block.get_position(), 10);
 
         {
             let mut outputs: [&mut [f32]; 1] = [&mut output];
-            block.process(&[], &mut outputs, &[], &context);
+            block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
         }
         assert!(
             (output[0] - 10.0).abs() < 1e-6,
@@ -218,10 +230,10 @@ mod tests {
         let mut output = vec![0.0f32; 10];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        block.process(&[], &mut outputs, &[], &context);
+        block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
         assert_eq!(block.get_position(), 10);
 
-        block.process(&[], &mut outputs, &[], &context);
+        block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
         assert_eq!(block.get_position(), 20);
     }
 
@@ -245,10 +257,10 @@ mod tests {
         let mut output = vec![0.0f32; 10];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        block.process(&[], &mut outputs, &[], &context);
+        block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
         assert!(!block.is_finished());
 
-        block.process(&[], &mut outputs, &[], &context);
+        block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
         assert!(block.is_finished());
     }
 
@@ -262,7 +274,7 @@ mod tests {
         let mut output = vec![0.0f32; 10];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        block.process(&[], &mut outputs, &[], &context);
+        block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
 
         for i in 0..5 {
             assert!((output[i] - 1.0).abs() < 1e-6);
@@ -283,7 +295,7 @@ mod tests {
         let mut output = vec![0.0f32; 8];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        block.process(&[], &mut outputs, &[], &context);
+        block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
 
         assert!((output[0] - 0.0).abs() < 1e-6);
         assert!((output[1] - 1.0).abs() < 1e-6);
@@ -307,7 +319,7 @@ mod tests {
         let mut output_r = vec![0.0f32; 5];
         let mut outputs: [&mut [f32]; 2] = [&mut output_l, &mut output_r];
 
-        block.process(&[], &mut outputs, &[], &context);
+        block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
 
         for &sample in &output_l {
             assert!((sample - 1.0).abs() < 1e-6);
@@ -328,7 +340,7 @@ mod tests {
         let mut output_1 = vec![0.5f32; 5];
         let mut outputs: [&mut [f32]; 2] = [&mut output_0, &mut output_1];
 
-        block.process(&[], &mut outputs, &[], &context);
+        block.process(&[], &mut outputs, &ModulationValues::empty(), &context);
 
         for &sample in &output_0 {
             assert!((sample - 1.0).abs() < 1e-6);

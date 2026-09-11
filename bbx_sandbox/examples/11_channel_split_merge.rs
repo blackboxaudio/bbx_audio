@@ -46,7 +46,9 @@ fn create_graph() -> Graph<f32> {
 
     // Build signal chain
     builder.connect(oscillator, 0, panner, 0);
-    builder.modulate(pan_lfo, panner, "position");
+    builder
+        .modulate(pan_lfo, panner, "position")
+        .expect("modulation target exists");
 
     // Panner stereo output to splitter
     builder.connect(panner, 0, splitter, 0);

@@ -173,19 +173,19 @@ impl WsSynth {
 
     fn set_filter_cutoff(&mut self, cutoff: f32) {
         if let Some(bbx_dsp::block::BlockType::LowPassFilter(filter)) = self.graph.get_block_mut(self.filter_id) {
-            filter.cutoff = bbx_dsp::parameter::Parameter::Constant(cutoff);
+            filter.cutoff = bbx_dsp::parameter::Parameter::constant(cutoff);
         }
     }
 
     fn set_gain(&mut self, gain_db: f32) {
         if let Some(bbx_dsp::block::BlockType::Gain(gain)) = self.graph.get_block_mut(self.gain_id) {
-            gain.level_db = bbx_dsp::parameter::Parameter::Constant(gain_db);
+            gain.level_db = bbx_dsp::parameter::Parameter::constant(gain_db);
         }
     }
 
     fn set_panner_position(&mut self, position: f32) {
         if let Some(bbx_dsp::block::BlockType::Panner(panner)) = self.graph.get_block_mut(self.panner_id) {
-            panner.position = bbx_dsp::parameter::Parameter::Constant(position);
+            panner.position = bbx_dsp::parameter::Parameter::constant(position);
         }
     }
 

@@ -19,7 +19,7 @@ use crate::{
     block::{Block, MAX_BLOCK_INPUTS},
     channel::ChannelConfig,
     context::DspContext,
-    parameter::ModulationOutput,
+    parameter::{ModulationOutput, ModulationValues},
     sample::Sample,
 };
 
@@ -209,7 +209,13 @@ impl<S: Sample> BinauralDecoderBlock<S> {
 }
 
 impl<S: Sample> Block<S> for BinauralDecoderBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         match self.strategy {
             BinauralStrategy::Matrix => self.process_matrix(inputs, outputs),
             BinauralStrategy::Hrtf => self.process_hrtf(inputs, outputs),
@@ -317,7 +323,7 @@ mod tests {
         let inputs: [&[f32]; 4] = [&w, &y, &z, &x];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let diff = (left_out[0] - right_out[0]).abs();
         assert!(diff < 0.01, "Front signal should be balanced, diff={}", diff);
@@ -339,7 +345,7 @@ mod tests {
         let inputs: [&[f32]; 4] = [&w, &y, &z, &x];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert!(
             left_out[0] > right_out[0],
@@ -365,7 +371,7 @@ mod tests {
         let inputs: [&[f32]; 4] = [&w, &y, &z, &x];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert!(
             right_out[0] > left_out[0],
@@ -391,7 +397,7 @@ mod tests {
         let inputs: [&[f32]; 4] = [&w, &y, &z, &x];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let diff = (left_out[0] - right_out[0]).abs();
         assert!(diff < 0.01, "Rear signal should be balanced, diff={}", diff);
@@ -412,7 +418,7 @@ mod tests {
         let inputs: [&[f32]; 4] = [&w, &y, &z, &x];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         for i in 0..4 {
             assert!(left_out[i].abs() < 1e-10, "Left output should be silence");
@@ -453,7 +459,7 @@ mod tests {
         let mut right_out = [0.0f32; 4];
         let mut outputs: [&mut [f32]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         // V channel should create opposite signs for L/R
         assert!(
@@ -503,7 +509,7 @@ mod tests {
         let inputs: [&[f64]; 4] = [&w, &y, &z, &x];
         let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         let diff = (left_out[0] - right_out[0]).abs();
         assert!(diff < 0.01, "Front signal should be balanced, diff={}", diff);
@@ -524,7 +530,7 @@ mod tests {
         let inputs: [&[f64]; 4] = [&w, &y, &z, &x];
         let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert!(
             left_out[0] > right_out[0],
@@ -549,7 +555,7 @@ mod tests {
         let inputs: [&[f64]; 4] = [&w, &y, &z, &x];
         let mut outputs: [&mut [f64]; 2] = [&mut left_out, &mut right_out];
 
-        decoder.process(&inputs, &mut outputs, &[], &context);
+        decoder.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         for i in 0..4 {
             assert!(left_out[i].abs() < 1e-14, "Left output should be silence");

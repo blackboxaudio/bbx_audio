@@ -97,7 +97,7 @@ let lfo = builder.add(LfoBlock::new(5.0, 0.3, Waveform::Sine, None));
 let osc = builder.add(OscillatorBlock::new(440.0, Waveform::Sine, None));
 
 // Connect LFO to modulate frequency
-builder.modulate(lfo, osc, "frequency");
+builder.modulate(lfo, osc, "frequency")?;
 
 let graph = builder.build();
 ```

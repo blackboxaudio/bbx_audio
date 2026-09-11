@@ -51,17 +51,19 @@ pub struct Sai1Pins {
 // ============================================================================
 // I2C Pins (for PCM3060 codec)
 // ============================================================================
+// Per libDaisy's daisy_patch_sm: the codec hangs off I2C2 on PB10/PB11.
+// (PH11/PH12 are SDRAM data lines on this module, not I2C.)
 
-/// I2C4 SCL (PH11) - Codec I2C clock
-pub type I2c4Scl = gpio::PH11<Alternate<4>>;
+/// I2C2 SCL (PB10) - Codec I2C clock
+pub type I2c2Scl = gpio::PB10<Alternate<4>>;
 
-/// I2C4 SDA (PH12) - Codec I2C data
-pub type I2c4Sda = gpio::PH12<Alternate<4>>;
+/// I2C2 SDA (PB11) - Codec I2C data
+pub type I2c2Sda = gpio::PB11<Alternate<4>>;
 
-/// Collected I2C4 pins for codec control.
-pub struct I2c4Pins {
-    pub scl: I2c4Scl,
-    pub sda: I2c4Sda,
+/// Collected I2C2 pins for codec control.
+pub struct I2c2Pins {
+    pub scl: I2c2Scl,
+    pub sda: I2c2Sda,
 }
 
 // ============================================================================

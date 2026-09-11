@@ -41,17 +41,19 @@ pub struct Sai1Pins {
 // ============================================================================
 // I2C Pins (for WM8731 codec)
 // ============================================================================
+// The WM8731 is configured over I2C2 (SCL=PH4, SDA=PB11) — see
+// `board::configure_wm8731_i2c2`, hardware-verified via the Pod.
 
-/// I2C4 SCL (PH11) - Codec I2C clock
-pub type I2c4Scl = gpio::PH11<Alternate<4>>;
+/// I2C2 SCL (PH4) - Codec I2C clock
+pub type I2c2Scl = gpio::PH4<Alternate<4>>;
 
-/// I2C4 SDA (PH12) - Codec I2C data
-pub type I2c4Sda = gpio::PH12<Alternate<4>>;
+/// I2C2 SDA (PB11) - Codec I2C data
+pub type I2c2Sda = gpio::PB11<Alternate<4>>;
 
-/// Collected I2C4 pins for codec control.
-pub struct I2c4Pins {
-    pub scl: I2c4Scl,
-    pub sda: I2c4Sda,
+/// Collected I2C2 pins for codec control.
+pub struct I2c2Pins {
+    pub scl: I2c2Scl,
+    pub sda: I2c2Sda,
 }
 
 // ============================================================================
@@ -164,6 +166,6 @@ pub struct PodPins {
     pub switch2: Switch2Pin,
     pub led1: Led1Pins,
     pub led2: Led2Pins,
-    pub codec_i2c: I2c4Pins,
+    pub codec_i2c: I2c2Pins,
     pub audio: Sai1Pins,
 }

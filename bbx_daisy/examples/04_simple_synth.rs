@@ -32,7 +32,7 @@ fn main() {}
 mod app {
     use bbx_daisy::{
         bbx_daisy_audio,
-        dsp::{ChannelLayout, block::Block, blocks::EnvelopeBlock, context::DspContext},
+        dsp::{ChannelLayout, block::Block, blocks::EnvelopeBlock, context::DspContext, parameter::ModulationValues},
         prelude::*,
     };
 
@@ -135,11 +135,13 @@ mod app {
             let inputs: [&[f32]; 0] = [];
             {
                 let mut outputs: [&mut [f32]; 1] = [&mut self.amp_env_buffer];
-                self.amp_env.process(&inputs, &mut outputs, &[], &context);
+                self.amp_env
+                    .process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
             }
             {
                 let mut outputs: [&mut [f32]; 1] = [&mut self.filter_env_buffer];
-                self.filter_env.process(&inputs, &mut outputs, &[], &context);
+                self.filter_env
+                    .process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
             }
 
             for i in 0..BLOCK_SIZE {

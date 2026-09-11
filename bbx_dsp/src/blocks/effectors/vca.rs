@@ -2,7 +2,12 @@
 //!
 //! Multiplies an audio signal by a control signal, typically from an envelope.
 
-use crate::{block::Block, context::DspContext, parameter::ModulationOutput, sample::Sample};
+use crate::{
+    block::Block,
+    context::DspContext,
+    parameter::{ModulationOutput, ModulationValues},
+    sample::Sample,
+};
 
 /// A voltage controlled amplifier that multiplies audio by a control signal.
 ///
@@ -32,7 +37,13 @@ impl<S: Sample> Default for VcaBlock<S> {
 
 impl<S: Sample> Block<S> for VcaBlock<S> {
     #[inline]
-    fn process(&mut self, inputs: &[&[S]], outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         let output = match outputs.first_mut() {
             Some(out) => out,
             None => return,
@@ -91,7 +102,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&audio, &control];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        vca.process(&inputs, &mut outputs, &[], &context);
+        vca.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert!((output[0] - 1.0).abs() < 1e-6);
         assert!((output[1] - 0.25).abs() < 1e-6);
@@ -110,7 +121,7 @@ mod tests {
         let inputs: [&[f32]; 1] = [&audio];
         let mut outputs: [&mut [f32]; 1] = [&mut output];
 
-        vca.process(&inputs, &mut outputs, &[], &context);
+        vca.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         for sample in output.iter() {
             assert!((sample - 0.5).abs() < 1e-6);
@@ -143,7 +154,7 @@ mod tests {
         let inputs: [&[f64]; 2] = [&audio, &control];
         let mut outputs: [&mut [f64]; 1] = [&mut output];
 
-        vca.process(&inputs, &mut outputs, &[], &context);
+        vca.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         assert!((output[0] - 1.0).abs() < 1e-12);
         assert!((output[1] - 0.25).abs() < 1e-12);

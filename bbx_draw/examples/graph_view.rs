@@ -35,7 +35,9 @@ fn model(app: &App) -> Model {
 
     builder.connect(osc1, 0, overdrive, 0);
     builder.connect(osc2, 0, overdrive, 0);
-    builder.modulate(lfo, osc1, "frequency");
+    builder
+        .modulate(lfo, osc1, "frequency")
+        .expect("modulation target exists");
 
     let topology = builder.capture_topology();
 

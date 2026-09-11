@@ -10,7 +10,13 @@ use std::{
 
 use bbx_core::{Consumer, Producer, SpscRingBuffer};
 
-use crate::{block::Block, context::DspContext, parameter::ModulationOutput, sample::Sample, writer::Writer};
+use crate::{
+    block::Block,
+    context::DspContext,
+    parameter::{ModulationOutput, ModulationValues},
+    sample::Sample,
+    writer::Writer,
+};
 
 /// Default ring buffer capacity in samples (~1 second at 44.1kHz stereo).
 const DEFAULT_RING_BUFFER_CAPACITY: usize = 44100 * 2;
@@ -164,7 +170,13 @@ impl<S: Sample + Send + 'static> FileOutputBlock<S> {
 }
 
 impl<S: Sample + Send + 'static> Block<S> for FileOutputBlock<S> {
-    fn process(&mut self, inputs: &[&[S]], _outputs: &mut [&mut [S]], _modulation_values: &[S], _context: &DspContext) {
+    fn process(
+        &mut self,
+        inputs: &[&[S]],
+        _outputs: &mut [&mut [S]],
+        _modulation_values: &ModulationValues<S>,
+        _context: &DspContext,
+    ) {
         if !self.is_recording || inputs.is_empty() {
             return;
         }
@@ -314,7 +326,7 @@ mod tests {
         let inputs: [&[f32]; 1] = [&input];
         let mut outputs: [&mut [f32]; 0] = [];
 
-        block.process(&inputs, &mut outputs, &[], &context);
+        block.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         block.stop_recording().unwrap();
 
@@ -339,7 +351,7 @@ mod tests {
         let inputs: [&[f32]; 0] = [];
         let mut outputs: [&mut [f32]; 0] = [];
 
-        block.process(&inputs, &mut outputs, &[], &context);
+        block.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
 
         block.stop_recording().unwrap();
         assert!(!block.error_occurred());
@@ -357,7 +369,7 @@ mod tests {
         let inputs: [&[f32]; 1] = [&mono_input];
         let mut outputs: [&mut [f32]; 0] = [];
 
-        block.process(&inputs, &mut outputs, &[], &context);
+        block.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         block.stop_recording().unwrap();
 
         let written = channels.lock().unwrap();
@@ -378,7 +390,7 @@ mod tests {
         let inputs: [&[f32]; 2] = [&left, &right];
         let mut outputs: [&mut [f32]; 0] = [];
 
-        block.process(&inputs, &mut outputs, &[], &context);
+        block.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         block.stop_recording().unwrap();
 
         let written = channels.lock().unwrap();
@@ -400,7 +412,7 @@ mod tests {
         let inputs: [&[f32]; 3] = [&ch0, &ch1, &ch2];
         let mut outputs: [&mut [f32]; 0] = [];
 
-        block.process(&inputs, &mut outputs, &[], &context);
+        block.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         block.stop_recording().unwrap();
 
         let written = channels.lock().unwrap();

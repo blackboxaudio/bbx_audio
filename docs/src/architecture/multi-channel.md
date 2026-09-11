@@ -119,7 +119,7 @@ impl<S: Sample> Block<S> for MyMixerBlock<S> {
         &mut self,
         inputs: &[&[S]],
         outputs: &mut [&mut [S]],
-        modulation_values: &[S],
+        modulation_values: &ModulationValues<S>,
         context: &DspContext,
     ) {
         // Custom mixing logic here

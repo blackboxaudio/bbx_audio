@@ -3,7 +3,7 @@
 use crate::{
     block::{Block, DEFAULT_MODULATOR_INPUT_COUNT, DEFAULT_MODULATOR_OUTPUT_COUNT},
     context::DspContext,
-    parameter::{ModulationOutput, Parameter},
+    parameter::{ModulationOutput, ModulationValues, Parameter, parameter_name_matches},
     sample::Sample,
 };
 
@@ -54,10 +54,10 @@ impl<S: Sample> EnvelopeBlock<S> {
     /// Times are in seconds, sustain is a level from 0.0 to 1.0.
     pub fn new(attack: f64, decay: f64, sustain: f64, release: f64) -> Self {
         Self {
-            attack: Parameter::Constant(S::from_f64(attack)),
-            decay: Parameter::Constant(S::from_f64(decay)),
-            sustain: Parameter::Constant(S::from_f64(sustain)),
-            release: Parameter::Constant(S::from_f64(release)),
+            attack: Parameter::constant(S::from_f64(attack)),
+            decay: Parameter::constant(S::from_f64(decay)),
+            sustain: Parameter::constant(S::from_f64(sustain)),
+            release: Parameter::constant(S::from_f64(release)),
             stage: EnvelopeStage::Idle,
             level: 0.0,
             stage_time: 0.0,
@@ -95,11 +95,17 @@ impl<S: Sample> EnvelopeBlock<S> {
 }
 
 impl<S: Sample> Block<S> for EnvelopeBlock<S> {
-    fn process(&mut self, _inputs: &[&[S]], outputs: &mut [&mut [S]], modulation_values: &[S], context: &DspContext) {
-        let attack_time = Self::clamp_time(self.attack.get_value(modulation_values).to_f64());
-        let decay_time = Self::clamp_time(self.decay.get_value(modulation_values).to_f64());
-        let sustain_level = self.sustain.get_value(modulation_values).to_f64().clamp(0.0, 1.0);
-        let release_time = Self::clamp_time(self.release.get_value(modulation_values).to_f64());
+    fn process(
+        &mut self,
+        _inputs: &[&[S]],
+        outputs: &mut [&mut [S]],
+        modulation_values: &ModulationValues<S>,
+        context: &DspContext,
+    ) {
+        let attack_time = Self::clamp_time(self.attack.value(modulation_values).to_f64());
+        let decay_time = Self::clamp_time(self.decay.value(modulation_values).to_f64());
+        let sustain_level = self.sustain.value(modulation_values).to_f64().clamp(0.0, 1.0);
+        let release_time = Self::clamp_time(self.release.value(modulation_values).to_f64());
 
         let time_per_sample = 1.0 / context.sample_rate;
 
@@ -152,6 +158,38 @@ impl<S: Sample> Block<S> for EnvelopeBlock<S> {
         }
     }
 
+    fn parameter_names(&self) -> &'static [&'static str] {
+        &["attack", "decay", "sustain", "release"]
+    }
+
+    fn parameter(&self, name: &str) -> Option<&Parameter<S>> {
+        if parameter_name_matches(name, &["attack"]) {
+            Some(&self.attack)
+        } else if parameter_name_matches(name, &["decay"]) {
+            Some(&self.decay)
+        } else if parameter_name_matches(name, &["sustain"]) {
+            Some(&self.sustain)
+        } else if parameter_name_matches(name, &["release"]) {
+            Some(&self.release)
+        } else {
+            None
+        }
+    }
+
+    fn parameter_mut(&mut self, name: &str) -> Option<&mut Parameter<S>> {
+        if parameter_name_matches(name, &["attack"]) {
+            Some(&mut self.attack)
+        } else if parameter_name_matches(name, &["decay"]) {
+            Some(&mut self.decay)
+        } else if parameter_name_matches(name, &["sustain"]) {
+            Some(&mut self.sustain)
+        } else if parameter_name_matches(name, &["release"]) {
+            Some(&mut self.release)
+        } else {
+            None
+        }
+    }
+
     #[inline]
     fn input_count(&self) -> usize {
         DEFAULT_MODULATOR_INPUT_COUNT
@@ -198,7 +236,7 @@ mod tests {
         let inputs: [&[S]; 0] = [];
         let mut output = vec![S::ZERO; context.buffer_size];
         let mut outputs: [&mut [S]; 1] = [&mut output];
-        env.process(&inputs, &mut outputs, &[], context);
+        env.process(&inputs, &mut outputs, &ModulationValues::empty(), context);
         output
     }
 
@@ -213,7 +251,7 @@ mod tests {
         let mut output = vec![0.0f32; 100];
         {
             let mut outputs: [&mut [f32]; 1] = [&mut output];
-            env.process(&inputs, &mut outputs, &[], &context);
+            env.process(&inputs, &mut outputs, &ModulationValues::empty(), &context);
         }
 
         let expected_level = (100.0 / 44100.0) / 0.1;

@@ -88,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let panner = builder.add(PannerBlock::new(0.0));
 
     builder.connect(osc, 0, filter, 0);
-    builder.modulate(lfo, filter, "cutoff");
+    builder.modulate(lfo, filter, "cutoff")?;
     builder.connect(filter, 0, gain, 0);
     builder.connect(gain, 0, panner, 0);
 

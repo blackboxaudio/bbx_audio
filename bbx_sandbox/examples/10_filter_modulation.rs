@@ -35,7 +35,9 @@ fn create_graph() -> Graph<f32> {
     // Build signal chain
     builder.connect(oscillator, 0, filter, 0);
     builder.connect(filter, 0, gain, 0);
-    builder.modulate(lfo, filter, "cutoff");
+    builder
+        .modulate(lfo, filter, "cutoff")
+        .expect("modulation target exists");
 
     builder.build()
 }
